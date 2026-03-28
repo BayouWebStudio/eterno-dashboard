@@ -85,3 +85,11 @@
 - [x] Save new section order via Convex API after drag completes
 - [x] Write tests for section reorder functionality
 - [x] Fix: Add section fails for photo-gallery type because content field is empty/missing
+- [x] Build inline visual editor using proxy/injected HTML approach
+- [x] Create edit injection script for contenteditable text, image swap buttons, gallery controls
+- [x] Build VisualEditor page with srcdoc iframe and postMessage communication
+- [x] Wire up save handlers for text edits, image swaps, gallery changes
+- [x] Add section controls (add, delete, rearrange) as overlays on the site
+- [x] Add page dropdown to switch between index.html, tattoos.html, etc.
+- [x] Replace Sections sidebar route with the new VisualEditor
+- [x] Write tests for the visual editor

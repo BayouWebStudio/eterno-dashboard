@@ -8,7 +8,7 @@ import { AuthProvider, RequireAuth } from "./contexts/AuthContext";
 import { SiteProvider } from "./contexts/SiteContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Overview from "./pages/Overview";
-import SectionEditor from "./pages/SectionEditor";
+import VisualEditor from "./pages/VisualEditor";
 import Store from "./pages/Store";
 import Themes from "./pages/Themes";
 import Languages from "./pages/Languages";
@@ -17,7 +17,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Overview} />
-      <Route path="/sections" component={SectionEditor} />
+      <Route path="/sections" component={VisualEditor} />
       <Route path="/store" component={Store} />
       <Route path="/themes" component={Themes} />
       <Route path="/i18n" component={Languages} />
