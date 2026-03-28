@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { useSite } from "@/contexts/SiteContext";
 import { ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages, Loader2 } from "lucide-react";
+import BuildStatusIndicator from "@/components/BuildStatusIndicator";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -29,15 +30,7 @@ export default function Overview() {
 
   // ── Building: site is being created ──
   if (onboardingStatus === "building") {
-    return (
-      <div className="flex flex-col items-center justify-center h-80 gap-6">
-        <div className="w-12 h-12 border-3 border-gold/30 border-t-gold rounded-full animate-spin" />
-        <div className="text-center">
-          <p className="text-lg font-heading font-bold text-foreground mb-2">{buildProgress}</p>
-          <p className="text-sm text-muted-foreground">This takes about 2-5 minutes</p>
-        </div>
-      </div>
-    );
+    return <BuildStatusIndicator buildProgress={buildProgress} error={error} />;
   }
 
   // ── Loading state ──

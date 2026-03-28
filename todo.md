@@ -31,3 +31,4 @@
 - [x] Write vitest tests for onboarding flow
 - [x] Change setup-site endpoint from /api/dashboard/setup-site to /api/signature/create
 - [x] Add country selector to onboarding form (required by /api/signature/create)
+- [x] Add real-time build status indicator with animated progress steps after onboarding form submission
