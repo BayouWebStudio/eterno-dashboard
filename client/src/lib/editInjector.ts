@@ -271,10 +271,17 @@ const EDIT_JS = `
   function findSectionId(el) {
     var node = el;
     while (node && node !== document.body) {
+      // Skip injected editor elements (ve-img-wrapper, ve-section-controls, etc.)
+      var nodeCls = node.className || '';
+      if (typeof nodeCls === 'string' && nodeCls.indexOf('ve-') === 0) {
+        node = node.parentElement;
+        continue;
+      }
+
       if (node.id) return node.id;
       if (node.dataset && node.dataset.section) return node.dataset.section;
       if (node.tagName === 'SECTION' || node.tagName === 'DIV') {
-        var cls = node.className || '';
+        var cls = nodeCls;
         if (typeof cls === 'string' && cls.length > 0) {
           var extracted = extractSectionIdFromClass(cls);
           if (extracted) return extracted;

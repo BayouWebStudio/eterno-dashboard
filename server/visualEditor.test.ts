@@ -187,6 +187,86 @@ describe("editInjector — extractSectionIdFromClass", () => {
   });
 });
 
+describe("editInjector — findSectionId skips injected ve-* elements", () => {
+  // Reimplements the ve-* skip logic from findSectionId
+  function shouldSkipNode(cls: string): boolean {
+    if (typeof cls === 'string' && cls.indexOf('ve-') === 0) return true;
+    return false;
+  }
+
+  it("skips ve-img-wrapper div", () => {
+    expect(shouldSkipNode("ve-img-wrapper")).toBe(true);
+  });
+
+  it("skips ve-section-controls div", () => {
+    expect(shouldSkipNode("ve-section-controls")).toBe(true);
+  });
+
+  it("skips ve-gallery-section div", () => {
+    expect(shouldSkipNode("ve-gallery-section")).toBe(true);
+  });
+
+  it("skips ve-gallery-item div", () => {
+    expect(shouldSkipNode("ve-gallery-item")).toBe(true);
+  });
+
+  it("does not skip masonry-item div", () => {
+    expect(shouldSkipNode("masonry-item")).toBe(false);
+  });
+
+  it("does not skip gallery-body div", () => {
+    expect(shouldSkipNode("gallery-body")).toBe(false);
+  });
+
+  it("does not skip about-section div", () => {
+    expect(shouldSkipNode("about-section")).toBe(false);
+  });
+
+  it("does not skip empty class", () => {
+    expect(shouldSkipNode("")).toBe(false);
+  });
+
+  it("extractSectionIdFromClass returns 've-img' for ve-img-wrapper (the bug)", () => {
+    // This is what was happening before the fix — the container regex matched
+    const cls = "ve-img-wrapper";
+    const containerMatch = cls.match(/(?:^|\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container)(?:\s|$)/i);
+    expect(containerMatch).not.toBeNull();
+    expect(containerMatch![1]).toBe("ve-img");
+  });
+
+  it("with ve-* skip, findSectionId traverses past ve-img-wrapper to real parent", () => {
+    // Simulate DOM: img → ve-img-wrapper → masonry-item → masonry-grid → gallery-body
+    const ancestors = [
+      { cls: "ve-img-wrapper", tag: "DIV" },
+      { cls: "masonry-item fade-up", tag: "DIV" },
+      { cls: "masonry-grid", tag: "DIV" },
+      { cls: "gallery-body", tag: "DIV" },
+    ];
+
+    function extractSectionIdFromClass(cls: string): string | null {
+      if (cls.indexOf("gallery-body") >= 0) return "tattoo-gallery";
+      if (cls.indexOf("masonry-grid") >= 0) return "tattoo-gallery";
+      return null;
+    }
+
+    let result: string | null = null;
+    for (const ancestor of ancestors) {
+      // Skip ve-* elements
+      if (ancestor.cls.indexOf("ve-") === 0) continue;
+
+      if (ancestor.tag === "SECTION" || ancestor.tag === "DIV") {
+        const extracted = extractSectionIdFromClass(ancestor.cls);
+        if (extracted) {
+          result = extracted;
+          break;
+        }
+      }
+    }
+    // Should find tattoo-gallery from masonry-grid, NOT ve-img from ve-img-wrapper
+    expect(result).toBe("tattoo-gallery");
+  });
+});
+
 describe("editInjector — field key generation", () => {
   function findFieldKey(tag: string, sectionId: string, cls: string = ""): string {
     if (sectionId === "hero" || sectionId === "page-hero") {
