@@ -67,6 +67,7 @@ interface SiteContextValue {
   saveGalleryOrder: (filenames: string[], sectionId?: string) => Promise<boolean>;
   deleteGalleryImage: (filename: string, sectionId?: string) => Promise<boolean>;
   deleteSiteSection: (sectionKeyword: string) => Promise<boolean>;
+  addSiteSection: (sectionType: string, title: string, content: string) => Promise<boolean>;
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -316,6 +317,30 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [convexHttpUrl, authFetch]
   );
 
+  // ── Add a section via /api/dashboard/add-section ──
+  const addSiteSection = useCallback(
+    async (sectionType: string, title: string, content: string): Promise<boolean> => {
+      if (!convexHttpUrl) return false;
+      try {
+        const res = await authFetch("/api/dashboard/add-section", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionType, title, content }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data?.upgradeRequired) throw new Error("Free plan limit reached \u2014 upgrade to Pro");
+          throw new Error(data?.error || `Add section failed: ${res.status}`);
+        }
+        return true;
+      } catch (err) {
+        console.error(`[Site] Add section "${sectionType}" failed:`, err);
+        return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
   // ── Connect existing site by Instagram handle ──
   const connectSite = useCallback(
     async (igHandle: string): Promise<{ success: boolean; error?: string }> => {
@@ -463,6 +488,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         saveGalleryOrder,
         deleteGalleryImage,
         deleteSiteSection,
+        addSiteSection,
         setupSite,
         connectSite,
       }}

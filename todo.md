@@ -74,3 +74,8 @@
 - [x] Add Delete Section button with confirmation dialog to Section Editor
 - [x] Refresh section list after successful deletion
 - [x] Write tests for delete section functionality
+- [x] Research Convex API for add section endpoint
+- [x] Add addSiteSection method to SiteContext
+- [x] Add "Add Section" button with section type picker to Section Editor
+- [x] Refresh section list after successful addition
+- [x] Write tests for add section functionality

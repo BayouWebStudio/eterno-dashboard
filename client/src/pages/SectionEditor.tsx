@@ -24,6 +24,8 @@ import {
   FileText,
   ChevronDown,
   Trash2,
+  Plus,
+  X,
 } from "lucide-react";
 
 /** Status badge shown next to the Save button */
@@ -157,6 +159,7 @@ export default function SectionEditor() {
     uploadSiteImage,
     refreshHtml,
     deleteSiteSection,
+    addSiteSection,
     isSignatureSite,
     availablePages,
     currentPage,
@@ -165,6 +168,13 @@ export default function SectionEditor() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // ── Add Section state ──
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [addSectionType, setAddSectionType] = useState("services");
+  const [addSectionTitle, setAddSectionTitle] = useState("");
+  const [addSectionContent, setAddSectionContent] = useState("");
+  const [adding, setAdding] = useState(false);
 
   // ── Save Queue ──
   const {
@@ -233,6 +243,36 @@ export default function SectionEditor() {
   const handleSave = useCallback(async () => {
     await flush();
   }, [flush]);
+
+  // ── Add section handler ──
+  const handleAddSection = useCallback(async () => {
+    if (!addSectionTitle.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+    if (addSectionType !== "photo-gallery" && !addSectionContent.trim()) {
+      toast.error("Content is required");
+      return;
+    }
+    setAdding(true);
+    try {
+      const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), addSectionContent.trim());
+      if (ok) {
+        toast.success("Section added! Allow 3\u20135 minutes to show on your website.");
+        setShowAddSection(false);
+        setAddSectionType("services");
+        setAddSectionTitle("");
+        setAddSectionContent("");
+        await refreshHtml();
+      } else {
+        toast.error("Failed to add section. Please try again.");
+      }
+    } catch {
+      toast.error("Failed to add section. Please try again.");
+    } finally {
+      setAdding(false);
+    }
+  }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, refreshHtml]);
 
   // ── Delete section handler ──
   const handleDeleteSection = useCallback(async (sectionId: string) => {
@@ -311,6 +351,15 @@ export default function SectionEditor() {
             {sections.length === 0 && (
               <p className="text-xs text-muted-foreground px-1">No editable sections found on this page.</p>
             )}
+            {/* Add Section button */}
+            <button
+              onClick={() => setShowAddSection(true)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium text-gold/70 hover:text-gold hover:bg-[oklch(0.19_0.005_250)] transition-all duration-150 border border-dashed border-gold/20 hover:border-gold/40 mb-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Section
+            </button>
+
             {sections.map((sec) => {
               const isActive = sec.id === (activeSec?.id ?? "");
               return (
@@ -504,6 +553,134 @@ export default function SectionEditor() {
                 Select a section to edit
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Add Section Modal */}
+      {showAddSection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-lg shadow-2xl w-full max-w-md mx-4">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="font-heading text-lg font-bold text-foreground">Add New Section</h2>
+              <button
+                onClick={() => {
+                  setShowAddSection(false);
+                  setAddSectionType("services");
+                  setAddSectionTitle("");
+                  setAddSectionContent("");
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {/* Section Type */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Section Type
+                </label>
+                <select
+                  value={addSectionType}
+                  onChange={(e) => setAddSectionType(e.target.value)}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                >
+                  <option value="photo-gallery">Photo Gallery</option>
+                  <option value="services">Services / Pricing</option>
+                  <option value="faq">FAQ</option>
+                  <option value="testimonials">Testimonials</option>
+                  <option value="hours">Hours</option>
+                  <option value="team">Team</option>
+                  <option value="custom">Custom Text</option>
+                </select>
+              </div>
+
+              {/* Hint for custom */}
+              {addSectionType === "custom" && (
+                <div className="flex gap-2 p-3 rounded-md bg-[oklch(0.75_0.12_85/8%)] border border-gold-dim/25">
+                  <span className="text-sm flex-shrink-0">💡</span>
+                  <p className="text-xs text-gold-dim leading-relaxed">
+                    Want to add photos? Use <strong className="text-gold">Photo Gallery</strong> instead — it creates a proper photo grid you can upload to.
+                  </p>
+                </div>
+              )}
+
+              {/* Title */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={addSectionTitle}
+                  onChange={(e) => setAddSectionTitle(e.target.value)}
+                  placeholder="e.g. Our Services"
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                />
+              </div>
+
+              {/* Content (hidden for photo-gallery) */}
+              {addSectionType !== "photo-gallery" && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                    Content
+                  </label>
+                  <textarea
+                    value={addSectionContent}
+                    onChange={(e) => setAddSectionContent(e.target.value)}
+                    placeholder={
+                      addSectionType === "services" || addSectionType === "pricing"
+                        ? "e.g. Haircut - $30, Beard Trim - $25"
+                        : addSectionType === "faq"
+                          ? "e.g. Q: How long does it take? A: 2-3 hours"
+                          : addSectionType === "testimonials"
+                            ? "e.g. John: Great experience!, Sarah: Amazing work!"
+                            : addSectionType === "hours"
+                              ? "e.g. Mon-Fri: 9am-7pm, Sat: 10am-5pm, Sun: Closed"
+                              : addSectionType === "team"
+                                ? "e.g. Alex (Lead Stylist), Maria (Colorist)"
+                                : "Describe the section content..."
+                    }
+                    rows={5}
+                    className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[100px]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowAddSection(false);
+                  setAddSectionType("services");
+                  setAddSectionTitle("");
+                  setAddSectionContent("");
+                }}
+                disabled={adding}
+                className="border-border text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddSection}
+                disabled={adding}
+                className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold"
+                size="sm"
+              >
+                {adding ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {adding ? "Adding..." : "Add Section"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
