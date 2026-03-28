@@ -55,3 +55,4 @@
 - [x] Detect gallery sections (isGallery flag) and render GalleryEditor instead of text fields
 - [x] Support image upload, delete, and drag-to-reorder in GalleryEditor
 - [x] Save gallery changes via saveSiteField with gallery_images key
+- [x] Fix: Gallery not editable under tattoos.html in Section Editor

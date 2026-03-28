@@ -367,15 +367,53 @@ export function parseSections(html: string): SectionGroup[] {
     }
   }
 
+  // ── TATTOOS / MASONRY GALLERY (no <section id> wrapper) ──
+  // Some pages (e.g. tattoos.html) use <div class="gallery-body"> + <div class="masonry-grid">
+  // instead of a <section id="gallery">. Detect and add as a gallery section.
+  if (!handledIds.has("tattoo-gallery")) {
+    const hasMasonry = /class="[^"]*masonry[_-]?grid[^"]*"/.test(html);
+    const hasGalleryBody = /class="[^"]*gallery[_-]?body[^"]*"/.test(html);
+    if (hasMasonry || hasGalleryBody) {
+      // Extract title from page-hero if available
+      const pageHeroMatch = html.match(/<section[^>]*class="[^"]*page-hero[^"]*"[^>]*>([\s\S]*?)<\/section>/i);
+      const heroH1 = pageHeroMatch ? pageHeroMatch[1].match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) : null;
+      const galleryTitle = heroH1 ? strip(heroH1[1]) : "Gallery";
+      const fields: SectionField[] = [
+        { key: "section_title__tattoo-gallery", label: "Gallery Title", type: "text", value: galleryTitle },
+      ];
+      groups.push({ id: "tattoo-gallery", icon: "📷", title: galleryTitle, fields, isGallery: true });
+    }
+  }
+
   return groups;
 }
 
 /**
  * Parse gallery images from site HTML for a given section.
+ * Supports:
+ * - <section id="gallery"> or <section class="gallery-section">
+ * - <div class="gallery-body"> with <div class="masonry-grid"> (tattoos.html pattern)
  */
 export function parseGalleryImages(html: string, sectionId = "gallery"): string[] {
+  // Try standard section-based gallery first
   const secMatch = html.match(new RegExp(`<section[^>]+(?:id="${sectionId}"|class="[^"]*gallery-section[^"]*")[^>]*>([\\s\\S]*?)<\\/section>`, "i"));
-  if (!secMatch) return [];
-  const imgs = Array.from(secMatch[1].matchAll(/<img[^>]*src="([^"]+)"[^>]*>/gi));
-  return imgs.map((m) => m[1]);
+  if (secMatch) {
+    const imgs = Array.from(secMatch[1].matchAll(/<img[^>]*src="([^"]+)"[^>]*>/gi));
+    return imgs.map((m) => m[1]);
+  }
+
+  // Fallback: look for masonry-grid or gallery-body div (tattoos.html pattern)
+  const masonryMatch =
+    html.match(/<div[^>]*class="[^"]*masonry[_-]?grid[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i) ||
+    html.match(/<div[^>]*class="[^"]*gallery[_-]?body[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?:<\/div>|<section)/i);
+  if (masonryMatch) {
+    const imgs = Array.from(masonryMatch[1].matchAll(/<img[^>]*src="([^"]+)"[^>]*>/gi));
+    if (imgs.length > 0) return imgs.map((m) => m[1]);
+  }
+
+  // Last resort: find all masonry-item images anywhere in the HTML
+  const masonryItems = Array.from(html.matchAll(/<div[^>]*class="[^"]*masonry-item[^"]*"[^>]*>\s*<img[^>]*src="([^"]+)"[^>]*>/gi));
+  if (masonryItems.length > 0) return masonryItems.map((m) => m[1]);
+
+  return [];
 }

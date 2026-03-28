@@ -4,6 +4,7 @@ import { parseSections, parseGalleryImages } from "../client/src/lib/parseHtml";
 /**
  * Tests for the inline gallery editor integration in the Section Editor.
  * Covers gallery section detection, image parsing, and isGallery flag.
+ * Includes tests for tattoos.html masonry-grid pattern.
  */
 
 const GALLERY_HTML = `
@@ -44,6 +45,26 @@ const NO_GALLERY_HTML = `
 </section>
 `;
 
+// Mimics the actual tattoos.html structure from Hex's sites
+const TATTOOS_HTML = `
+<section class="page-hero">
+  <p class="page-eyebrow fade-up">Portfolio</p>
+  <h1 class="fade-up">Tattoos</h1>
+</section>
+<div class="gallery-body">
+  <div class="masonry-grid">
+    <div class="masonry-item fade-up"><img src="img/1.jpg" alt="Raul Wesche tattoo" loading="lazy"></div>
+    <div class="masonry-item fade-up"><img src="img/2.jpg" alt="Raul Wesche tattoo" loading="lazy"></div>
+    <div class="masonry-item fade-up"><img src="img/3.jpg" alt="Raul Wesche tattoo" loading="lazy"></div>
+    <div class="masonry-item fade-up"><img src="img/4.jpg" alt="Raul Wesche tattoo" loading="lazy"></div>
+  </div>
+</div>
+<section class="booking-cta-section">
+  <h2>Ready to get inked?</h2>
+  <p>Book your session today and let us create something amazing.</p>
+</section>
+`;
+
 describe("Gallery section detection in parseSections", () => {
   it("detects gallery section with isGallery flag", () => {
     const sections = parseSections(GALLERY_HTML);
@@ -80,6 +101,33 @@ describe("Gallery section detection in parseSections", () => {
   });
 });
 
+describe("Tattoos.html masonry gallery detection", () => {
+  it("detects masonry-grid as a gallery section", () => {
+    const sections = parseSections(TATTOOS_HTML);
+    const gallerySec = sections.find((s) => s.isGallery === true);
+    expect(gallerySec).toBeDefined();
+    expect(gallerySec!.id).toBe("tattoo-gallery");
+  });
+
+  it("masonry gallery has correct icon", () => {
+    const sections = parseSections(TATTOOS_HTML);
+    const gallerySec = sections.find((s) => s.id === "tattoo-gallery");
+    expect(gallerySec!.icon).toBe("📷");
+  });
+
+  it("extracts title from page-hero h1", () => {
+    const sections = parseSections(TATTOOS_HTML);
+    const gallerySec = sections.find((s) => s.id === "tattoo-gallery");
+    expect(gallerySec!.title).toBe("Tattoos");
+  });
+
+  it("masonry gallery section has isGallery true", () => {
+    const sections = parseSections(TATTOOS_HTML);
+    const gallerySec = sections.find((s) => s.id === "tattoo-gallery");
+    expect(gallerySec!.isGallery).toBe(true);
+  });
+});
+
 describe("parseGalleryImages", () => {
   it("extracts image URLs from gallery section", () => {
     const images = parseGalleryImages(GALLERY_HTML);
@@ -102,9 +150,26 @@ describe("parseGalleryImages", () => {
   });
 
   it("falls back to gallery-section class when ID does not match", () => {
-    // parseGalleryImages regex also matches class="gallery-section"
     const images = parseGalleryImages(GALLERY_HTML, "nonexistent");
     expect(images.length).toBeGreaterThan(0);
+  });
+});
+
+describe("parseGalleryImages for tattoos.html masonry pattern", () => {
+  it("extracts images from masonry-item divs", () => {
+    const images = parseGalleryImages(TATTOOS_HTML);
+    expect(images).toEqual(["img/1.jpg", "img/2.jpg", "img/3.jpg", "img/4.jpg"]);
+  });
+
+  it("extracts images with tattoo-gallery sectionId", () => {
+    const images = parseGalleryImages(TATTOOS_HTML, "tattoo-gallery");
+    expect(images.length).toBe(4);
+    expect(images[0]).toBe("img/1.jpg");
+  });
+
+  it("returns correct count of masonry images", () => {
+    const images = parseGalleryImages(TATTOOS_HTML);
+    expect(images.length).toBe(4);
   });
 });
 
@@ -123,7 +188,6 @@ describe("Gallery image save format", () => {
 
   it("preserves order after reorder", () => {
     const images = ["img/a.jpg", "img/b.jpg", "img/c.jpg"];
-    // Simulate drag: move index 2 to index 0
     const next = [...images];
     const [moved] = next.splice(2, 1);
     next.splice(0, 0, moved);
