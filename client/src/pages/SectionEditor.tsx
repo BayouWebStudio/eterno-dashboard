@@ -341,7 +341,10 @@ export default function SectionEditor() {
     }
     setAdding(true);
     try {
-      const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), addSectionContent.trim());
+      const contentToSend = addSectionType === "photo-gallery"
+            ? "Gallery section"
+            : addSectionContent.trim();
+          const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), contentToSend);
       if (ok) {
         toast.success("Section added! Allow 3\u20135 minutes to show on your website.");
         setShowAddSection(false);

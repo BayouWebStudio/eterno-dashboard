@@ -84,3 +84,4 @@
 - [x] Build drag-and-drop reorder UI in Section Editor section list
 - [x] Save new section order via Convex API after drag completes
 - [x] Write tests for section reorder functionality
+- [x] Fix: Add section fails for photo-gallery type because content field is empty/missing
