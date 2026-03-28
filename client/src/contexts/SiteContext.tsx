@@ -3,14 +3,34 @@
   Manages the current site selection, site info, and site HTML.
   Uses the real Convex HTTP action endpoints from the original dashboard:
     - GET  /api/dashboard/info            → site info (slug, plan, domain, etc.)
-    - GET  /api/dashboard/site-html       → full HTML of the site
-    - POST /api/dashboard/save-section    → save a field
+    - GET  /api/dashboard/site-html       → full HTML of the site (returns html, isSignature, availablePages, currentPage)
+    - POST /api/dashboard/save-section    → save a field (includes page param for non-index pages)
     - POST /api/dashboard/upload-hero-bg  → upload images
     - POST /api/signature/create          → onboarding: create site from IG handle
     - POST /api/dashboard/connect-site    → connect existing site by IG handle
 */
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "./AuthContext";
+
+/* ── Page name mapping ── */
+const PAGE_NAMES: Record<string, string> = {
+  "index.html": "Home",
+  "about.html": "About",
+  "tattoos.html": "Tattoos",
+  "booking.html": "Booking",
+  "testimonials.html": "Testimonials",
+  "jewelry.html": "Jewelry",
+  "art.html": "Art",
+  "paintings.html": "Paintings",
+  "concepts.html": "Concepts",
+  "shop.html": "Shop",
+  "faq.html": "FAQ",
+  "contact.html": "Contact",
+};
+
+export function getPageLabel(page: string): string {
+  return PAGE_NAMES[page] || page.replace(".html", "").charAt(0).toUpperCase() + page.replace(".html", "").slice(1);
+}
 
 export interface SiteInfo {
   slug: string;
@@ -30,11 +50,18 @@ interface SiteContextValue {
   currentSite: SiteInfo | null;
   siteHtml: string;
   loading: boolean;
+  htmlLoading: boolean;
   error: string | null;
   onboardingStatus: OnboardingStatus;
   buildProgress: string;
+  /* Multi-page support */
+  isSignatureSite: boolean;
+  availablePages: string[];
+  currentPage: string;
+  switchPage: (page: string) => Promise<void>;
+  /* Actions */
   refreshInfo: () => Promise<void>;
-  refreshHtml: () => Promise<void>;
+  refreshHtml: (page?: string) => Promise<void>;
   saveSiteField: (key: string, value: string) => Promise<boolean>;
   uploadSiteImage: (file: File, folder?: string) => Promise<string | null>;
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
@@ -54,9 +81,19 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const [currentSite, setCurrentSite] = useState<SiteInfo | null>(null);
   const [siteHtml, setSiteHtml] = useState("");
   const [loading, setLoading] = useState(false);
+  const [htmlLoading, setHtmlLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>("idle");
   const [buildProgress, setBuildProgress] = useState("");
+
+  /* Multi-page state */
+  const [isSignatureSite, setIsSignatureSite] = useState(false);
+  const [availablePages, setAvailablePages] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState("index.html");
+
+  // Use ref to avoid stale closures in callbacks
+  const currentPageRef = useRef(currentPage);
+  currentPageRef.current = currentPage;
 
   // ── Helper: authenticated fetch to Convex HTTP actions ──
   const authFetch = useCallback(
@@ -106,40 +143,71 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   }, [convexHttpUrl, authFetch]);
 
   // ── Fetch site HTML from /api/dashboard/site-html ──
-  const refreshHtml = useCallback(async () => {
+  const refreshHtml = useCallback(async (page?: string) => {
     if (!convexHttpUrl || !currentSite?.slug) return;
-    setLoading(true);
+    const pageToLoad = page || currentPageRef.current || "index.html";
+    setHtmlLoading(true);
     try {
-      const res = await authFetch(`/api/dashboard/site-html?page=index.html`);
+      const res = await authFetch(`/api/dashboard/site-html?page=${encodeURIComponent(pageToLoad)}`);
       if (!res.ok) throw new Error(`Failed to load site HTML: ${res.status}`);
       const data = await res.json();
       const html = typeof data === "string" ? data : data.html || "";
       setSiteHtml(html);
+
+      // Update multi-page state from response
+      if (data.isSignature !== undefined) {
+        setIsSignatureSite(data.isSignature);
+        const pages = data.availablePages || [];
+        setAvailablePages(pages);
+        const responsePage = data.currentPage || pageToLoad;
+        setCurrentPage(responsePage);
+      } else {
+        // Not a signature site — still set the current page
+        setCurrentPage(pageToLoad);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load site HTML");
     } finally {
-      setLoading(false);
+      setHtmlLoading(false);
     }
   }, [convexHttpUrl, currentSite?.slug, authFetch]);
+
+  // ── Switch to a different page ──
+  const switchPage = useCallback(async (page: string) => {
+    setCurrentPage(page);
+    currentPageRef.current = page;
+    setSiteHtml(""); // Clear HTML while loading
+    await refreshHtml(page);
+  }, [refreshHtml]);
 
   // ── Save a field via /api/dashboard/save-section ──
   const saveSiteField = useCallback(
     async (key: string, value: string): Promise<boolean> => {
       if (!convexHttpUrl || !currentSite?.slug) return false;
       try {
+        // Build payload — include page param for non-index pages on signature sites
+        const payload: Record<string, string> = { sectionKey: key, newContent: value };
+        if (isSignatureSite && currentPageRef.current && currentPageRef.current !== "index.html") {
+          payload.page = currentPageRef.current;
+        }
+
         const res = await authFetch("/api/dashboard/save-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key, value }),
+          body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(`Save failed: ${res.status}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data?.upgradeRequired) throw new Error("Free plan limit reached — upgrade to Pro");
+          throw new Error(data?.error || `Save failed: ${res.status}`);
+        }
         return true;
       } catch (err) {
         console.error(`[Site] Save field "${key}" failed:`, err);
         return false;
       }
     },
-    [convexHttpUrl, currentSite?.slug, authFetch]
+    [convexHttpUrl, currentSite?.slug, authFetch, isSignatureSite]
   );
 
   // ── Upload image via /api/dashboard/upload-hero-bg ──
@@ -189,7 +257,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           return { success: false, error: errMsg };
         }
 
-        // Site connected — reload info to get full site data
         await refreshInfo();
         return { success: true };
       } catch (err) {
@@ -222,7 +289,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           return false;
         }
 
-        // Poll for completion
         const steps = [
           "Scraping Instagram...",
           "Classifying your photos...",
@@ -292,9 +358,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   // ── Load HTML when site is available ──
   useEffect(() => {
     if (currentSite?.slug) {
-      refreshHtml();
+      refreshHtml("index.html");
     }
-  }, [currentSite?.slug, refreshHtml]);
+  }, [currentSite?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <SiteContext.Provider
@@ -302,9 +368,14 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         currentSite,
         siteHtml,
         loading,
+        htmlLoading,
         error,
         onboardingStatus,
         buildProgress,
+        isSignatureSite,
+        availablePages,
+        currentPage,
+        switchPage,
         refreshInfo,
         refreshHtml,
         saveSiteField,

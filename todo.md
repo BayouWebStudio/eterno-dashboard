@@ -37,3 +37,7 @@
 - [x] Update SiteContext with connectSite function
 - [x] Write vitest tests for the new onboarding paths
 - [x] Fix: Live preview not loading on Overview page after site is connected (page param was 'index' instead of 'index.html')
+- [x] Add page selector dropdown to Sections tab (index, about, tattoos, booking, testimonials, custom pages)
+- [x] Update SiteContext to support multi-page loading and switching
+- [x] Ensure all text on all pages is editable
+- [x] Write vitest tests for multi-page editing

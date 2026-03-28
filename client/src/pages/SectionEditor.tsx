@@ -2,9 +2,10 @@
   DESIGN: Dark Forge — Section Editor Page
   Master-detail layout: section list on left, editor panel on right.
   Uses Optimistic Queue with Batch + Lock for safe rapid saves.
+  Supports multi-page editing with a page selector dropdown.
 */
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useSite } from "@/contexts/SiteContext";
+import { useSite, getPageLabel } from "@/contexts/SiteContext";
 import { parseSections, type SectionField, type FormFieldDef } from "@/lib/parseHtml";
 import { useSaveQueue } from "@/hooks/useSaveQueue";
 import { useUnsavedWarning } from "@/hooks/useUnsavedWarning";
@@ -19,6 +20,8 @@ import {
   Check,
   AlertTriangle,
   Clock,
+  FileText,
+  ChevronDown,
 } from "lucide-react";
 
 /** Status badge shown next to the Save button */
@@ -58,8 +61,104 @@ function SaveStatusBadge({ status, dirtyCount }: { status: string; dirtyCount: n
   return null;
 }
 
+/** Page selector dropdown */
+function PageSelector({
+  availablePages,
+  currentPage,
+  onSwitch,
+  disabled,
+}: {
+  availablePages: string[];
+  currentPage: string;
+  onSwitch: (page: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  if (availablePages.length <= 1) return null;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        className={`
+          flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-150
+          ${open
+            ? "border-gold bg-[oklch(0.19_0.005_250)] text-gold"
+            : "border-border bg-card text-foreground hover:border-gold-dim hover:text-gold"
+          }
+          ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+        `}
+      >
+        <FileText className="w-4 h-4 text-gold flex-shrink-0" />
+        <span className="text-sm font-medium">{getPageLabel(currentPage)}</span>
+        <span className="text-[10px] text-muted-foreground font-mono">{currentPage}</span>
+        <ChevronDown className={`w-3.5 h-3.5 ml-1 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-64 bg-card border border-border rounded-lg shadow-xl z-50 py-1 max-h-80 overflow-y-auto">
+          <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            Pages ({availablePages.length})
+          </p>
+          {availablePages.map((page) => {
+            const isActive = page === currentPage;
+            return (
+              <button
+                key={page}
+                onClick={() => {
+                  if (!isActive) onSwitch(page);
+                  setOpen(false);
+                }}
+                className={`
+                  w-full text-left flex items-center gap-3 px-3 py-2 transition-colors
+                  ${isActive
+                    ? "bg-[oklch(0.19_0.005_250)] text-gold"
+                    : "text-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-gold"
+                  }
+                `}
+              >
+                <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-gold" : "text-muted-foreground"}`} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium block">{getPageLabel(page)}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">{page}</span>
+                </div>
+                {isActive && <Check className="w-3.5 h-3.5 text-gold flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SectionEditor() {
-  const { siteHtml, loading, saveSiteField, uploadSiteImage, refreshHtml } = useSite();
+  const {
+    siteHtml,
+    loading,
+    htmlLoading,
+    saveSiteField,
+    uploadSiteImage,
+    refreshHtml,
+    isSignatureSite,
+    availablePages,
+    currentPage,
+    switchPage,
+  } = useSite();
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   // ── Save Queue ──
@@ -73,7 +172,7 @@ export default function SectionEditor() {
     dirtyCount,
   } = useSaveQueue({
     saveFn: saveSiteField,
-    autoFlushDelay: 0, // manual save only — user clicks the button
+    autoFlushDelay: 0,
     onFlushComplete: (result) => {
       if (result.failed.length === 0 && result.succeeded.length > 0) {
         toast.success(`Saved ${result.succeeded.length} field${result.succeeded.length > 1 ? "s" : ""} successfully`);
@@ -87,6 +186,17 @@ export default function SectionEditor() {
   // ── Unsaved changes warning ──
   useUnsavedWarning(isDirty);
 
+  // ── Page switch handler ──
+  const handlePageSwitch = useCallback(async (page: string) => {
+    // Flush any pending changes before switching pages
+    if (isDirty) {
+      await flush();
+    }
+    reset();
+    setActiveSection(null);
+    await switchPage(page);
+  }, [isDirty, flush, reset, switchPage]);
+
   const sections = useMemo(() => {
     if (!siteHtml) return [];
     return parseSections(siteHtml);
@@ -99,16 +209,14 @@ export default function SectionEditor() {
   const prevSectionRef = useRef<string | null>(null);
   useEffect(() => {
     if (activeSec && activeSec.id !== prevSectionRef.current) {
-      // If switching sections with unsaved changes, warn
       if (isDirty && prevSectionRef.current !== null) {
-        // Auto-flush pending changes from previous section before switching
         flush();
       }
       prevSectionRef.current = activeSec.id;
     }
   }, [activeSec, isDirty, flush]);
 
-  // ── Field change handler: marks field as dirty in the queue ──
+  // ── Field change handler ──
   const handleFieldChange = useCallback(
     (key: string, value: string) => {
       markDirty(key, value);
@@ -129,7 +237,7 @@ export default function SectionEditor() {
     );
   }
 
-  if (!siteHtml) {
+  if (!siteHtml && !htmlLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <AlertCircle className="w-8 h-8 text-muted-foreground" />
@@ -139,155 +247,190 @@ export default function SectionEditor() {
   }
 
   return (
-    <div className="flex gap-6 max-w-6xl">
-      {/* Section List (left panel) */}
-      <div className="w-64 flex-shrink-0 space-y-1">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3 px-1">
-          Sections ({sections.length})
-        </p>
-        {sections.map((sec) => {
-          const isActive = sec.id === (activeSec?.id ?? "");
-          return (
-            <button
-              key={sec.id}
-              onClick={() => setActiveSection(sec.id)}
-              className={`
-                relative w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-md
-                transition-all duration-150
-                ${isActive
-                  ? "bg-[oklch(0.19_0.005_250)] text-gold"
-                  : "text-muted-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-foreground"
-                }
-              `}
-            >
-              <div
-                className={`absolute left-0 top-1 bottom-1 w-[3px] rounded-full transition-all duration-150 ${
-                  isActive ? "bg-gold shadow-[0_0_8px_oklch(0.75_0.12_85/30%)]" : "bg-transparent"
-                }`}
-              />
-              <span className="text-base flex-shrink-0">{sec.icon}</span>
-              <span className="text-sm font-medium truncate">{sec.title}</span>
-              {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
-            </button>
-          );
-        })}
-      </div>
+    <div className="space-y-4">
+      {/* Page Selector Bar */}
+      {isSignatureSite && availablePages.length > 1 && (
+        <div className="flex items-center gap-4 pb-4 border-b border-border">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            Editing Page:
+          </span>
+          <PageSelector
+            availablePages={availablePages}
+            currentPage={currentPage}
+            onSwitch={handlePageSwitch}
+            disabled={htmlLoading || isSaving}
+          />
+          {htmlLoading && (
+            <span className="flex items-center gap-1.5 text-xs text-gold animate-pulse">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading page...
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Editor Panel (right) */}
-      <div className="flex-1 min-w-0">
-        {activeSec ? (
-          <div className="bg-card border border-border rounded-lg">
-            {/* Section Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{activeSec.icon}</span>
-                <h2 className="font-heading text-lg font-bold text-foreground">{activeSec.title}</h2>
-              </div>
-              <div className="flex items-center gap-3">
-                <SaveStatusBadge status={status} dirtyCount={dirtyCount} />
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving || !isDirty}
-                  className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold disabled:opacity-40"
-                  size="sm"
+      {/* Loading state while switching pages */}
+      {htmlLoading ? (
+        <div className="flex flex-col items-center justify-center h-64 gap-3">
+          <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading {getPageLabel(currentPage)}...</p>
+        </div>
+      ) : (
+        <div className="flex gap-6 max-w-6xl">
+          {/* Section List (left panel) */}
+          <div className="w-64 flex-shrink-0 space-y-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3 px-1">
+              Sections ({sections.length})
+            </p>
+            {sections.length === 0 && (
+              <p className="text-xs text-muted-foreground px-1">No editable sections found on this page.</p>
+            )}
+            {sections.map((sec) => {
+              const isActive = sec.id === (activeSec?.id ?? "");
+              return (
+                <button
+                  key={sec.id}
+                  onClick={() => setActiveSection(sec.id)}
+                  className={`
+                    relative w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-md
+                    transition-all duration-150
+                    ${isActive
+                      ? "bg-[oklch(0.19_0.005_250)] text-gold"
+                      : "text-muted-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-foreground"
+                    }
+                  `}
                 >
-                  {isSaving ? (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <Save className="w-3.5 h-3.5 mr-1.5" />
-                  )}
-                  {isSaving ? "Saving..." : isDirty ? `Save (${dirtyCount})` : "Saved"}
-                </Button>
-              </div>
-            </div>
+                  <div
+                    className={`absolute left-0 top-1 bottom-1 w-[3px] rounded-full transition-all duration-150 ${
+                      isActive ? "bg-gold shadow-[0_0_8px_oklch(0.75_0.12_85/30%)]" : "bg-transparent"
+                    }`}
+                  />
+                  <span className="text-base flex-shrink-0">{sec.icon}</span>
+                  <span className="text-sm font-medium truncate">{sec.title}</span>
+                  {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
 
-            {/* Fields */}
-            <div className="p-5 space-y-5">
-              {/* Booking warning */}
-              {activeSec.id === "booking" && (
-                <div className="flex gap-3 p-3 rounded-md bg-[oklch(0.75_0.12_85/8%)] border border-gold-dim/25">
-                  <span className="text-base flex-shrink-0">⚠️</span>
-                  <div className="text-xs text-gold-dim leading-relaxed">
-                    <strong className="block mb-0.5 text-gold">Activate your booking form first</strong>
-                    Booking emails won't arrive until activated. Submit a test booking from your site — formsubmit.co will email you a confirmation link. Click it to activate.
+          {/* Editor Panel (right) */}
+          <div className="flex-1 min-w-0">
+            {activeSec ? (
+              <div className="bg-card border border-border rounded-lg">
+                {/* Section Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{activeSec.icon}</span>
+                    <div>
+                      <h2 className="font-heading text-lg font-bold text-foreground">{activeSec.title}</h2>
+                      <span className="text-[10px] text-muted-foreground font-mono">{currentPage}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <SaveStatusBadge status={status} dirtyCount={dirtyCount} />
+                    <Button
+                      onClick={handleSave}
+                      disabled={isSaving || !isDirty}
+                      className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold disabled:opacity-40"
+                      size="sm"
+                    >
+                      {isSaving ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Save className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      {isSaving ? "Saving..." : isDirty ? `Save (${dirtyCount})` : "Saved"}
+                    </Button>
                   </div>
                 </div>
-              )}
 
-              {/* Regular fields */}
-              {activeSec.fields.map((field) => (
-                <FieldRenderer
-                  key={field.key}
-                  field={field}
-                  onChange={(val) => handleFieldChange(field.key, val)}
-                  onUpload={uploadSiteImage}
-                />
-              ))}
-
-              {/* FAQ pairs */}
-              {activeSec.faqPairs && (
-                <div className="space-y-4">
-                  {activeSec.faqPairs.map((pair, i) => (
-                    <div key={i} className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">
-                          Question {i + 1}
-                        </label>
-                        <textarea
-                          className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[60px]"
-                          defaultValue={pair.question}
-                          onChange={(e) => handleFieldChange(`faq_q_${i}`, e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">
-                          Answer {i + 1}
-                        </label>
-                        <textarea
-                          className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[60px]"
-                          defaultValue={pair.answer}
-                          onChange={(e) => handleFieldChange(`faq_a_${i}`, e.target.value)}
-                        />
+                {/* Fields */}
+                <div className="p-5 space-y-5">
+                  {/* Booking warning */}
+                  {activeSec.id === "booking" && (
+                    <div className="flex gap-3 p-3 rounded-md bg-[oklch(0.75_0.12_85/8%)] border border-gold-dim/25">
+                      <span className="text-base flex-shrink-0">⚠️</span>
+                      <div className="text-xs text-gold-dim leading-relaxed">
+                        <strong className="block mb-0.5 text-gold">Activate your booking form first</strong>
+                        Booking emails won't arrive until activated. Submit a test booking from your site — formsubmit.co will email you a confirmation link. Click it to activate.
                       </div>
                     </div>
+                  )}
+
+                  {/* Regular fields */}
+                  {activeSec.fields.map((field) => (
+                    <FieldRenderer
+                      key={field.key}
+                      field={field}
+                      onChange={(val) => handleFieldChange(field.key, val)}
+                      onUpload={uploadSiteImage}
+                    />
                   ))}
+
+                  {/* FAQ pairs */}
+                  {activeSec.faqPairs && (
+                    <div className="space-y-4">
+                      {activeSec.faqPairs.map((pair, i) => (
+                        <div key={i} className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">
+                              Question {i + 1}
+                            </label>
+                            <textarea
+                              className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[60px]"
+                              defaultValue={pair.question}
+                              onChange={(e) => handleFieldChange(`faq_q_${i}`, e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">
+                              Answer {i + 1}
+                            </label>
+                            <textarea
+                              className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[60px]"
+                              defaultValue={pair.answer}
+                              onChange={(e) => handleFieldChange(`faq_a_${i}`, e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Unsaved indicator bar */}
-            {isDirty && !isSaving && (
-              <div className="px-5 py-3 border-t border-border bg-[oklch(0.75_0.12_85/5%)] flex items-center justify-between">
-                <p className="text-xs text-gold-dim">
-                  {dirtyCount} unsaved change{dirtyCount > 1 ? "s" : ""}
-                </p>
-                <button
-                  onClick={handleSave}
-                  className="text-xs text-gold hover:text-gold/80 font-medium transition-colors"
-                >
-                  Save now
-                </button>
-              </div>
-            )}
-
-            {/* Saving progress bar */}
-            {isSaving && (
-              <div className="px-5 py-3 border-t border-border bg-[oklch(0.75_0.12_85/5%)]">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1 bg-[oklch(0.19_0.005_250)] rounded-full overflow-hidden">
-                    <div className="h-full bg-gold rounded-full animate-pulse" style={{ width: "60%" }} />
+                {/* Unsaved indicator bar */}
+                {isDirty && !isSaving && (
+                  <div className="px-5 py-3 border-t border-border bg-[oklch(0.75_0.12_85/5%)] flex items-center justify-between">
+                    <p className="text-xs text-gold-dim">
+                      {dirtyCount} unsaved change{dirtyCount > 1 ? "s" : ""}
+                    </p>
+                    <button
+                      onClick={handleSave}
+                      className="text-xs text-gold hover:text-gold/80 font-medium transition-colors"
+                    >
+                      Save now
+                    </button>
                   </div>
-                  <span className="text-[10px] text-gold-dim">Saving...</span>
-                </div>
+                )}
+
+                {/* Saving progress bar */}
+                {isSaving && (
+                  <div className="px-5 py-3 border-t border-border bg-[oklch(0.75_0.12_85/5%)]">
+                    <div className="h-1 bg-[oklch(0.19_0.005_250)] rounded-full overflow-hidden">
+                      <div className="h-full bg-gold rounded-full animate-pulse" style={{ width: "60%" }} />
+                    </div>
+                    <span className="text-[10px] text-gold-dim">Saving...</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-muted-foreground">
+                Select a section to edit
               </div>
             )}
           </div>
-        ) : (
-          <div className="flex items-center justify-center h-64 text-muted-foreground">
-            Select a section to edit
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
