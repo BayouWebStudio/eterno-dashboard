@@ -1,0 +1,37 @@
+KEY FINDING: The API returns HTML with escaped quotes!
+
+In the network log, the HTML comes as a JSON string with escaped quotes:
+  class=\\\"masonry-item fade-up\\\"><img src=\\\"img/1.jpg\\\"
+
+When this JSON string is parsed by JavaScript, the escaped quotes become normal quotes.
+So by the time siteHtml reaches parseGalleryImages, the quotes should be normal.
+
+The image src values are RELATIVE: img/1.jpg, img/2.jpg, img/3.jpg, img/4.jpg
+These are NOT full CDN URLs.
+
+ACTUAL PROBLEM: The regex IS matching in tests. The issue might be:
+1. The SectionEditor only shows GalleryEditor when activeSec.isGallery is true
+2. The tattoo-gallery section is being created by parseSections
+3. But the GalleryEditor's parseGalleryImages might not be finding images because
+   the sectionId passed is "tattoo-gallery" which doesn't match any section in the HTML
+
+Wait - looking at the GalleryEditor code:
+  parseGalleryImages(siteHtml, sectionId)
+  where sectionId = "tattoo-gallery"
+
+And parseGalleryImages first tries:
+  <section[^>]+(?:id="tattoo-gallery"|class="[^"]*gallery-section[^"]*")
+  This WON'T match because there's no section with id="tattoo-gallery"
+
+Then it falls back to masonry-grid regex which SHOULD work regardless of sectionId.
+
+BUT WAIT - the debug script showed it works! Let me check if the actual HTML
+from the API might have a different structure or if there's a timing issue.
+
+Actually the real issue might be simpler: the page-hero section has NO id attribute,
+so parseSections catch-all regex (which requires id="...") skips it entirely.
+The tattoo-gallery synthetic section IS being added.
+But maybe the user isn't seeing it in the section list?
+
+Or maybe the issue is that when switching to tattoos.html, the HTML hasn't loaded yet
+and the gallery section doesn't appear.

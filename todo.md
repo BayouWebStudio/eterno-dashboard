@@ -56,3 +56,4 @@
 - [x] Support image upload, delete, and drag-to-reorder in GalleryEditor
 - [x] Save gallery changes via saveSiteField with gallery_images key
 - [x] Fix: Gallery not editable under tattoos.html in Section Editor
+- [x] Fix: Gallery images not visible when selecting Tattoos section in Section Editor
