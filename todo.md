@@ -58,3 +58,7 @@
 - [x] Fix: Gallery not editable under tattoos.html in Section Editor
 - [x] Fix: Gallery images not visible when selecting Tattoos section in Section Editor
 - [x] Fix: Gallery images show empty boxes because relative paths (img/1.jpg) don't resolve in dashboard context
+- [x] Add client-side image compression utility (resize + quality reduction)
+- [x] Integrate compression into GalleryEditor upload flow
+- [x] Show compression progress/stats to user (original vs compressed size)
+- [x] Write tests for compression logic

@@ -1,12 +1,13 @@
 /*
   DESIGN: Dark Forge — Inline Gallery Editor
   Embeds inside the Section Editor panel for gallery-type sections.
-  Supports image upload, delete, and drag-to-reorder.
+  Supports image upload with automatic compression, delete, and drag-to-reorder.
   Uses the same save flow (saveSiteField) as the rest of the editor.
 */
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useSite } from "@/contexts/SiteContext";
 import { parseGalleryImages } from "@/lib/parseHtml";
+import { compressImages, formatBytes, type CompressionResult } from "@/lib/compressImage";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -16,6 +17,7 @@ import {
   Loader2,
   ImageIcon,
   Save,
+  Zap,
 } from "lucide-react";
 
 interface GalleryEditorProps {
@@ -28,27 +30,20 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
   // Resolve relative image paths (e.g. "img/1.jpg") to full URLs using the site's base URL
   const resolveImageUrl = useCallback(
     (src: string) => {
-      // Already absolute URL — return as-is
       if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) return src;
-      // Build base URL from siteUrl + slug
       const siteUrl = currentSite?.siteUrl?.replace(/\/$/, "") || "";
       const slug = currentSite?.slug || "";
-      if (siteUrl && slug) {
-        return `${siteUrl}/${slug}/${src}`;
-      }
-      if (siteUrl) {
-        return `${siteUrl}/${src}`;
-      }
-      // Fallback: try GitHub raw content (common for Eterno sites)
-      if (slug) {
-        return `https://raw.githubusercontent.com/BayouWebStudio/${slug}/main/${src}`;
-      }
+      if (siteUrl && slug) return `${siteUrl}/${slug}/${src}`;
+      if (siteUrl) return `${siteUrl}/${src}`;
+      if (slug) return `https://raw.githubusercontent.com/BayouWebStudio/${slug}/main/${src}`;
       return src;
     },
     [currentSite]
   );
+
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
   const [saving, setSaving] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -67,17 +62,58 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
     async (files: FileList | null) => {
       if (!files || files.length === 0) return;
       setUploading(true);
+      const fileArray = Array.from(files);
+      const count = fileArray.length;
+
+      // Step 1: Compress images
+      setUploadProgress(`Compressing ${count} image${count > 1 ? "s" : ""}...`);
+      let results: CompressionResult[];
+      try {
+        results = await compressImages(fileArray, {
+          maxWidth: 1600,
+          maxHeight: 1600,
+          quality: 0.82,
+        });
+      } catch {
+        toast.error("Failed to compress images");
+        setUploading(false);
+        setUploadProgress("");
+        return;
+      }
+
+      // Calculate compression stats
+      const totalOriginal = results.reduce((sum, r) => sum + r.originalSize, 0);
+      const totalCompressed = results.reduce((sum, r) => sum + r.compressedSize, 0);
+      const savedBytes = totalOriginal - totalCompressed;
+      const compressedCount = results.filter((r) => r.wasCompressed).length;
+
+      // Step 2: Upload compressed files
+      setUploadProgress(`Uploading ${count} image${count > 1 ? "s" : ""}...`);
       const newUrls: string[] = [];
-      for (const file of Array.from(files)) {
-        const url = await uploadSiteImage(file, "gallery");
+      for (let i = 0; i < results.length; i++) {
+        setUploadProgress(`Uploading ${i + 1} of ${count}...`);
+        const url = await uploadSiteImage(results[i].file, "gallery");
         if (url) newUrls.push(url);
       }
+
       if (newUrls.length > 0) {
         setImages((prev) => [...prev, ...newUrls]);
         setHasChanges(true);
-        toast.success(`${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded`);
+
+        // Show compression stats in toast
+        if (compressedCount > 0 && savedBytes > 0) {
+          const pct = Math.round((1 - totalCompressed / totalOriginal) * 100);
+          toast.success(
+            `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded — saved ${formatBytes(savedBytes)} (${pct}% smaller)`,
+            { duration: 5000 }
+          );
+        } else {
+          toast.success(`${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded`);
+        }
       }
+
       setUploading(false);
+      setUploadProgress("");
     },
     [uploadSiteImage]
   );
@@ -152,7 +188,7 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
             ) : (
               <Upload className="w-3.5 h-3.5 mr-1.5" />
             )}
-            Upload
+            {uploading ? uploadProgress || "Uploading..." : "Upload"}
           </Button>
           <Button
             onClick={handleSave}
@@ -168,6 +204,14 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
             {saving ? "Saving..." : hasChanges ? "Save Gallery" : "Saved"}
           </Button>
         </div>
+      </div>
+
+      {/* Auto-compression notice */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-[oklch(0.16_0.005_250)] border border-border/50">
+        <Zap className="w-3.5 h-3.5 text-gold flex-shrink-0" />
+        <p className="text-[11px] text-muted-foreground">
+          Images are automatically compressed before upload (max 1600px, WebP format) for faster page loads.
+        </p>
       </div>
 
       <input
