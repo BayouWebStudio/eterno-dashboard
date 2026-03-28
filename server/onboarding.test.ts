@@ -14,9 +14,9 @@ describe("Convex API endpoint mapping", () => {
   });
 
   it("uses the correct site-html endpoint with page param", () => {
-    const page = "index";
+    const page = "index.html";
     const endpoint = `${CONVEX_HTTP_URL}/api/dashboard/site-html?page=${encodeURIComponent(page)}`;
-    expect(endpoint).toContain("/api/dashboard/site-html?page=index");
+    expect(endpoint).toContain("/api/dashboard/site-html?page=index.html");
   });
 
   it("uses the correct save-section endpoint", () => {

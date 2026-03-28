@@ -36,3 +36,4 @@
 - [x] Add connect-existing-site flow (enter slug/domain to link account)
 - [x] Update SiteContext with connectSite function
 - [x] Write vitest tests for the new onboarding paths
+- [x] Fix: Live preview not loading on Overview page after site is connected (page param was 'index' instead of 'index.html')

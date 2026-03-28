@@ -110,7 +110,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     if (!convexHttpUrl || !currentSite?.slug) return;
     setLoading(true);
     try {
-      const res = await authFetch(`/api/dashboard/site-html?page=index`);
+      const res = await authFetch(`/api/dashboard/site-html?page=index.html`);
       if (!res.ok) throw new Error(`Failed to load site HTML: ${res.status}`);
       const data = await res.json();
       const html = typeof data === "string" ? data : data.html || "";
