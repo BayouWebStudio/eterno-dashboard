@@ -1,11 +1,16 @@
 /*
   DESIGN: Dark Forge — Overview Page
   Shows site info card, live preview iframe, and quick stats.
-  When no site is found, shows the onboarding flow (Instagram handle input + build).
+  When no site is found, shows a two-path onboarding:
+    1. "I already have a site" → connect by Instagram handle
+    2. "Build a new site" → create from scratch
 */
 import { useState } from "react";
 import { useSite } from "@/contexts/SiteContext";
-import { ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages, Loader2 } from "lucide-react";
+import {
+  ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages,
+  Loader2, Link2, Rocket, ArrowLeft, CheckCircle2
+} from "lucide-react";
 import BuildStatusIndicator from "@/components/BuildStatusIndicator";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -20,12 +25,38 @@ export default function Overview() {
     onboardingStatus,
     buildProgress,
     setupSite,
+    connectSite,
     error,
   } = useSite();
 
   // ── Onboarding: no site found ──
   if (onboardingStatus === "none") {
-    return <OnboardingPrompt setupSite={setupSite} error={error} />;
+    return (
+      <OnboardingFlow
+        setupSite={setupSite}
+        connectSite={connectSite}
+        error={error}
+      />
+    );
+  }
+
+  // ── Connecting: linking an existing site ──
+  if (onboardingStatus === "connecting") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gold/10 border border-gold/20">
+          <Loader2 className="w-8 h-8 text-gold animate-spin" />
+        </div>
+        <div className="text-center">
+          <h2 className="font-heading text-xl font-bold text-foreground mb-2">
+            Connecting Your Site
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Looking up your site and linking it to your account...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // ── Building: site is being created ──
@@ -178,7 +209,318 @@ export default function Overview() {
   );
 }
 
-/* ── Country options ── */
+/* ═══════════════════════════════════════════════════════════════
+   ONBOARDING FLOW — Two-path: Connect Existing or Build New
+   ═══════════════════════════════════════════════════════════════ */
+
+type OnboardingPath = "choose" | "connect" | "build";
+
+function OnboardingFlow({
+  setupSite,
+  connectSite,
+  error,
+}: {
+  setupSite: (handle: string, country: string) => Promise<boolean>;
+  connectSite: (handle: string) => Promise<{ success: boolean; error?: string }>;
+  error: string | null;
+}) {
+  const [path, setPath] = useState<OnboardingPath>("choose");
+
+  if (path === "connect") {
+    return <ConnectSiteForm connectSite={connectSite} error={error} onBack={() => setPath("choose")} />;
+  }
+
+  if (path === "build") {
+    return <BuildSiteForm setupSite={setupSite} error={error} onBack={() => setPath("choose")} />;
+  }
+
+  // ── Choose path ──
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="max-w-lg w-full text-center px-6">
+        <div className="text-5xl mb-5">🌿</div>
+        <h2 className="font-heading text-2xl font-bold text-foreground mb-2">
+          Welcome to Eterno Web Studio
+        </h2>
+        <p className="text-muted-foreground text-sm mb-10 leading-relaxed">
+          Let's get your website set up. Do you already have a site built with us,
+          or would you like to create a new one?
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+          {/* Connect existing */}
+          <button
+            onClick={() => setPath("connect")}
+            className="group relative bg-card border border-border rounded-xl p-6 text-left hover:border-gold/50 transition-all duration-150 cursor-pointer"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 rounded-t-xl bg-gradient-to-r from-gold/0 via-gold/40 to-gold/0 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+            <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center mb-4">
+              <Link2 className="w-5 h-5 text-gold" />
+            </div>
+            <h3 className="font-heading text-sm font-bold text-foreground mb-1.5 group-hover:text-gold transition-colors">
+              I Already Have a Site
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Connect your existing Eterno website to this dashboard using your Instagram handle.
+            </p>
+          </button>
+
+          {/* Build new */}
+          <button
+            onClick={() => setPath("build")}
+            className="group relative bg-card border border-border rounded-xl p-6 text-left hover:border-gold/50 transition-all duration-150 cursor-pointer"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 rounded-t-xl bg-gradient-to-r from-gold/0 via-gold/40 to-gold/0 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+            <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center mb-4">
+              <Rocket className="w-5 h-5 text-gold" />
+            </div>
+            <h3 className="font-heading text-sm font-bold text-foreground mb-1.5 group-hover:text-gold transition-colors">
+              Build a New Site
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Create a brand new website from your Instagram. It takes about 5 minutes.
+            </p>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Connect Existing Site Form ── */
+function ConnectSiteForm({
+  connectSite,
+  error,
+  onBack,
+}: {
+  connectSite: (handle: string) => Promise<{ success: boolean; error?: string }>;
+  error: string | null;
+  onBack: () => void;
+}) {
+  const [handle, setHandle] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    const cleaned = handle.trim().replace(/^@/, "");
+    if (!cleaned) {
+      toast.error("Enter your Instagram handle");
+      return;
+    }
+    setSubmitting(true);
+    setLocalError(null);
+
+    const result = await connectSite(cleaned);
+    if (!result.success) {
+      setSubmitting(false);
+      setLocalError(result.error || "Could not connect site");
+      toast.error(result.error || "Could not connect site");
+    }
+    // If success, SiteContext will update onboardingStatus to "ready" automatically
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="max-w-md w-full text-center px-6">
+        {/* Back button */}
+        <button
+          onClick={onBack}
+          disabled={submitting}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-gold transition-colors mb-8 disabled:opacity-50"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back
+        </button>
+
+        <div className="w-14 h-14 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-5">
+          <Link2 className="w-6 h-6 text-gold" />
+        </div>
+
+        <h2 className="font-heading text-2xl font-bold text-foreground mb-2">
+          Connect Your Site
+        </h2>
+        <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
+          Enter the Instagram handle that was used to build your site.
+          We'll find it and link it to your account.
+        </p>
+
+        <div className="flex flex-col gap-3 max-w-sm mx-auto mb-6">
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+              @
+            </span>
+            <input
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="tattoosbypaketh"
+              disabled={submitting}
+              className="w-full bg-input border border-border rounded-lg pl-8 pr-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50"
+            />
+          </div>
+
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || !handle.trim()}
+            className="w-full bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-bold px-6 py-3 disabled:opacity-40"
+          >
+            {submitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Connect Site
+              </>
+            )}
+          </Button>
+        </div>
+
+        {(localError || error) && (
+          <div className="max-w-sm mx-auto mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">{localError || error}</p>
+            <p className="text-xs text-destructive/60 mt-1">
+              Make sure you're using the exact Instagram handle that was used when the site was created.
+            </p>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground/60">
+          Example: if your site is <span className="font-mono text-gold-dim">tattoosbypaketh.eternowebstudio.com</span>,
+          enter <span className="font-mono text-gold-dim">tattoosbypaketh</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Build New Site Form ── */
+function BuildSiteForm({
+  setupSite,
+  error,
+  onBack,
+}: {
+  setupSite: (handle: string, country: string) => Promise<boolean>;
+  error: string | null;
+  onBack: () => void;
+}) {
+  const [handle, setHandle] = useState("");
+  const [country, setCountry] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    const cleaned = handle.trim().replace(/^@/, "");
+    if (!cleaned) {
+      toast.error("Enter your Instagram handle");
+      return;
+    }
+    if (!country) {
+      toast.error("Select your country");
+      return;
+    }
+    setSubmitting(true);
+    const ok = await setupSite(cleaned, country);
+    if (!ok) {
+      setSubmitting(false);
+      if (error) toast.error(error);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="max-w-md w-full text-center px-6">
+        {/* Back button */}
+        <button
+          onClick={onBack}
+          disabled={submitting}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-gold transition-colors mb-8 disabled:opacity-50"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back
+        </button>
+
+        <div className="w-14 h-14 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-5">
+          <Rocket className="w-6 h-6 text-gold" />
+        </div>
+
+        <h2 className="font-heading text-2xl font-bold text-foreground mb-2">
+          Build Your Website
+        </h2>
+        <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
+          Enter your Instagram handle and country. We'll scrape your posts,
+          classify your photos, and build a custom website in under 5 minutes.
+        </p>
+
+        <div className="flex flex-col gap-3 max-w-sm mx-auto mb-6">
+          {/* Instagram handle */}
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+              @
+            </span>
+            <input
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="yourhandle"
+              disabled={submitting}
+              className="w-full bg-input border border-border rounded-lg pl-8 pr-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50"
+            />
+          </div>
+
+          {/* Country selector */}
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            disabled={submitting}
+            className="w-full bg-input border border-border rounded-lg px-3 py-3 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50 appearance-none cursor-pointer"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 12px center",
+            }}
+          >
+            <option value="" disabled>Select your country</option>
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+
+          {/* Submit button */}
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || !handle.trim() || !country}
+            className="w-full bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-bold px-6 py-3 disabled:opacity-40"
+          >
+            {submitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Rocket className="w-4 h-4 mr-2" />
+                Build My Site
+              </>
+            )}
+          </Button>
+        </div>
+
+        {error && (
+          <p className="text-sm text-destructive mb-4">{error}</p>
+        )}
+
+        <p className="text-xs text-muted-foreground/60">
+          Once your site is live, you can edit everything from this dashboard — no coding required.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+
 const COUNTRIES = [
   { code: "US", name: "United States" },
   { code: "MX", name: "Mexico" },
@@ -226,106 +568,6 @@ const COUNTRIES = [
   { code: "AT", name: "Austria" },
   { code: "BE", name: "Belgium" },
 ];
-
-/* ── Onboarding Prompt ── */
-function OnboardingPrompt({
-  setupSite,
-  error,
-}: {
-  setupSite: (handle: string, country: string) => Promise<boolean>;
-  error: string | null;
-}) {
-  const [handle, setHandle] = useState("");
-  const [country, setCountry] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    const cleaned = handle.trim().replace(/^@/, "");
-    if (!cleaned) {
-      toast.error("Enter your Instagram handle");
-      return;
-    }
-    if (!country) {
-      toast.error("Select your country");
-      return;
-    }
-    setSubmitting(true);
-    const ok = await setupSite(cleaned, country);
-    if (!ok) {
-      setSubmitting(false);
-      if (error) toast.error(error);
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="max-w-md w-full text-center px-6">
-        <div className="text-5xl mb-5">🌿</div>
-        <h2 className="font-heading text-2xl font-bold text-foreground mb-2">
-          Welcome to Eterno Web Studio
-        </h2>
-        <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-          Enter your Instagram handle and country, and we'll build your free website in under 5 minutes.
-        </p>
-
-        <div className="flex flex-col gap-3 max-w-sm mx-auto mb-6">
-          {/* Instagram handle */}
-          <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-              @
-            </span>
-            <input
-              type="text"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              placeholder="yourhandle"
-              disabled={submitting}
-              className="w-full bg-input border border-border rounded-lg pl-8 pr-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50"
-            />
-          </div>
-
-          {/* Country selector */}
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            disabled={submitting}
-            className="w-full bg-input border border-border rounded-lg px-3 py-3 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50 appearance-none cursor-pointer"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
-          >
-            <option value="" disabled>Select your country</option>
-            {COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name} ({c.code})
-              </option>
-            ))}
-          </select>
-
-          {/* Submit button */}
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting || !handle.trim() || !country}
-            className="w-full bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-bold px-6 py-3 disabled:opacity-40"
-          >
-            {submitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              "Build My Site →"
-            )}
-          </Button>
-        </div>
-
-        {error && (
-          <p className="text-sm text-destructive mb-4">{error}</p>
-        )}
-
-        <p className="text-xs text-muted-foreground/60">
-          Once your site is live, you can pick your custom .com domain from the Overview tab.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (

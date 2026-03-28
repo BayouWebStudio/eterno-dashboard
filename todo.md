@@ -32,3 +32,7 @@
 - [x] Change setup-site endpoint from /api/dashboard/setup-site to /api/signature/create
 - [x] Add country selector to onboarding form (required by /api/signature/create)
 - [x] Add real-time build status indicator with animated progress steps after onboarding form submission
+- [x] Redesign onboarding: add "I already have a site" vs "Build a new site" choice
+- [x] Add connect-existing-site flow (enter slug/domain to link account)
+- [x] Update SiteContext with connectSite function
+- [x] Write vitest tests for the new onboarding paths

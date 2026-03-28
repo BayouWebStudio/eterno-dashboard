@@ -2,11 +2,12 @@
   DESIGN: Dark Forge — Site Context
   Manages the current site selection, site info, and site HTML.
   Uses the real Convex HTTP action endpoints from the original dashboard:
-    - GET  /api/dashboard/info          → site info (slug, plan, domain, etc.)
-    - GET  /api/dashboard/site-html     → full HTML of the site
-    - POST /api/dashboard/save-section  → save a field
-    - POST /api/dashboard/upload-hero-bg → upload images
-    - POST /api/signature/create         → onboarding: create site from IG handle
+    - GET  /api/dashboard/info            → site info (slug, plan, domain, etc.)
+    - GET  /api/dashboard/site-html       → full HTML of the site
+    - POST /api/dashboard/save-section    → save a field
+    - POST /api/dashboard/upload-hero-bg  → upload images
+    - POST /api/signature/create          → onboarding: create site from IG handle
+    - POST /api/dashboard/connect-site    → connect existing site by IG handle
 */
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { useAuth } from "./AuthContext";
@@ -23,7 +24,7 @@ export interface SiteInfo {
   siteBuilt?: boolean;
 }
 
-type OnboardingStatus = "idle" | "none" | "building" | "ready";
+type OnboardingStatus = "idle" | "none" | "building" | "connecting" | "ready";
 
 interface SiteContextValue {
   currentSite: SiteInfo | null;
@@ -37,6 +38,7 @@ interface SiteContextValue {
   saveSiteField: (key: string, value: string) => Promise<boolean>;
   uploadSiteImage: (file: File, folder?: string) => Promise<string | null>;
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
+  connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -111,7 +113,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       const res = await authFetch(`/api/dashboard/site-html?page=index`);
       if (!res.ok) throw new Error(`Failed to load site HTML: ${res.status}`);
       const data = await res.json();
-      // The endpoint returns { html: "..." } or just the HTML string
       const html = typeof data === "string" ? data : data.html || "";
       setSiteHtml(html);
     } catch (err) {
@@ -165,6 +166,40 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       }
     },
     [convexHttpUrl, getToken]
+  );
+
+  // ── Connect existing site by Instagram handle ──
+  const connectSite = useCallback(
+    async (igHandle: string): Promise<{ success: boolean; error?: string }> => {
+      if (!convexHttpUrl) return { success: false, error: "Not connected" };
+      setOnboardingStatus("connecting");
+      setError(null);
+      try {
+        const res = await authFetch("/api/dashboard/connect-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ igHandle }),
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          const errMsg = data.error || "Could not connect site";
+          setError(errMsg);
+          setOnboardingStatus("none");
+          return { success: false, error: errMsg };
+        }
+
+        // Site connected — reload info to get full site data
+        await refreshInfo();
+        return { success: true };
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Connection failed";
+        setError(errMsg);
+        setOnboardingStatus("none");
+        return { success: false, error: errMsg };
+      }
+    },
+    [convexHttpUrl, authFetch, refreshInfo]
   );
 
   // ── Onboarding: setup site from Instagram handle ──
@@ -231,7 +266,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
         const success = await poll();
         if (success) {
-          // Reload site info
           await refreshInfo();
           return true;
         } else {
@@ -276,6 +310,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         saveSiteField,
         uploadSiteImage,
         setupSite,
+        connectSite,
       }}
     >
       {children}
