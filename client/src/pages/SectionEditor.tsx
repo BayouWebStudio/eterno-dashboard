@@ -8,6 +8,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSite, getPageLabel } from "@/contexts/SiteContext";
 import { parseSections, type SectionField, type FormFieldDef } from "@/lib/parseHtml";
 import { useSaveQueue } from "@/hooks/useSaveQueue";
+import GalleryEditor from "@/components/GalleryEditor";
 import { useUnsavedWarning } from "@/hooks/useUnsavedWarning";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -366,6 +367,11 @@ export default function SectionEditor() {
                       onUpload={uploadSiteImage}
                     />
                   ))}
+
+                  {/* Inline Gallery Editor for gallery sections */}
+                  {activeSec.isGallery && (
+                    <GalleryEditor sectionId={activeSec.id} />
+                  )}
 
                   {/* FAQ pairs */}
                   {activeSec.faqPairs && (

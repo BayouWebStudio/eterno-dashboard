@@ -51,3 +51,7 @@
 - [x] Ensure tattoos.html page is accessible via Section Editor page dropdown
 - [x] Remove Gallery quick action from Overview page
 - [x] Update tests to reflect Gallery removal
+- [x] Add inline GalleryEditor component for image add/remove/reorder within Section Editor
+- [x] Detect gallery sections (isGallery flag) and render GalleryEditor instead of text fields
+- [x] Support image upload, delete, and drag-to-reorder in GalleryEditor
+- [x] Save gallery changes via saveSiteField with gallery_images key

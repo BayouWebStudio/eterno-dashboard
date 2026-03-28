@@ -332,7 +332,6 @@ export function parseSections(html: string): SectionGroup[] {
 
   // ── GENERIC CATCH-ALL ──
   const handledIds = new Set(groups.map((g) => g.id));
-  handledIds.add("gallery");
   const allSecRe = /<section[^>]+id="([^"]+)"[^>]*>([\s\S]*?)<\/section>/gi;
   let csm;
   while ((csm = allSecRe.exec(html)) !== null) {
