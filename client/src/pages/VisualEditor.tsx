@@ -113,6 +113,7 @@ export default function VisualEditor() {
     deleteSiteSection,
     addSiteSection,
     deleteGalleryImage,
+    saveGalleryOrder,
     refreshHtml,
     isSignatureSite,
     availablePages,
@@ -198,6 +199,10 @@ export default function VisualEditor() {
 
         case "gallery-delete":
           handleGalleryDelete(data);
+          break;
+
+        case "gallery-reorder":
+          handleGalleryReorder(data);
           break;
 
         case "section-delete":
@@ -289,6 +294,24 @@ export default function VisualEditor() {
       }
     },
     [uploadSiteImage, refreshHtml]
+  );
+
+  // ── Gallery reorder handler ──
+  const handleGalleryReorder = useCallback(
+    async (data: { sectionId: string; filenames: string[] }) => {
+      try {
+        const sectionId = data.sectionId === "tattoo-gallery" ? "gallery" : data.sectionId;
+        const ok = await saveGalleryOrder(data.filenames, sectionId);
+        if (ok) {
+          toast.success("Gallery order saved! Allow 3\u20135 min for live site.");
+        } else {
+          toast.error("Failed to save gallery order.");
+        }
+      } catch {
+        toast.error("Failed to save gallery order.");
+      }
+    },
+    [saveGalleryOrder]
   );
 
   // ── Gallery delete handler ──

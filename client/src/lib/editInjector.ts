@@ -124,6 +124,96 @@ body.edit-mode .ve-img-wrapper:hover .ve-gallery-del { display: flex; }
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   transition: opacity 0.3s;
 }
+/* ── Drag-and-drop gallery reorder ── */
+body.edit-mode .ve-gallery-item {
+  cursor: grab;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+body.edit-mode .ve-gallery-item:active { cursor: grabbing; }
+body.edit-mode .ve-gallery-item.ve-dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+}
+body.edit-mode .ve-gallery-item.ve-drag-over {
+  outline: 2px solid oklch(0.75 0.12 85);
+  outline-offset: 2px;
+}
+.ve-gallery-grip {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: none;
+  width: 24px;
+  height: 24px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  z-index: 1002;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+body.edit-mode .ve-gallery-item:hover .ve-gallery-grip { display: flex; }
+.ve-save-order-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid oklch(0.75 0.12 85 / 40%);
+  padding: 10px 20px;
+  border-radius: 12px;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  font-family: system-ui, sans-serif;
+}
+.ve-save-order-bar span {
+  color: oklch(0.75 0.12 85);
+  font-size: 13px;
+  font-weight: 500;
+}
+.ve-save-order-btn {
+  background: oklch(0.75 0.12 85);
+  color: #000;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+}
+.ve-save-order-btn:hover { opacity: 0.9; }
+.ve-save-order-btn.cancel {
+  background: transparent;
+  color: #aaa;
+  border: 1px solid rgba(255,255,255,0.2);
+  font-weight: 500;
+}
+.ve-save-order-btn.cancel:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+.ve-gallery-idx {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  display: none;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: system-ui, monospace;
+  z-index: 1002;
+  pointer-events: none;
+}
+body.edit-mode .ve-gallery-item:hover .ve-gallery-idx { display: block; }
 `;
 
 /** JS injected into the iframe */
@@ -133,60 +223,56 @@ const EDIT_JS = `
 
   var activeEl = null;
   var originalText = '';
+  var galleryOrderChanged = false;
+  var originalGalleryOrder = [];
+  var saveOrderBar = null;
 
   function post(msg) {
     window.parent.postMessage(msg, '*');
   }
 
   /**
+   * Extract filename from an image src.
+   * "img/1.jpg" -> "1.jpg"
+   * "https://cdn.example.com/img/tattoo-3.jpg?v=123" -> "tattoo-3.jpg"
+   */
+  function extractFilename(src) {
+    var clean = src.split('?')[0];
+    var parts = clean.split('/');
+    return parts[parts.length - 1] || src;
+  }
+
+  /**
    * Extract a section ID from a class name.
-   * Matches patterns like "about-section", "booking-cta-section", "gallery-section",
-   * "page-hero", "services-section", etc.
-   * Returns the section name portion (e.g. "about", "booking-cta", "services")
-   * or null if no known pattern is found.
    */
   function extractSectionIdFromClass(cls) {
     if (!cls) return null;
-
-    // Direct class-to-id mappings for well-known patterns
     if (cls.indexOf('gallery-body') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
     if (cls.indexOf('page-hero') >= 0) return 'hero';
 
-    // Generic pattern: *-section class → extract the part before "-section"
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
 
-    // Pattern: *-content, *-area, *-wrapper for top-level containers
-    // Only match if it looks like a section name (e.g. "about-content", "services-area")
     var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container)(?:\\s|$)/i);
     if (containerMatch) {
       var name = containerMatch[1];
-      // Avoid matching generic layout classes
       if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
         return name;
       }
     }
-
     return null;
   }
 
   /**
    * Walk up the DOM tree to find the section ID for an element.
-   * Checks: id attribute, data-section attribute, and class-based patterns.
-   * Matches the section detection logic in parseHtml.ts.
    */
   function findSectionId(el) {
     var node = el;
     while (node && node !== document.body) {
-      // 1. Check id attribute (most reliable)
       if (node.id) return node.id;
-
-      // 2. Check data-section attribute
       if (node.dataset && node.dataset.section) return node.dataset.section;
-
-      // 3. Check class-based patterns on SECTION and DIV elements
       if (node.tagName === 'SECTION' || node.tagName === 'DIV') {
         var cls = node.className || '';
         if (typeof cls === 'string' && cls.length > 0) {
@@ -194,7 +280,6 @@ const EDIT_JS = `
           if (extracted) return extracted;
         }
       }
-
       node = node.parentElement;
     }
     return 'unknown';
@@ -202,25 +287,14 @@ const EDIT_JS = `
 
   /**
    * Build a field key for saving to the Convex API.
-   * Keys must match the conventions used in parseHtml.ts:
-   *   - hero_title, hero_subtitle, hero_eyebrow, hero_cta_text (hero section)
-   *   - about_title, about (bio content), about_photo (about section)
-   *   - section_title__[sectionId] (generic section titles)
-   *   - [sectionId]__content (generic body content)
-   *   - footer_name (footer)
-   *   - ig_handle (instagram)
-   *   - booking, booking_title, booking_intro (booking section)
-   *   - For data-field attributes, use them directly
    */
   function findFieldKey(el) {
-    // If the element has an explicit data-field, use it
     if (el.dataset && el.dataset.field) return el.dataset.field;
 
     var tag = el.tagName.toLowerCase();
     var sectionId = findSectionId(el);
     var cls = el.className || '';
 
-    // ── Hero section: use specific hero_* keys ──
     if (sectionId === 'hero' || sectionId === 'page-hero') {
       if (cls.indexOf('hero-eyebrow') >= 0) return 'hero_eyebrow';
       if (cls.indexOf('hero-title') >= 0 || cls.indexOf('hero-name') >= 0) return 'hero_title';
@@ -233,20 +307,17 @@ const EDIT_JS = `
       return 'hero_title';
     }
 
-    // ── About section: use about_title, about ──
     if (sectionId === 'about' || sectionId === 'nosotros') {
       if (tag === 'h2' || tag === 'h3') return 'about_title';
       if (tag === 'p') return 'about';
       return 'about_title';
     }
 
-    // ── Footer ──
     if (sectionId === 'footer' || (el.closest && el.closest('footer'))) {
       if (cls.indexOf('footer-logo') >= 0) return 'footer_name';
       return 'footer_name';
     }
 
-    // ── Booking section ──
     if (sectionId === 'booking' || sectionId === 'book') {
       if (tag === 'h2') return 'booking_title';
       if (tag === 'p') return 'booking_intro';
@@ -254,7 +325,6 @@ const EDIT_JS = `
       return 'booking_title';
     }
 
-    // ── Testimonials section ──
     if (sectionId === 'testimonials') {
       if (cls.indexOf('testimonial-text') >= 0) {
         var cardIndex = getCardIndex(el, 'testimonial-card');
@@ -269,7 +339,6 @@ const EDIT_JS = `
       return 'section_title__testimonials';
     }
 
-    // ── FAQ section ──
     if (sectionId === 'faq') {
       if (cls.indexOf('faq-question') >= 0) return 'faq_question';
       if (cls.indexOf('faq-answer') >= 0) return 'faq_answer';
@@ -277,7 +346,6 @@ const EDIT_JS = `
       return 'section_title__faq';
     }
 
-    // ── Services section ──
     if (sectionId === 'services') {
       var serviceCardIdx = getCardIndex(el, 'service-card');
       if (serviceCardIdx >= 0) {
@@ -289,7 +357,6 @@ const EDIT_JS = `
       return 'section_title__services';
     }
 
-    // ── Styles/Specialty section ──
     if (sectionId === 'styles' || sectionId === 'specialty') {
       var styleCardIdx = getCardIndex(el, 'style-card');
       if (styleCardIdx >= 0) {
@@ -300,7 +367,6 @@ const EDIT_JS = `
       return 'styles_title';
     }
 
-    // ── Shop section ──
     if (sectionId === 'shop') {
       if (tag === 'h2') return 'section_title__shop';
       if (tag === 'p') return 'section_body__shop';
@@ -308,18 +374,9 @@ const EDIT_JS = `
       return 'section_title__shop';
     }
 
-    // ── Contact ──
-    if (sectionId === 'contact') {
-      return 'contact_email';
-    }
+    if (sectionId === 'contact') return 'contact_email';
+    if (sectionId === 'instagram') return 'ig_handle';
 
-    // ── Instagram ──
-    if (sectionId === 'instagram') {
-      return 'ig_handle';
-    }
-
-    // ── Generic sections: use parseHtml.ts conventions ──
-    // section_title__[sectionId] for headings, [sectionId]__content for body text
     if (sectionId && sectionId !== 'unknown') {
       if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'section_title__' + sectionId;
       if (tag === 'p' || tag === 'blockquote' || tag === 'li') return sectionId + '__content';
@@ -327,15 +384,9 @@ const EDIT_JS = `
       return 'section_title__' + sectionId;
     }
 
-    // ── Fallback for unknown sections ──
     return 'unknown_' + tag;
   }
 
-  /**
-   * Find the index of the nearest card ancestor matching a class pattern.
-   * Used for testimonial-card, service-card, style-card indexing.
-   * Returns -1 if no card ancestor found.
-   */
   function getCardIndex(el, cardClass) {
     var card = el.closest ? el.closest('.' + cardClass) : null;
     if (!card || !card.parentElement) return -1;
@@ -344,6 +395,17 @@ const EDIT_JS = `
       if (siblings[i] === card) return i;
     }
     return -1;
+  }
+
+  // ── Check if an element is inside a gallery container ──
+  function isGalleryImage(el) {
+    return !!(
+      el.closest('.masonry-item') ||
+      el.closest('.gallery-item') ||
+      el.closest('.gallery-grid') ||
+      el.closest('.masonry-grid') ||
+      el.closest('.gallery-body')
+    );
   }
 
   // ── Make text elements editable ──
@@ -399,9 +461,8 @@ const EDIT_JS = `
       var key = findFieldKey(el);
       var sectionId = findSectionId(el);
 
-      // Don't send edits for elements where we couldn't determine the section
       if (sectionId === 'unknown') {
-        showToast('Could not identify section — edit not saved');
+        showToast('Could not identify section \\u2014 edit not saved');
         return;
       }
 
@@ -424,7 +485,16 @@ const EDIT_JS = `
     imgs.forEach(function(img) {
       if (img.closest('.ve-img-wrapper')) return;
       if (img.closest('nav') || img.closest('.ve-section-controls')) return;
-      if (img.width < 30 || img.height < 30) return;
+
+      // For gallery images, always process them (don't skip by size)
+      // For non-gallery images, skip tiny ones (icons, spacers)
+      var inGallery = isGalleryImage(img);
+      if (!inGallery) {
+        // Check loaded dimensions, or fall back to attributes
+        var w = img.naturalWidth || img.width || parseInt(img.getAttribute('width') || '0', 10);
+        var h = img.naturalHeight || img.height || parseInt(img.getAttribute('height') || '0', 10);
+        if (w > 0 && w < 30 && h > 0 && h < 30) return;
+      }
 
       var wrapper = document.createElement('div');
       wrapper.className = 've-img-wrapper';
@@ -453,20 +523,20 @@ const EDIT_JS = `
       overlay.appendChild(btn);
       wrapper.appendChild(overlay);
 
-      // Gallery delete button for masonry items
-      var isGallery = img.closest('.masonry-item') || img.closest('.gallery-grid') || img.closest('.gallery-item');
-      if (isGallery) {
+      // Gallery delete button — add to ALL gallery images
+      if (inGallery) {
         var delBtn = document.createElement('button');
         delBtn.className = 've-gallery-del';
-        delBtn.innerHTML = '&times;';
+        delBtn.innerHTML = '\\u00D7';
         delBtn.title = 'Remove from gallery';
         delBtn.addEventListener('click', function(e) {
           e.preventDefault();
           e.stopPropagation();
+          if (!confirm('Remove this photo from the gallery?')) return;
           post({
             type: 'gallery-delete',
             sectionId: findSectionId(img),
-            filename: img.src.split('/').pop()
+            filename: extractFilename(img.src)
           });
         });
         wrapper.appendChild(delBtn);
@@ -474,9 +544,6 @@ const EDIT_JS = `
     });
   }
 
-  /**
-   * Build an image field key based on section and context.
-   */
   function buildImageKey(img, sectionId) {
     var cls = img.className || '';
     if (cls.indexOf('about-photo') >= 0 || cls.indexOf('about-portrait') >= 0) return 'about_photo';
@@ -508,26 +575,191 @@ const EDIT_JS = `
     });
   }
 
+  // ── Drag-and-drop gallery reorder ──
+  function setupGalleryDragDrop() {
+    // Find all gallery containers (masonry-grid, gallery-grid, gallery-body)
+    var containers = document.querySelectorAll('.masonry-grid, .gallery-grid, .gallery-body');
+    containers.forEach(function(container) {
+      // Find the draggable items inside
+      var items = container.querySelectorAll('.masonry-item, .gallery-item, .gallery-grid > div, .gallery-grid > a');
+      if (items.length === 0) return;
+
+      // Record original order
+      var sectionId = findSectionId(container);
+      var origOrder = [];
+      items.forEach(function(item) {
+        var img = item.querySelector('img') || item;
+        if (img.tagName === 'IMG' && img.src) {
+          origOrder.push(extractFilename(img.src));
+        }
+      });
+      originalGalleryOrder = origOrder.slice();
+
+      var dragSrcIdx = null;
+
+      items.forEach(function(item, idx) {
+        item.classList.add('ve-gallery-item');
+        item.setAttribute('draggable', 'true');
+
+        // Add grip icon
+        var grip = document.createElement('div');
+        grip.className = 've-gallery-grip';
+        grip.innerHTML = '\\u2630';
+        item.style.position = 'relative';
+        item.appendChild(grip);
+
+        // Add index badge
+        var badge = document.createElement('div');
+        badge.className = 've-gallery-idx';
+        badge.textContent = String(idx + 1);
+        item.appendChild(badge);
+
+        item.addEventListener('dragstart', function(e) {
+          if (!document.body.classList.contains('edit-mode')) {
+            e.preventDefault();
+            return;
+          }
+          dragSrcIdx = idx;
+          item.classList.add('ve-dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(idx));
+        });
+
+        item.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          item.classList.add('ve-drag-over');
+        });
+
+        item.addEventListener('dragleave', function() {
+          item.classList.remove('ve-drag-over');
+        });
+
+        item.addEventListener('drop', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          item.classList.remove('ve-drag-over');
+
+          var fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+          var toIdx = idx;
+          if (isNaN(fromIdx) || fromIdx === toIdx) return;
+
+          // Reorder DOM
+          var allItems = Array.from(container.querySelectorAll('.ve-gallery-item'));
+          var movedItem = allItems[fromIdx];
+          if (!movedItem) return;
+
+          // Remove from current position
+          container.removeChild(movedItem);
+
+          // Insert at new position
+          var updatedItems = Array.from(container.querySelectorAll('.ve-gallery-item'));
+          if (toIdx >= updatedItems.length) {
+            container.appendChild(movedItem);
+          } else {
+            container.insertBefore(movedItem, updatedItems[toIdx]);
+          }
+
+          // Update index badges
+          var finalItems = container.querySelectorAll('.ve-gallery-item');
+          finalItems.forEach(function(fi, i) {
+            var b = fi.querySelector('.ve-gallery-idx');
+            if (b) b.textContent = String(i + 1);
+          });
+
+          // Mark order as changed
+          galleryOrderChanged = true;
+          showSaveOrderBar(container, sectionId);
+        });
+
+        item.addEventListener('dragend', function() {
+          item.classList.remove('ve-dragging');
+          // Clean up all drag-over states
+          items.forEach(function(it) { it.classList.remove('ve-drag-over'); });
+        });
+      });
+    });
+  }
+
+  // ── Save Order floating bar ──
+  function showSaveOrderBar(container, sectionId) {
+    if (saveOrderBar) return; // Already showing
+
+    saveOrderBar = document.createElement('div');
+    saveOrderBar.className = 've-save-order-bar';
+
+    var label = document.createElement('span');
+    label.textContent = 'Gallery order changed';
+    saveOrderBar.appendChild(label);
+
+    var saveBtn = document.createElement('button');
+    saveBtn.className = 've-save-order-btn';
+    saveBtn.textContent = 'Save Order';
+    saveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Collect current order of filenames
+      var currentItems = container.querySelectorAll('.ve-gallery-item');
+      var filenames = [];
+      currentItems.forEach(function(item) {
+        var img = item.querySelector('img');
+        if (img && img.src) {
+          filenames.push(extractFilename(img.src));
+        }
+      });
+
+      post({
+        type: 'gallery-reorder',
+        sectionId: sectionId,
+        filenames: filenames
+      });
+
+      // Update original order
+      originalGalleryOrder = filenames.slice();
+      galleryOrderChanged = false;
+      removeSaveOrderBar();
+      showToast('Saving gallery order...');
+    });
+    saveOrderBar.appendChild(saveBtn);
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.className = 've-save-order-btn cancel';
+    cancelBtn.textContent = 'Reset';
+    cancelBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      // Reload to reset order
+      galleryOrderChanged = false;
+      removeSaveOrderBar();
+      post({ type: 'request-refresh' });
+    });
+    saveOrderBar.appendChild(cancelBtn);
+
+    document.body.appendChild(saveOrderBar);
+  }
+
+  function removeSaveOrderBar() {
+    if (saveOrderBar) {
+      saveOrderBar.remove();
+      saveOrderBar = null;
+    }
+  }
+
   // ── Section controls (delete) ──
   function setupSections() {
-    // Select sections with id, data-section, or class-based section patterns
     var sections = document.querySelectorAll('section[id], [data-section], section[class]');
     var processed = new Set();
 
     sections.forEach(function(sec) {
-      // Determine the section ID
       var id = sec.id || (sec.dataset && sec.dataset.section) || '';
-
-      // If no id/data-section, try to extract from class
       if (!id && sec.className) {
         id = extractSectionIdFromClass(sec.className) || '';
       }
-
       if (!id) return;
       if (processed.has(id)) return;
       processed.add(id);
 
-      // Skip hero and footer — they shouldn't be deletable
       if (id === 'page-hero' || id === 'hero' || id === 'footer') return;
 
       var controls = document.createElement('div');
@@ -577,7 +809,6 @@ const EDIT_JS = `
       }
     }
     if (e.data && e.data.type === 'refresh-gallery') {
-      // Parent tells us to reload gallery after upload
       post({ type: 'request-refresh' });
     }
   });
@@ -588,6 +819,7 @@ const EDIT_JS = `
     setupEditableText();
     setupImages();
     setupGalleries();
+    setupGalleryDragDrop();
     setupSections();
     post({ type: 'editor-ready' });
   }
@@ -618,7 +850,6 @@ export function injectEditor(html: string, baseUrl: string): string {
   // Rewrite relative image src to absolute
   if (baseUrl) {
     const base = baseUrl.replace(/\/$/, "");
-    // Match src="img/..." or src="./img/..." but not src="http" or src="//"
     result = result.replace(
       /src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
       (match, path) => {
@@ -626,7 +857,6 @@ export function injectEditor(html: string, baseUrl: string): string {
         return `src="${base}/${cleanPath}"`;
       }
     );
-    // Same for background-image: url(...)
     result = result.replace(
       /url\(["']?(?!https?:\/\/)(?!\/\/)(?!data:)([^"')]+)["']?\)/gi,
       (match, path) => {

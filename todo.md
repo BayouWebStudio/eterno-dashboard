@@ -94,3 +94,5 @@
 - [x] Replace Sections sidebar route with the new VisualEditor
 - [x] Write tests for the visual editor
 - [x] Fix: Visual editor text edits fail with "unknown_heading" — section ID detection not finding correct parent section
+- [x] Fix: Visual editor gallery delete only works on a few tattoo images, not all of them
+- [x] Add drag-and-drop reordering for gallery images in the visual editor
