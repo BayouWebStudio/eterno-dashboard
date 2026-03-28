@@ -6,7 +6,7 @@
     - GET  /api/dashboard/site-html     → full HTML of the site
     - POST /api/dashboard/save-section  → save a field
     - POST /api/dashboard/upload-hero-bg → upload images
-    - POST /api/dashboard/setup-site    → onboarding: create site from IG handle
+    - POST /api/signature/create         → onboarding: create site from IG handle
 */
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { useAuth } from "./AuthContext";
@@ -174,7 +174,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       setOnboardingStatus("building");
       setBuildProgress("Starting build...");
       try {
-        const res = await authFetch("/api/dashboard/setup-site", {
+        const res = await authFetch("/api/signature/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ igHandle }),

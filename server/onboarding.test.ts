@@ -26,8 +26,8 @@ describe("Convex API endpoint mapping", () => {
   });
 
   it("uses the correct setup-site endpoint", () => {
-    const endpoint = `${CONVEX_HTTP_URL}/api/dashboard/setup-site`;
-    expect(endpoint).toBe("https://curious-lemming-262.convex.site/api/dashboard/setup-site");
+    const endpoint = `${CONVEX_HTTP_URL}/api/signature/create`;
+    expect(endpoint).toBe("https://curious-lemming-262.convex.site/api/signature/create");
   });
 
   it("uses the correct upload endpoint", () => {
