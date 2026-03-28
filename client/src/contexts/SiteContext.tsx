@@ -68,6 +68,7 @@ interface SiteContextValue {
   deleteGalleryImage: (filename: string, sectionId?: string) => Promise<boolean>;
   deleteSiteSection: (sectionKeyword: string) => Promise<boolean>;
   addSiteSection: (sectionType: string, title: string, content: string) => Promise<boolean>;
+  reorderSections: (sectionOrder: string[]) => Promise<boolean>;
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -341,6 +342,29 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [convexHttpUrl, authFetch]
   );
 
+  // ── Reorder sections via /api/dashboard/reorder-sections ──
+  const reorderSections = useCallback(
+    async (sectionOrder: string[]): Promise<boolean> => {
+      if (!convexHttpUrl) return false;
+      try {
+        const res = await authFetch("/api/dashboard/reorder-sections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionOrder }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || `Reorder sections failed: ${res.status}`);
+        }
+        return true;
+      } catch (err) {
+        console.error("[Site] Reorder sections failed:", err);
+        return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
   // ── Connect existing site by Instagram handle ──
   const connectSite = useCallback(
     async (igHandle: string): Promise<{ success: boolean; error?: string }> => {
@@ -489,6 +513,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         deleteGalleryImage,
         deleteSiteSection,
         addSiteSection,
+        reorderSections,
         setupSite,
         connectSite,
       }}

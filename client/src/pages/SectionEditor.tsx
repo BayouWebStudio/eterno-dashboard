@@ -26,6 +26,8 @@ import {
   Trash2,
   Plus,
   X,
+  GripVertical,
+  ArrowUpDown,
 } from "lucide-react";
 
 /** Status badge shown next to the Save button */
@@ -160,6 +162,7 @@ export default function SectionEditor() {
     refreshHtml,
     deleteSiteSection,
     addSiteSection,
+    reorderSections,
     isSignatureSite,
     availablePages,
     currentPage,
@@ -175,6 +178,13 @@ export default function SectionEditor() {
   const [addSectionTitle, setAddSectionTitle] = useState("");
   const [addSectionContent, setAddSectionContent] = useState("");
   const [adding, setAdding] = useState(false);
+
+  // ── Reorder state ──
+  const [reorderMode, setReorderMode] = useState(false);
+  const [reorderedSections, setReorderedSections] = useState<typeof sections>([]);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   // ── Save Queue ──
   const {
@@ -243,6 +253,81 @@ export default function SectionEditor() {
   const handleSave = useCallback(async () => {
     await flush();
   }, [flush]);
+
+  // ── Enter/exit reorder mode ──
+  const enterReorderMode = useCallback(() => {
+    setReorderedSections([...sections]);
+    setReorderMode(true);
+    setActiveSection(null);
+  }, [sections]);
+
+  const exitReorderMode = useCallback(() => {
+    setReorderMode(false);
+    setReorderedSections([]);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, []);
+
+  // ── Drag handlers ──
+  const handleDragStart = useCallback((idx: number) => {
+    setDragIdx(idx);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setDragOverIdx(idx);
+  }, []);
+
+  const handleDrop = useCallback((idx: number) => {
+    if (dragIdx === null || dragIdx === idx) {
+      setDragOverIdx(null);
+      return;
+    }
+    setReorderedSections(prev => {
+      const updated = [...prev];
+      const [moved] = updated.splice(dragIdx, 1);
+      updated.splice(idx, 0, moved);
+      return updated;
+    });
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, [dragIdx]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, []);
+
+  // ── Move up/down helpers ──
+  const moveSection = useCallback((idx: number, direction: -1 | 1) => {
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= reorderedSections.length) return;
+    setReorderedSections(prev => {
+      const updated = [...prev];
+      [updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]];
+      return updated;
+    });
+  }, [reorderedSections.length]);
+
+  // ── Save reorder ──
+  const handleSaveOrder = useCallback(async () => {
+    setSavingOrder(true);
+    try {
+      const sectionOrder = reorderedSections.map(s => s.id);
+      const ok = await reorderSections(sectionOrder);
+      if (ok) {
+        toast.success("Section order saved! Allow 3\u20135 minutes to show on your website.");
+        exitReorderMode();
+        await refreshHtml();
+      } else {
+        toast.error("Failed to save section order. Please try again.");
+      }
+    } catch {
+      toast.error("Failed to save section order. Please try again.");
+    } finally {
+      setSavingOrder(false);
+    }
+  }, [reorderedSections, reorderSections, exitReorderMode, refreshHtml]);
 
   // ── Add section handler ──
   const handleAddSection = useCallback(async () => {
@@ -345,47 +430,137 @@ export default function SectionEditor() {
         <div className="flex gap-6 max-w-6xl">
           {/* Section List (left panel) */}
           <div className="w-64 flex-shrink-0 space-y-1">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3 px-1">
-              Sections ({sections.length})
-            </p>
-            {sections.length === 0 && (
-              <p className="text-xs text-muted-foreground px-1">No editable sections found on this page.</p>
-            )}
-            {/* Add Section button */}
-            <button
-              onClick={() => setShowAddSection(true)}
-              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium text-gold/70 hover:text-gold hover:bg-[oklch(0.19_0.005_250)] transition-all duration-150 border border-dashed border-gold/20 hover:border-gold/40 mb-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add Section
-            </button>
-
-            {sections.map((sec) => {
-              const isActive = sec.id === (activeSec?.id ?? "");
-              return (
+            <div className="flex items-center justify-between mb-3 px-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                Sections ({sections.length})
+              </p>
+              {sections.length >= 2 && !reorderMode && (
                 <button
-                  key={sec.id}
-                  onClick={() => setActiveSection(sec.id)}
-                  className={`
-                    relative w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-md
-                    transition-all duration-150
-                    ${isActive
-                      ? "bg-[oklch(0.19_0.005_250)] text-gold"
-                      : "text-muted-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-foreground"
-                    }
-                  `}
+                  onClick={enterReorderMode}
+                  className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-gold/60 hover:text-gold font-medium transition-colors"
                 >
-                  <div
-                    className={`absolute left-0 top-1 bottom-1 w-[3px] rounded-full transition-all duration-150 ${
-                      isActive ? "bg-gold shadow-[0_0_8px_oklch(0.75_0.12_85/30%)]" : "bg-transparent"
-                    }`}
-                  />
-                  <span className="text-base flex-shrink-0">{sec.icon}</span>
-                  <span className="text-sm font-medium truncate">{sec.title}</span>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
+                  <ArrowUpDown className="w-3 h-3" />
+                  Rearrange
                 </button>
-              );
-            })}
+              )}
+            </div>
+
+            {reorderMode ? (
+              /* ── Reorder Mode ── */
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground px-1 mb-2">
+                  Drag sections to reorder, or use the arrow buttons.
+                </p>
+                {reorderedSections.map((sec, idx) => (
+                  <div
+                    key={sec.id}
+                    draggable
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={() => handleDrop(idx)}
+                    onDragEnd={handleDragEnd}
+                    className={`
+                      flex items-center gap-2 px-2 py-2 rounded-md border transition-all duration-150 cursor-grab active:cursor-grabbing
+                      ${dragIdx === idx
+                        ? "opacity-40 border-gold/40 bg-[oklch(0.19_0.005_250)]"
+                        : dragOverIdx === idx
+                          ? "border-gold bg-[oklch(0.19_0.005_250)] shadow-[0_0_8px_oklch(0.75_0.12_85/20%)]"
+                          : "border-border bg-card hover:border-gold/30"
+                      }
+                    `}
+                  >
+                    <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-base flex-shrink-0">{sec.icon}</span>
+                    <span className="text-sm font-medium truncate flex-1 text-foreground">{sec.title}</span>
+                    <div className="flex flex-col gap-0.5 flex-shrink-0">
+                      <button
+                        onClick={() => moveSection(idx, -1)}
+                        disabled={idx === 0}
+                        className="p-0.5 rounded text-muted-foreground hover:text-gold disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        title="Move up"
+                      >
+                        <ChevronRight className="w-3 h-3 -rotate-90" />
+                      </button>
+                      <button
+                        onClick={() => moveSection(idx, 1)}
+                        disabled={idx === reorderedSections.length - 1}
+                        className="p-0.5 rounded text-muted-foreground hover:text-gold disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        title="Move down"
+                      >
+                        <ChevronRight className="w-3 h-3 rotate-90" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Save / Cancel buttons */}
+                <div className="flex gap-2 mt-4 px-1">
+                  <Button
+                    onClick={handleSaveOrder}
+                    disabled={savingOrder}
+                    size="sm"
+                    className="flex-1 bg-gold hover:bg-gold/90 text-black font-semibold"
+                  >
+                    {savingOrder ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Saving...</>
+                    ) : (
+                      <><Save className="w-3.5 h-3.5 mr-1.5" /> Save Order</>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={exitReorderMode}
+                    disabled={savingOrder}
+                    size="sm"
+                    variant="outline"
+                    className="border-border text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* ── Normal Mode ── */
+              <>
+                {sections.length === 0 && (
+                  <p className="text-xs text-muted-foreground px-1">No editable sections found on this page.</p>
+                )}
+                {/* Add Section button */}
+                <button
+                  onClick={() => setShowAddSection(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium text-gold/70 hover:text-gold hover:bg-[oklch(0.19_0.005_250)] transition-all duration-150 border border-dashed border-gold/20 hover:border-gold/40 mb-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Section
+                </button>
+
+                {sections.map((sec) => {
+                  const isActive = sec.id === (activeSec?.id ?? "");
+                  return (
+                    <button
+                      key={sec.id}
+                      onClick={() => setActiveSection(sec.id)}
+                      className={`
+                        relative w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-md
+                        transition-all duration-150
+                        ${isActive
+                          ? "bg-[oklch(0.19_0.005_250)] text-gold"
+                          : "text-muted-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-foreground"
+                        }
+                      `}
+                    >
+                      <div
+                        className={`absolute left-0 top-1 bottom-1 w-[3px] rounded-full transition-all duration-150 ${
+                          isActive ? "bg-gold shadow-[0_0_8px_oklch(0.75_0.12_85/30%)]" : "bg-transparent"
+                        }`}
+                      />
+                      <span className="text-base flex-shrink-0">{sec.icon}</span>
+                      <span className="text-sm font-medium truncate">{sec.title}</span>
+                      {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
 
           {/* Editor Panel (right) */}

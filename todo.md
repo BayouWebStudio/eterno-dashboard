@@ -79,3 +79,8 @@
 - [x] Add "Add Section" button with section type picker to Section Editor
 - [x] Refresh section list after successful addition
 - [x] Write tests for add section functionality
+- [x] Research Convex API for reorder-sections endpoint
+- [x] Add reorderSections method to SiteContext
+- [x] Build drag-and-drop reorder UI in Section Editor section list
+- [x] Save new section order via Convex API after drag completes
+- [x] Write tests for section reorder functionality
