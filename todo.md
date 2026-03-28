@@ -45,3 +45,4 @@
 - [x] Change live preview from srcDoc (Convex HTML) to live URL iframe pointing to eternowebstudio.com
 - [x] Add cache-busting query param to live preview iframe URL on refresh
 - [x] Keep srcDoc as fallback when site URL is unavailable
+- [x] Fix: Live preview loads eternowebstudio.com landing page instead of eternowebstudio.com/[slug]

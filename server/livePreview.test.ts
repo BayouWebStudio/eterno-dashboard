@@ -6,31 +6,30 @@ import { describe, expect, it } from "vitest";
  */
 
 describe("Live preview URL construction", () => {
-  it("builds correct live URL from siteUrl when available", () => {
-    const siteInfo = {
-      slug: "weschetattoo",
-      siteUrl: "https://eternowebstudio.com/weschetattoo",
-    };
-    const liveUrl = siteInfo.siteUrl || `https://eternowebstudio.com/${siteInfo.slug}`;
+  function buildLiveUrl(siteUrl: string | undefined, slug: string): string {
+    const baseUrl = siteUrl || "https://eternowebstudio.com";
+    return `${baseUrl.replace(/\/$/, "")}/${slug}`;
+  }
+
+  it("appends slug to siteUrl (root domain from API)", () => {
+    // The API returns siteUrl as just the root domain, not including the slug
+    const liveUrl = buildLiveUrl("https://eternowebstudio.com", "weschetattoo");
     expect(liveUrl).toBe("https://eternowebstudio.com/weschetattoo");
   });
 
-  it("falls back to slug-based URL when siteUrl is not set", () => {
-    const siteInfo = {
-      slug: "tattoosbypaketh",
-      siteUrl: undefined as string | undefined,
-    };
-    const liveUrl = siteInfo.siteUrl || `https://eternowebstudio.com/${siteInfo.slug}`;
+  it("falls back to default domain when siteUrl is not set", () => {
+    const liveUrl = buildLiveUrl(undefined, "tattoosbypaketh");
     expect(liveUrl).toBe("https://eternowebstudio.com/tattoosbypaketh");
   });
 
-  it("uses siteUrl over slug-based fallback", () => {
-    const siteInfo = {
-      slug: "oldslug",
-      siteUrl: "https://eternowebstudio.com/newslug",
-    };
-    const liveUrl = siteInfo.siteUrl || `https://eternowebstudio.com/${siteInfo.slug}`;
-    expect(liveUrl).toBe("https://eternowebstudio.com/newslug");
+  it("handles siteUrl with trailing slash", () => {
+    const liveUrl = buildLiveUrl("https://eternowebstudio.com/", "weschetattoo");
+    expect(liveUrl).toBe("https://eternowebstudio.com/weschetattoo");
+  });
+
+  it("works with custom domains", () => {
+    const liveUrl = buildLiveUrl("https://custom-domain.com", "mysite");
+    expect(liveUrl).toBe("https://custom-domain.com/mysite");
   });
 });
 

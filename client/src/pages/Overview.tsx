@@ -102,7 +102,10 @@ export default function Overview() {
 
   // ── Site loaded: show overview ──
   const domain = currentSite.domain || `${currentSite.slug}.eternowebstudio.com`;
-  const liveUrl = currentSite.siteUrl || `https://eternowebstudio.com/${currentSite.slug}`;
+  // siteUrl from API is just the root domain (e.g. "https://eternowebstudio.com")
+  // We always need to append the slug to get the actual site page
+  const baseUrl = currentSite.siteUrl || "https://eternowebstudio.com";
+  const liveUrl = `${baseUrl.replace(/\/$/, "")}/${currentSite.slug}`;
 
   return (
     <div className="space-y-6 max-w-5xl">
