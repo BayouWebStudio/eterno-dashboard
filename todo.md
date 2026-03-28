@@ -41,3 +41,7 @@
 - [x] Update SiteContext to support multi-page loading and switching
 - [x] Ensure all text on all pages is editable
 - [x] Write vitest tests for multi-page editing
+- [x] Fix: Dashboard not showing updated site HTML after Hex remade the site
+- [x] Change live preview from srcDoc (Convex HTML) to live URL iframe pointing to eternowebstudio.com
+- [x] Add cache-busting query param to live preview iframe URL on refresh
+- [x] Keep srcDoc as fallback when site URL is unavailable

@@ -5,11 +5,11 @@
     1. "I already have a site" → connect by Instagram handle
     2. "Build a new site" → create from scratch
 */
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useSite } from "@/contexts/SiteContext";
 import {
   ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages,
-  Loader2, Link2, Rocket, ArrowLeft, CheckCircle2
+  Loader2, Link2, Rocket, ArrowLeft, CheckCircle2, Monitor, Code2
 } from "lucide-react";
 import BuildStatusIndicator from "@/components/BuildStatusIndicator";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ export default function Overview() {
     currentSite,
     siteHtml,
     loading,
+    htmlLoading,
     refreshHtml,
     refreshInfo,
     onboardingStatus,
@@ -86,8 +87,22 @@ export default function Overview() {
     );
   }
 
+  // ── Preview mode: "live" (iframe URL) vs "source" (srcDoc from Convex) ──
+  const [previewMode, setPreviewMode] = useState<"live" | "source">("live");
+  const [iframeKey, setIframeKey] = useState(0);
+
+  const handleRefreshPreview = useCallback(() => {
+    if (previewMode === "live") {
+      // Cache-bust the iframe by changing its key
+      setIframeKey((k) => k + 1);
+    } else {
+      refreshHtml();
+    }
+  }, [previewMode, refreshHtml]);
+
   // ── Site loaded: show overview ──
   const domain = currentSite.domain || `${currentSite.slug}.eternowebstudio.com`;
+  const liveUrl = currentSite.siteUrl || `https://eternowebstudio.com/${currentSite.slug}`;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -112,7 +127,7 @@ export default function Overview() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => refreshHtml()}
+              onClick={handleRefreshPreview}
               disabled={loading}
               className="border-border text-muted-foreground hover:text-foreground hover:border-gold-dim"
             >
@@ -144,38 +159,80 @@ export default function Overview() {
       {/* Live Preview */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="text-sm font-medium text-foreground">Live Preview</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-medium text-foreground">Live Preview</h3>
+            {/* Toggle: Live Site vs Source HTML */}
+            <div className="flex items-center bg-[oklch(0.13_0.005_250)] rounded-md p-0.5 border border-border/50">
+              <button
+                onClick={() => setPreviewMode("live")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                  previewMode === "live"
+                    ? "bg-gold/15 text-gold border border-gold/30"
+                    : "text-muted-foreground hover:text-foreground border border-transparent"
+                }`}
+              >
+                <Monitor className="w-3 h-3" />
+                Live Site
+              </button>
+              <button
+                onClick={() => { setPreviewMode("source"); if (!siteHtml) refreshHtml(); }}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                  previewMode === "source"
+                    ? "bg-gold/15 text-gold border border-gold/30"
+                    : "text-muted-foreground hover:text-foreground border border-transparent"
+                }`}
+              >
+                <Code2 className="w-3 h-3" />
+                Source HTML
+              </button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
             <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
             <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
           </div>
         </div>
+        {/* URL bar */}
+        {previewMode === "live" && (
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-[oklch(0.10_0.005_250)] border-b border-border/50">
+            <Globe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs text-muted-foreground font-mono truncate">{liveUrl}</span>
+          </div>
+        )}
         <div className="relative bg-[oklch(0.08_0.005_250)]">
-          {siteHtml ? (
+          {previewMode === "live" ? (
+            <iframe
+              key={iframeKey}
+              src={`${liveUrl}?_cb=${iframeKey}`}
+              title="Live Site Preview"
+              className="w-full h-[500px] border-0"
+              sandbox="allow-scripts allow-same-origin"
+            />
+          ) : siteHtml ? (
             <iframe
               srcDoc={siteHtml}
-              title="Site Preview"
+              title="Source HTML Preview"
               className="w-full h-[500px] border-0"
               sandbox="allow-scripts"
             />
           ) : (
             <div className="h-[500px] flex items-center justify-center">
-              {loading ? (
+              {loading || htmlLoading ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                  <p className="text-sm text-muted-foreground">Loading preview...</p>
+                  <p className="text-sm text-muted-foreground">Loading source HTML...</p>
                 </div>
               ) : (
                 <div className="text-center">
-                  <p className="text-muted-foreground text-sm mb-3">No preview available</p>
+                  <p className="text-muted-foreground text-sm mb-3">No source HTML available</p>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => refreshHtml()}
                     className="border-gold-dim text-gold hover:bg-gold/10"
                   >
-                    Load Preview
+                    Load Source HTML
                   </Button>
                 </div>
               )}
