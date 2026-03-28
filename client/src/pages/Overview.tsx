@@ -1,15 +1,46 @@
 /*
   DESIGN: Dark Forge — Overview Page
   Shows site info card, live preview iframe, and quick stats.
-  Uses layered dark surfaces with gold accent highlights.
+  When no site is found, shows the onboarding flow (Instagram handle input + build).
 */
+import { useState } from "react";
 import { useSite } from "@/contexts/SiteContext";
-import { ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages } from "lucide-react";
+import { ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function Overview() {
-  const { currentSite, siteHtml, loading, refreshHtml, refreshSites } = useSite();
+  const {
+    currentSite,
+    siteHtml,
+    loading,
+    refreshHtml,
+    refreshInfo,
+    onboardingStatus,
+    buildProgress,
+    setupSite,
+    error,
+  } = useSite();
 
+  // ── Onboarding: no site found ──
+  if (onboardingStatus === "none") {
+    return <OnboardingPrompt setupSite={setupSite} error={error} />;
+  }
+
+  // ── Building: site is being created ──
+  if (onboardingStatus === "building") {
+    return (
+      <div className="flex flex-col items-center justify-center h-80 gap-6">
+        <div className="w-12 h-12 border-3 border-gold/30 border-t-gold rounded-full animate-spin" />
+        <div className="text-center">
+          <p className="text-lg font-heading font-bold text-foreground mb-2">{buildProgress}</p>
+          <p className="text-sm text-muted-foreground">This takes about 2-5 minutes</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loading state ──
   if (loading && !currentSite) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -18,11 +49,12 @@ export default function Overview() {
     );
   }
 
+  // ── Idle / not yet loaded ──
   if (!currentSite) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-muted-foreground">No sites found for your account.</p>
-        <Button variant="outline" onClick={() => refreshSites()} className="border-gold-dim text-gold hover:bg-gold/10">
+        <p className="text-muted-foreground">Loading your site info...</p>
+        <Button variant="outline" onClick={() => refreshInfo()} className="border-gold-dim text-gold hover:bg-gold/10">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
@@ -30,6 +62,7 @@ export default function Overview() {
     );
   }
 
+  // ── Site loaded: show overview ──
   const domain = currentSite.domain || `${currentSite.slug}.eternowebstudio.com`;
 
   return (
@@ -147,6 +180,82 @@ export default function Overview() {
           href="/themes"
           icon="🎨"
         />
+      </div>
+    </div>
+  );
+}
+
+/* ── Onboarding Prompt ── */
+function OnboardingPrompt({
+  setupSite,
+  error,
+}: {
+  setupSite: (handle: string) => Promise<boolean>;
+  error: string | null;
+}) {
+  const [handle, setHandle] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    const cleaned = handle.trim().replace(/^@/, "");
+    if (!cleaned) {
+      toast.error("Enter your Instagram handle");
+      return;
+    }
+    setSubmitting(true);
+    const ok = await setupSite(cleaned);
+    if (!ok) {
+      setSubmitting(false);
+      if (error) toast.error(error);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="max-w-md w-full text-center px-6">
+        <div className="text-5xl mb-5">🌿</div>
+        <h2 className="font-heading text-2xl font-bold text-foreground mb-2">
+          Welcome to Eterno Web Studio
+        </h2>
+        <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
+          Enter your Instagram handle and we'll build your free website in under 5 minutes.
+        </p>
+
+        <div className="flex gap-3 max-w-sm mx-auto mb-6">
+          <div className="relative flex-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+              @
+            </span>
+            <input
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="yourhandle"
+              disabled={submitting}
+              className="w-full bg-input border border-border rounded-lg pl-8 pr-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50"
+            />
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || !handle.trim()}
+            className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-bold px-6 py-3 disabled:opacity-40"
+          >
+            {submitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              "Build My Site →"
+            )}
+          </Button>
+        </div>
+
+        {error && (
+          <p className="text-sm text-destructive mb-4">{error}</p>
+        )}
+
+        <p className="text-xs text-muted-foreground/60">
+          Once your site is live, you can pick your custom .com domain from the Overview tab.
+        </p>
       </div>
     </div>
   );

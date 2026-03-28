@@ -26,3 +26,6 @@
 - [x] Update Section Editor to use the new save queue
 - [x] Add unsaved changes warning on navigation
 - [x] Write vitest tests for the save queue logic
+- [x] Add onboarding flow when no site is found (Instagram handle input + setup-site API call)
+- [x] Show build progress with polling after site setup
+- [x] Write vitest tests for onboarding flow

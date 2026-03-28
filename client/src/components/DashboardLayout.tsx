@@ -18,7 +18,6 @@ import {
   ChevronRight,
   LogOut,
   ExternalLink,
-  ChevronDown,
 } from "lucide-react";
 
 interface NavItem {
@@ -40,8 +39,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [location] = useLocation();
   const { userName, userImage, signOut } = useAuth();
-  const { sites, currentSite, selectSite, loading } = useSite();
-  const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
+  const { currentSite, loading } = useSite();
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -66,40 +64,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           )}
         </div>
 
-        {/* Site Selector */}
+        {/* Current Site Info */}
         {!collapsed && (
           <div className="px-3 py-3 border-b border-border">
-            <div className="relative">
-              <button
-                onClick={() => setSiteDropdownOpen(!siteDropdownOpen)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-[oklch(0.16_0.005_250)] hover:bg-[oklch(0.19_0.005_250)] transition-colors text-left"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground truncate">Current Site</p>
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {loading ? "Loading..." : currentSite?.name || "No site"}
-                  </p>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-              </button>
-              {siteDropdownOpen && sites.length > 1 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-[oklch(0.18_0.005_250)] border border-border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-                  {sites.map((site) => (
-                    <button
-                      key={site.slug}
-                      onClick={() => {
-                        selectSite(site.slug);
-                        setSiteDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-[oklch(0.22_0.005_250)] transition-colors ${
-                        site.slug === currentSite?.slug ? "text-gold" : "text-foreground"
-                      }`}
-                    >
-                      {site.name}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="px-3 py-2 rounded-md bg-[oklch(0.16_0.005_250)]">
+              <p className="text-xs text-muted-foreground truncate">Current Site</p>
+              <p className="text-sm font-medium text-foreground truncate">
+                {loading ? "Loading..." : currentSite?.name || "No site connected"}
+              </p>
             </div>
           </div>
         )}
@@ -205,7 +177,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 {currentSite.slug}
               </span>
             )}
-            <div className="w-2 h-2 rounded-full bg-emerald-500" title="Site live" />
+            <div className={`w-2 h-2 rounded-full ${currentSite ? "bg-emerald-500" : "bg-yellow-500"}`} title={currentSite ? "Site live" : "No site"} />
           </div>
         </header>
 
