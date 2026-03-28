@@ -57,3 +57,4 @@
 - [x] Save gallery changes via saveSiteField with gallery_images key
 - [x] Fix: Gallery not editable under tattoos.html in Section Editor
 - [x] Fix: Gallery images not visible when selecting Tattoos section in Section Editor
+- [x] Fix: Gallery images show empty boxes because relative paths (img/1.jpg) don't resolve in dashboard context

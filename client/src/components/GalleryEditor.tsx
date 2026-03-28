@@ -23,7 +23,30 @@ interface GalleryEditorProps {
 }
 
 export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
-  const { siteHtml, saveSiteField, uploadSiteImage, refreshHtml } = useSite();
+  const { siteHtml, saveSiteField, uploadSiteImage, refreshHtml, currentSite } = useSite();
+
+  // Resolve relative image paths (e.g. "img/1.jpg") to full URLs using the site's base URL
+  const resolveImageUrl = useCallback(
+    (src: string) => {
+      // Already absolute URL — return as-is
+      if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) return src;
+      // Build base URL from siteUrl + slug
+      const siteUrl = currentSite?.siteUrl?.replace(/\/$/, "") || "";
+      const slug = currentSite?.slug || "";
+      if (siteUrl && slug) {
+        return `${siteUrl}/${slug}/${src}`;
+      }
+      if (siteUrl) {
+        return `${siteUrl}/${src}`;
+      }
+      // Fallback: try GitHub raw content (common for Eterno sites)
+      if (slug) {
+        return `https://raw.githubusercontent.com/BayouWebStudio/${slug}/main/${src}`;
+      }
+      return src;
+    },
+    [currentSite]
+  );
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -187,7 +210,7 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
               `}
             >
               <img
-                src={src}
+                src={resolveImageUrl(src)}
                 alt={`Gallery ${idx + 1}`}
                 className="w-full aspect-square object-cover"
                 loading="lazy"
