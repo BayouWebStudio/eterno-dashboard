@@ -97,3 +97,6 @@
 - [x] Fix: Visual editor gallery delete only works on a few tattoo images, not all of them
 - [x] Add drag-and-drop reordering for gallery images in the visual editor
 - [x] Fix: Gallery delete button on tattoo images not actually removing them (button appears, reorder works, but delete fails)
+- [x] Fix: Dashboard save replaces entire index.html instead of patching specific sections — RESOLVED: dashboard was already using section-level patching; root cause was a one-time mirror event on first connect. Hex added guard + marker to prevent recurrence.
+- [x] Add <!-- premium-build --> marker comment — RESOLVED: Hex added marker to repo and guard on backend side; dashboard doesn't generate HTML so no change needed here.
+- [x] Fix: Themes page save fails — saveSiteField("theme") tries save-section endpoint but "theme" is not a section in site HTML
