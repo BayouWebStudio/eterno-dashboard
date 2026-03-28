@@ -185,15 +185,65 @@ export default function Overview() {
   );
 }
 
+/* ── Country options ── */
+const COUNTRIES = [
+  { code: "US", name: "United States" },
+  { code: "MX", name: "Mexico" },
+  { code: "CA", name: "Canada" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "ES", name: "Spain" },
+  { code: "FR", name: "France" },
+  { code: "DE", name: "Germany" },
+  { code: "IT", name: "Italy" },
+  { code: "BR", name: "Brazil" },
+  { code: "AR", name: "Argentina" },
+  { code: "CO", name: "Colombia" },
+  { code: "CL", name: "Chile" },
+  { code: "PE", name: "Peru" },
+  { code: "AU", name: "Australia" },
+  { code: "JP", name: "Japan" },
+  { code: "KR", name: "South Korea" },
+  { code: "IN", name: "India" },
+  { code: "PH", name: "Philippines" },
+  { code: "TH", name: "Thailand" },
+  { code: "NL", name: "Netherlands" },
+  { code: "PT", name: "Portugal" },
+  { code: "SE", name: "Sweden" },
+  { code: "NO", name: "Norway" },
+  { code: "DK", name: "Denmark" },
+  { code: "PL", name: "Poland" },
+  { code: "PR", name: "Puerto Rico" },
+  { code: "CR", name: "Costa Rica" },
+  { code: "DO", name: "Dominican Republic" },
+  { code: "GT", name: "Guatemala" },
+  { code: "HN", name: "Honduras" },
+  { code: "SV", name: "El Salvador" },
+  { code: "NI", name: "Nicaragua" },
+  { code: "PA", name: "Panama" },
+  { code: "EC", name: "Ecuador" },
+  { code: "VE", name: "Venezuela" },
+  { code: "UY", name: "Uruguay" },
+  { code: "PY", name: "Paraguay" },
+  { code: "BO", name: "Bolivia" },
+  { code: "CU", name: "Cuba" },
+  { code: "ZA", name: "South Africa" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "IE", name: "Ireland" },
+  { code: "CH", name: "Switzerland" },
+  { code: "AT", name: "Austria" },
+  { code: "BE", name: "Belgium" },
+];
+
 /* ── Onboarding Prompt ── */
 function OnboardingPrompt({
   setupSite,
   error,
 }: {
-  setupSite: (handle: string) => Promise<boolean>;
+  setupSite: (handle: string, country: string) => Promise<boolean>;
   error: string | null;
 }) {
   const [handle, setHandle] = useState("");
+  const [country, setCountry] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -202,8 +252,12 @@ function OnboardingPrompt({
       toast.error("Enter your Instagram handle");
       return;
     }
+    if (!country) {
+      toast.error("Select your country");
+      return;
+    }
     setSubmitting(true);
-    const ok = await setupSite(cleaned);
+    const ok = await setupSite(cleaned, country);
     if (!ok) {
       setSubmitting(false);
       if (error) toast.error(error);
@@ -218,11 +272,12 @@ function OnboardingPrompt({
           Welcome to Eterno Web Studio
         </h2>
         <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-          Enter your Instagram handle and we'll build your free website in under 5 minutes.
+          Enter your Instagram handle and country, and we'll build your free website in under 5 minutes.
         </p>
 
-        <div className="flex gap-3 max-w-sm mx-auto mb-6">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 max-w-sm mx-auto mb-6">
+          {/* Instagram handle */}
+          <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
               @
             </span>
@@ -236,10 +291,28 @@ function OnboardingPrompt({
               className="w-full bg-input border border-border rounded-lg pl-8 pr-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50"
             />
           </div>
+
+          {/* Country selector */}
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            disabled={submitting}
+            className="w-full bg-input border border-border rounded-lg px-3 py-3 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50 appearance-none cursor-pointer"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+          >
+            <option value="" disabled>Select your country</option>
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+
+          {/* Submit button */}
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !handle.trim()}
-            className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-bold px-6 py-3 disabled:opacity-40"
+            disabled={submitting || !handle.trim() || !country}
+            className="w-full bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-bold px-6 py-3 disabled:opacity-40"
           >
             {submitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />

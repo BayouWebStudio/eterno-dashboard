@@ -30,3 +30,4 @@
 - [x] Show build progress with polling after site setup
 - [x] Write vitest tests for onboarding flow
 - [x] Change setup-site endpoint from /api/dashboard/setup-site to /api/signature/create
+- [x] Add country selector to onboarding form (required by /api/signature/create)

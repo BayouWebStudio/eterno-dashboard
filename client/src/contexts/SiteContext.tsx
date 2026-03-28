@@ -36,7 +36,7 @@ interface SiteContextValue {
   refreshHtml: () => Promise<void>;
   saveSiteField: (key: string, value: string) => Promise<boolean>;
   uploadSiteImage: (file: File, folder?: string) => Promise<string | null>;
-  setupSite: (igHandle: string) => Promise<boolean>;
+  setupSite: (igHandle: string, country: string) => Promise<boolean>;
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -169,7 +169,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   // ── Onboarding: setup site from Instagram handle ──
   const setupSite = useCallback(
-    async (igHandle: string): Promise<boolean> => {
+    async (igHandle: string, country: string): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       setOnboardingStatus("building");
       setBuildProgress("Starting build...");
@@ -177,7 +177,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const res = await authFetch("/api/signature/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ igHandle }),
+          body: JSON.stringify({ igHandle, country }),
         });
         const data = await res.json();
 
