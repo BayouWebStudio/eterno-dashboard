@@ -69,3 +69,8 @@
 - [x] Update GalleryEditor to call real endpoints instead of saveSiteField
 - [x] Write tests for gallery API integration
 - [x] Fix: React hooks order error in Overview.tsx — conditional hook call causing different hook order between renders
+- [x] Research Convex API for section deletion endpoint
+- [x] Add deleteSiteSection method to SiteContext
+- [x] Add Delete Section button with confirmation dialog to Section Editor
+- [x] Refresh section list after successful deletion
+- [x] Write tests for delete section functionality

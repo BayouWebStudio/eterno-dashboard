@@ -66,6 +66,7 @@ interface SiteContextValue {
   uploadSiteImage: (file: File, folder?: string) => Promise<string | null>;
   saveGalleryOrder: (filenames: string[], sectionId?: string) => Promise<boolean>;
   deleteGalleryImage: (filename: string, sectionId?: string) => Promise<boolean>;
+  deleteSiteSection: (sectionKeyword: string) => Promise<boolean>;
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -292,6 +293,29 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [convexHttpUrl, authFetch]
   );
 
+  // ── Delete a section via /api/dashboard/remove-section ──
+  const deleteSiteSection = useCallback(
+    async (sectionKeyword: string): Promise<boolean> => {
+      if (!convexHttpUrl) return false;
+      try {
+        const res = await authFetch("/api/dashboard/remove-section", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionKeyword }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || `Remove section failed: ${res.status}`);
+        }
+        return true;
+      } catch (err) {
+        console.error(`[Site] Delete section "${sectionKeyword}" failed:`, err);
+        return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
   // ── Connect existing site by Instagram handle ──
   const connectSite = useCallback(
     async (igHandle: string): Promise<{ success: boolean; error?: string }> => {
@@ -438,6 +462,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         uploadSiteImage,
         saveGalleryOrder,
         deleteGalleryImage,
+        deleteSiteSection,
         setupSite,
         connectSite,
       }}

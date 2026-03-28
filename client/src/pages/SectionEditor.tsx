@@ -23,6 +23,7 @@ import {
   Clock,
   FileText,
   ChevronDown,
+  Trash2,
 } from "lucide-react";
 
 /** Status badge shown next to the Save button */
@@ -155,12 +156,15 @@ export default function SectionEditor() {
     saveSiteField,
     uploadSiteImage,
     refreshHtml,
+    deleteSiteSection,
     isSignatureSite,
     availablePages,
     currentPage,
     switchPage,
   } = useSite();
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // ── Save Queue ──
   const {
@@ -229,6 +233,27 @@ export default function SectionEditor() {
   const handleSave = useCallback(async () => {
     await flush();
   }, [flush]);
+
+  // ── Delete section handler ──
+  const handleDeleteSection = useCallback(async (sectionId: string) => {
+    setDeleting(true);
+    try {
+      const ok = await deleteSiteSection(sectionId);
+      if (ok) {
+        toast.success("Section removed! Allow 3\u20135 minutes to show on your website.");
+        setActiveSection(null);
+        setDeleteConfirm(null);
+        // Refresh HTML to update the section list
+        await refreshHtml();
+      } else {
+        toast.error("Failed to remove section. Please try again.");
+      }
+    } catch {
+      toast.error("Failed to remove section. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteSiteSection, refreshHtml]);
 
   if (loading && !siteHtml) {
     return (
@@ -428,6 +453,51 @@ export default function SectionEditor() {
                     <span className="text-[10px] text-gold-dim">Saving...</span>
                   </div>
                 )}
+
+                {/* Delete Section */}
+                <div className="px-5 py-4 border-t border-border">
+                  {deleteConfirm === activeSec.id ? (
+                    <div className="flex items-center gap-3 p-3 rounded-md bg-destructive/10 border border-destructive/30">
+                      <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-destructive font-medium">Permanently remove this section?</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">This cannot be undone. The section will be removed from your live site.</p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirm(null)}
+                          disabled={deleting}
+                          className="border-border text-muted-foreground hover:text-foreground"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteSection(activeSec.id)}
+                          disabled={deleting}
+                        >
+                          {deleting ? (
+                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                          )}
+                          {deleting ? "Removing..." : "Remove"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteConfirm(activeSec.id)}
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete this section
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-64 text-muted-foreground">
