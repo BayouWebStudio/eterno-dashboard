@@ -10,7 +10,6 @@ import { useSite } from "@/contexts/SiteContext";
 import {
   LayoutDashboard,
   FileEdit,
-  Image,
   ShoppingBag,
   Palette,
   Globe,
@@ -29,7 +28,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { path: "/", label: "Overview", icon: LayoutDashboard },
   { path: "/sections", label: "Sections", icon: FileEdit },
-  { path: "/gallery", label: "Gallery", icon: Image },
   { path: "/store", label: "Store", icon: ShoppingBag },
   { path: "/themes", label: "Themes", icon: Palette },
   { path: "/i18n", label: "Languages", icon: Globe },

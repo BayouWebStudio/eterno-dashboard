@@ -253,10 +253,10 @@ export default function Overview() {
           icon="🦸"
         />
         <QuickAction
-          title="Manage Gallery"
-          description="Add, remove, or reorder photos"
-          href="/gallery"
-          icon="📷"
+          title="Manage Store"
+          description="Update shop items and pricing"
+          href="/store"
+          icon="🛍️"
         />
         <QuickAction
           title="Change Theme"

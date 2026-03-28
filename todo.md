@@ -46,3 +46,8 @@
 - [x] Add cache-busting query param to live preview iframe URL on refresh
 - [x] Keep srcDoc as fallback when site URL is unavailable
 - [x] Fix: Live preview loads eternowebstudio.com landing page instead of eternowebstudio.com/[slug]
+- [x] Remove Gallery tab from sidebar navigation
+- [x] Remove Gallery route from App.tsx
+- [x] Ensure tattoos.html page is accessible via Section Editor page dropdown
+- [x] Remove Gallery quick action from Overview page
+- [x] Update tests to reflect Gallery removal
