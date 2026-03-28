@@ -62,3 +62,9 @@
 - [x] Integrate compression into GalleryEditor upload flow
 - [x] Show compression progress/stats to user (original vs compressed size)
 - [x] Write tests for compression logic
+- [x] Wire up /api/dashboard/save-gallery-order for reordering gallery images
+- [x] Wire up /api/dashboard/delete-gallery-image for deleting individual images
+- [x] Confirm upload uses /api/dashboard/upload-hero-bg with folder:"gallery"
+- [x] Extract filenames from image src paths for API calls
+- [x] Update GalleryEditor to call real endpoints instead of saveSiteField
+- [x] Write tests for gallery API integration

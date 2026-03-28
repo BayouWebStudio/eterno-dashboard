@@ -64,6 +64,8 @@ interface SiteContextValue {
   refreshHtml: (page?: string) => Promise<void>;
   saveSiteField: (key: string, value: string) => Promise<boolean>;
   uploadSiteImage: (file: File, folder?: string) => Promise<string | null>;
+  saveGalleryOrder: (filenames: string[], sectionId?: string) => Promise<boolean>;
+  deleteGalleryImage: (filename: string, sectionId?: string) => Promise<boolean>;
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -236,6 +238,60 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [convexHttpUrl, getToken]
   );
 
+  // ── Save gallery order via /api/dashboard/save-gallery-order ──
+  const saveGalleryOrder = useCallback(
+    async (filenames: string[], sectionId?: string): Promise<boolean> => {
+      if (!convexHttpUrl) return false;
+      try {
+        const res = await authFetch("/api/dashboard/save-gallery-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageFilenames: filenames,
+            sectionId: sectionId || "gallery",
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || `Save gallery order failed: ${res.status}`);
+        }
+        const data = await res.json();
+        return data.ok === true;
+      } catch (err) {
+        console.error("[Site] Save gallery order failed:", err);
+        return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
+  // ── Delete gallery image via /api/dashboard/delete-gallery-image ──
+  const deleteGalleryImage = useCallback(
+    async (filename: string, sectionId?: string): Promise<boolean> => {
+      if (!convexHttpUrl) return false;
+      try {
+        const res = await authFetch("/api/dashboard/delete-gallery-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename,
+            sectionId: sectionId || "gallery",
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || `Delete gallery image failed: ${res.status}`);
+        }
+        const data = await res.json();
+        return data.ok === true;
+      } catch (err) {
+        console.error("[Site] Delete gallery image failed:", err);
+        return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
   // ── Connect existing site by Instagram handle ──
   const connectSite = useCallback(
     async (igHandle: string): Promise<{ success: boolean; error?: string }> => {
@@ -380,6 +436,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         refreshHtml,
         saveSiteField,
         uploadSiteImage,
+        saveGalleryOrder,
+        deleteGalleryImage,
         setupSite,
         connectSite,
       }}

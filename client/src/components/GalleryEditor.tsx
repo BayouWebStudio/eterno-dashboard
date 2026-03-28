@@ -2,7 +2,10 @@
   DESIGN: Dark Forge — Inline Gallery Editor
   Embeds inside the Section Editor panel for gallery-type sections.
   Supports image upload with automatic compression, delete, and drag-to-reorder.
-  Uses the same save flow (saveSiteField) as the rest of the editor.
+  Uses the real Convex gallery endpoints:
+    - Upload:  POST /api/dashboard/upload-hero-bg  (folder: "gallery")
+    - Reorder: POST /api/dashboard/save-gallery-order
+    - Delete:  POST /api/dashboard/delete-gallery-image
 */
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useSite } from "@/contexts/SiteContext";
@@ -24,8 +27,28 @@ interface GalleryEditorProps {
   sectionId: string;
 }
 
+/**
+ * Extract the filename from an image src path.
+ * "img/1.jpg" → "1.jpg"
+ * "https://cdn.example.com/img/tattoo-3.jpg?v=123" → "tattoo-3.jpg"
+ */
+function extractFilename(src: string): string {
+  // Strip query params
+  const clean = src.split("?")[0];
+  // Get the last path segment
+  const parts = clean.split("/");
+  return parts[parts.length - 1] || src;
+}
+
 export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
-  const { siteHtml, saveSiteField, uploadSiteImage, refreshHtml, currentSite } = useSite();
+  const {
+    siteHtml,
+    uploadSiteImage,
+    saveGalleryOrder,
+    deleteGalleryImage,
+    refreshHtml,
+    currentSite,
+  } = useSite();
 
   // Resolve relative image paths (e.g. "img/1.jpg") to full URLs using the site's base URL
   const resolveImageUrl = useCallback(
@@ -45,8 +68,9 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [hasOrderChanges, setHasOrderChanges] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Parse gallery images from HTML whenever it changes
@@ -54,10 +78,11 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
     if (siteHtml) {
       const parsed = parseGalleryImages(siteHtml, sectionId);
       setImages(parsed);
-      setHasChanges(false);
+      setHasOrderChanges(false);
     }
   }, [siteHtml, sectionId]);
 
+  // ── Upload handler ──
   const handleUpload = useCallback(
     async (files: FileList | null) => {
       if (!files || files.length === 0) return;
@@ -87,43 +112,76 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
       const savedBytes = totalOriginal - totalCompressed;
       const compressedCount = results.filter((r) => r.wasCompressed).length;
 
-      // Step 2: Upload compressed files
+      // Step 2: Upload compressed files via /api/dashboard/upload-hero-bg with folder: "gallery"
       setUploadProgress(`Uploading ${count} image${count > 1 ? "s" : ""}...`);
+      let successCount = 0;
       const newUrls: string[] = [];
       for (let i = 0; i < results.length; i++) {
         setUploadProgress(`Uploading ${i + 1} of ${count}...`);
         const url = await uploadSiteImage(results[i].file, "gallery");
-        if (url) newUrls.push(url);
+        if (url) {
+          newUrls.push(url);
+          successCount++;
+        }
       }
 
-      if (newUrls.length > 0) {
+      if (successCount > 0) {
         setImages((prev) => [...prev, ...newUrls]);
-        setHasChanges(true);
 
         // Show compression stats in toast
         if (compressedCount > 0 && savedBytes > 0) {
           const pct = Math.round((1 - totalCompressed / totalOriginal) * 100);
           toast.success(
-            `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded — saved ${formatBytes(savedBytes)} (${pct}% smaller)`,
-            { duration: 5000 }
+            `${successCount} image${successCount > 1 ? "s" : ""} uploaded — saved ${formatBytes(savedBytes)} (${pct}% smaller). Allow 3–5 min to show on your site.`,
+            { duration: 6000 }
           );
         } else {
-          toast.success(`${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded`);
+          toast.success(
+            `${successCount} image${successCount > 1 ? "s" : ""} uploaded. Allow 3–5 min to show on your site.`,
+            { duration: 5000 }
+          );
         }
+
+        // Refresh HTML after a brief delay to pick up new images
+        setTimeout(() => refreshHtml(), 3000);
+      } else {
+        toast.error("Upload failed — please try again");
       }
 
       setUploading(false);
       setUploadProgress("");
     },
-    [uploadSiteImage]
+    [uploadSiteImage, refreshHtml]
   );
 
-  const handleDelete = useCallback((idx: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== idx));
-    setHasChanges(true);
-    toast.success("Image removed — save to apply");
-  }, []);
+  // ── Delete handler — calls the real Convex endpoint ──
+  const handleDelete = useCallback(
+    async (idx: number) => {
+      const src = images[idx];
+      if (!src) return;
 
+      const filename = extractFilename(src);
+      if (!confirm(`Delete "${filename}" from your gallery?`)) return;
+
+      setDeleting(idx);
+      try {
+        const ok = await deleteGalleryImage(filename, sectionId === "tattoo-gallery" ? "gallery" : sectionId);
+        if (ok) {
+          setImages((prev) => prev.filter((_, i) => i !== idx));
+          toast.success("Photo removed! Allow 3–5 min to update on your site.");
+        } else {
+          toast.error("Failed to delete image — try again");
+        }
+      } catch {
+        toast.error("Failed to delete image");
+      } finally {
+        setDeleting(null);
+      }
+    },
+    [images, deleteGalleryImage, sectionId]
+  );
+
+  // ── Drag handlers for reorder ──
   const handleDragStart = useCallback((idx: number) => {
     setDragIdx(idx);
   }, []);
@@ -139,7 +197,7 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
         return next;
       });
       setDragIdx(idx);
-      setHasChanges(true);
+      setHasOrderChanges(true);
     },
     [dragIdx]
   );
@@ -148,23 +206,26 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
     setDragIdx(null);
   }, []);
 
-  const handleSave = useCallback(async () => {
+  // ── Save order handler — calls the real Convex endpoint ──
+  const handleSaveOrder = useCallback(async () => {
     setSaving(true);
     try {
-      const ok = await saveSiteField("gallery_images", JSON.stringify(images));
+      // Extract filenames from image src paths for the API
+      const filenames = images.map(extractFilename);
+      const gallerySection = sectionId === "tattoo-gallery" ? "gallery" : sectionId;
+      const ok = await saveGalleryOrder(filenames, gallerySection);
       if (ok) {
-        toast.success("Gallery saved");
-        setHasChanges(false);
-        refreshHtml();
+        toast.success("Gallery order saved! Allow 3–5 min to show on your site.", { duration: 5000 });
+        setHasOrderChanges(false);
       } else {
-        toast.error("Failed to save gallery");
+        toast.error("Failed to save gallery order");
       }
     } catch {
-      toast.error("Failed to save gallery");
+      toast.error("Failed to save gallery order");
     } finally {
       setSaving(false);
     }
-  }, [images, saveSiteField, refreshHtml]);
+  }, [images, saveGalleryOrder, sectionId]);
 
   return (
     <div className="space-y-4">
@@ -191,8 +252,8 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
             {uploading ? uploadProgress || "Uploading..." : "Upload"}
           </Button>
           <Button
-            onClick={handleSave}
-            disabled={saving || !hasChanges}
+            onClick={handleSaveOrder}
+            disabled={saving || !hasOrderChanges}
             size="sm"
             className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold disabled:opacity-40"
           >
@@ -201,7 +262,7 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
             ) : (
               <Save className="w-3.5 h-3.5 mr-1.5" />
             )}
-            {saving ? "Saving..." : hasChanges ? "Save Gallery" : "Saved"}
+            {saving ? "Saving..." : hasOrderChanges ? "Save Order" : "Saved"}
           </Button>
         </div>
       </div>
@@ -270,9 +331,14 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
               {/* Delete button */}
               <button
                 onClick={() => handleDelete(idx)}
-                className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-black/60 text-white/80 hover:bg-destructive hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                disabled={deleting === idx}
+                className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-black/60 text-white/80 hover:bg-destructive hover:text-white transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                {deleting === idx ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
               </button>
               {/* Index badge */}
               <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-white/70 font-mono">
@@ -283,14 +349,14 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
         </div>
       )}
 
-      {/* Unsaved indicator */}
-      {hasChanges && !saving && (
+      {/* Unsaved order indicator */}
+      {hasOrderChanges && !saving && (
         <div className="flex items-center justify-between p-3 rounded-md bg-[oklch(0.75_0.12_85/8%)] border border-gold-dim/25">
           <p className="text-xs text-gold-dim">
-            Gallery has unsaved changes
+            Gallery order has unsaved changes
           </p>
           <button
-            onClick={handleSave}
+            onClick={handleSaveOrder}
             className="text-xs text-gold hover:text-gold/80 font-medium transition-colors"
           >
             Save now

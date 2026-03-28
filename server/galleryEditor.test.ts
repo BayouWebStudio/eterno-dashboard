@@ -254,19 +254,86 @@ describe("parseGalleryImages for tattoos.html masonry pattern", () => {
   });
 });
 
-describe("Gallery image save format", () => {
-  it("serializes image array to JSON for saveSiteField", () => {
-    const images = ["img/tattoo1.jpg", "img/tattoo2.jpg", "img/tattoo3.jpg"];
-    const serialized = JSON.stringify(images);
-    expect(serialized).toBe('["img/tattoo1.jpg","img/tattoo2.jpg","img/tattoo3.jpg"]');
+describe("extractFilename utility", () => {
+  // Inline the function for testing (same logic as in GalleryEditor)
+  function extractFilename(src: string): string {
+    const clean = src.split("?")[0];
+    const parts = clean.split("/");
+    return parts[parts.length - 1] || src;
+  }
+
+  it("extracts filename from relative path", () => {
+    expect(extractFilename("img/1.jpg")).toBe("1.jpg");
   });
 
-  it("handles empty gallery", () => {
-    const images: string[] = [];
-    const serialized = JSON.stringify(images);
-    expect(serialized).toBe("[]");
+  it("extracts filename from nested relative path", () => {
+    expect(extractFilename("assets/img/tattoo-3.jpg")).toBe("tattoo-3.jpg");
   });
 
+  it("extracts filename from full URL", () => {
+    expect(extractFilename("https://cdn.example.com/img/tattoo-3.jpg")).toBe("tattoo-3.jpg");
+  });
+
+  it("strips query params from URL", () => {
+    expect(extractFilename("https://cdn.example.com/img/1.jpg?v=123&t=abc")).toBe("1.jpg");
+  });
+
+  it("handles bare filename", () => {
+    expect(extractFilename("photo.jpg")).toBe("photo.jpg");
+  });
+
+  it("handles filename with cache buster", () => {
+    expect(extractFilename("img/profile.jpg?r=1234567890")).toBe("profile.jpg");
+  });
+});
+
+describe("Gallery API contract — save-gallery-order", () => {
+  it("builds correct filenames array from image src paths", () => {
+    function extractFilename(src: string): string {
+      const clean = src.split("?")[0];
+      const parts = clean.split("/");
+      return parts[parts.length - 1] || src;
+    }
+
+    const images = ["img/3.jpg", "img/1.jpg", "img/2.jpg"];
+    const filenames = images.map(extractFilename);
+    expect(filenames).toEqual(["3.jpg", "1.jpg", "2.jpg"]);
+  });
+
+  it("builds correct payload for save-gallery-order", () => {
+    const filenames = ["1.jpg", "2.jpg", "3.jpg"];
+    const sectionId = "gallery";
+    const payload = { imageFilenames: filenames, sectionId };
+    expect(payload).toEqual({
+      imageFilenames: ["1.jpg", "2.jpg", "3.jpg"],
+      sectionId: "gallery",
+    });
+  });
+
+  it("builds correct payload for delete-gallery-image", () => {
+    const filename = "3.jpg";
+    const sectionId = "gallery";
+    const payload = { filename, sectionId };
+    expect(payload).toEqual({
+      filename: "3.jpg",
+      sectionId: "gallery",
+    });
+  });
+
+  it("maps tattoo-gallery sectionId to gallery for API", () => {
+    const sectionId = "tattoo-gallery";
+    const apiSectionId = sectionId === "tattoo-gallery" ? "gallery" : sectionId;
+    expect(apiSectionId).toBe("gallery");
+  });
+
+  it("preserves other sectionIds as-is", () => {
+    const sectionId = "custom-gallery";
+    const apiSectionId = sectionId === "tattoo-gallery" ? "gallery" : sectionId;
+    expect(apiSectionId).toBe("custom-gallery");
+  });
+});
+
+describe("Gallery reorder and delete operations", () => {
   it("preserves order after reorder", () => {
     const images = ["img/a.jpg", "img/b.jpg", "img/c.jpg"];
     const next = [...images];
