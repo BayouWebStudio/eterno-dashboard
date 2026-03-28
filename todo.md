@@ -1,0 +1,24 @@
+# Eterno Dashboard Refactored — TODO
+
+- [x] Initialize project with React + TypeScript + Vite
+- [x] Analyze three client sites (tattoosbypaketh, prettyboytatt, yesytattoo) for common section structure
+- [x] Design "Dark Forge" theme with gold accents, Syne/Inter/JetBrains Mono fonts
+- [x] Set up Clerk authentication context and provider
+- [x] Set up Convex HTTP API hook for backend calls
+- [x] Create Site context for managing current site selection and data
+- [x] Build HTML parser utility to extract editable sections from site HTML
+- [x] Build DashboardLayout with collapsible sidebar and gold accent bars
+- [x] Build Overview page with site info, live preview, and quick actions
+- [x] Build Section Editor page with master-detail layout and dynamic field rendering
+- [x] Build Gallery page with drag-to-reorder, upload, and delete
+- [x] Build Store page for shop section management
+- [x] Build Themes page with theme cards and preview swatches
+- [x] Build Languages/i18n page
+- [x] Set up environment variables (VITE_CLERK_PUBLISHABLE_KEY, VITE_CONVEX_HTTP_URL)
+- [x] Upgrade to full-stack project (web-db-user)
+- [x] Fix TypeScript errors (downlevelIteration, Home.tsx useAuth)
+- [x] Write vitest tests for secrets validation
+- [x] Verify Clerk sign-in flow works end-to-end
+- [x] Check browser console for runtime errors and fix (domain issue resolved with dev key)
+- [x] Add error boundary improvements and loading states
+- [x] Final polish and checkpoint

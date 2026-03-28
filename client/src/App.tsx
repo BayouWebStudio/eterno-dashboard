@@ -4,35 +4,55 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
-
-
+import { AuthProvider, RequireAuth } from "./contexts/AuthContext";
+import { SiteProvider } from "./contexts/SiteContext";
+import DashboardLayout from "./components/DashboardLayout";
+import Overview from "./pages/Overview";
+import SectionEditor from "./pages/SectionEditor";
+import Gallery from "./pages/Gallery";
+import Store from "./pages/Store";
+import Themes from "./pages/Themes";
+import Languages from "./pages/Languages";
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      <Route path="/" component={Overview} />
+      <Route path="/sections" component={SectionEditor} />
+      <Route path="/gallery" component={Gallery} />
+      <Route path="/store" component={Store} />
+      <Route path="/themes" component={Themes} />
+      <Route path="/i18n" component={Languages} />
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <Toaster
+            theme="dark"
+            toastOptions={{
+              style: {
+                background: "oklch(0.18 0.005 250)",
+                border: "1px solid oklch(0.25 0.005 250)",
+                color: "oklch(0.88 0.01 80)",
+              },
+            }}
+          />
+          <AuthProvider>
+            <RequireAuth>
+              <SiteProvider>
+                <DashboardLayout>
+                  <Router />
+                </DashboardLayout>
+              </SiteProvider>
+            </RequireAuth>
+          </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
