@@ -1,22 +1,91 @@
 /*
   DESIGN: Dark Forge — Section Editor Page
   Master-detail layout: section list on left, editor panel on right.
-  Each section card has a gold accent bar when active.
-  Fields render dynamically based on type (text, textarea, photo, form_fields, style_options).
+  Uses Optimistic Queue with Batch + Lock for safe rapid saves.
 */
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSite } from "@/contexts/SiteContext";
-import { parseSections, type SectionGroup, type SectionField, type FormFieldDef } from "@/lib/parseHtml";
+import { parseSections, type SectionField, type FormFieldDef } from "@/lib/parseHtml";
+import { useSaveQueue } from "@/hooks/useSaveQueue";
+import { useUnsavedWarning } from "@/hooks/useUnsavedWarning";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Save, ChevronRight, Upload, Loader2, AlertCircle } from "lucide-react";
+import {
+  Save,
+  ChevronRight,
+  Upload,
+  Loader2,
+  AlertCircle,
+  Check,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
+
+/** Status badge shown next to the Save button */
+function SaveStatusBadge({ status, dirtyCount }: { status: string; dirtyCount: number }) {
+  if (status === "saving") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-gold animate-pulse">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        Saving...
+      </span>
+    );
+  }
+  if (status === "queued") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-gold-dim">
+        <Clock className="w-3 h-3" />
+        Queued ({dirtyCount})
+      </span>
+    );
+  }
+  if (status === "saved") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+        <Check className="w-3 h-3" />
+        Saved
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-destructive">
+        <AlertTriangle className="w-3 h-3" />
+        Some fields failed
+      </span>
+    );
+  }
+  return null;
+}
 
 export default function SectionEditor() {
   const { siteHtml, loading, saveSiteField, uploadSiteImage, refreshHtml } = useSite();
   const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [dirty, setDirty] = useState(false);
+
+  // ── Save Queue ──
+  const {
+    markDirty,
+    flush,
+    reset,
+    status,
+    isDirty,
+    isSaving,
+    dirtyCount,
+  } = useSaveQueue({
+    saveFn: saveSiteField,
+    autoFlushDelay: 0, // manual save only — user clicks the button
+    onFlushComplete: (result) => {
+      if (result.failed.length === 0 && result.succeeded.length > 0) {
+        toast.success(`Saved ${result.succeeded.length} field${result.succeeded.length > 1 ? "s" : ""} successfully`);
+        refreshHtml();
+      } else if (result.failed.length > 0) {
+        toast.error(`${result.failed.length} field${result.failed.length > 1 ? "s" : ""} failed to save. They'll be retried on next save.`);
+      }
+    },
+  });
+
+  // ── Unsaved changes warning ──
+  useUnsavedWarning(isDirty);
 
   const sections = useMemo(() => {
     if (!siteHtml) return [];
@@ -26,70 +95,31 @@ export default function SectionEditor() {
   // Auto-select first section
   const activeSec = sections.find((s) => s.id === activeSection) || sections[0] || null;
 
-  const updateField = useCallback((key: string, value: string) => {
-    setFieldValues((prev) => ({ ...prev, [key]: value }));
-    setDirty(true);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!activeSec) return;
-    setSaving(true);
-    try {
-      const fieldsToSave = activeSec.fields.filter((f) => f.type !== "form_fields" && f.type !== "style_options");
-      const faqPairs = activeSec.faqPairs;
-
-      let allOk = true;
-
-      // Save regular fields
-      for (const field of fieldsToSave) {
-        const val = fieldValues[field.key] ?? (typeof field.value === "string" ? field.value : "");
-        const ok = await saveSiteField(field.key, val);
-        if (!ok) allOk = false;
+  // Reset save queue when switching sections
+  const prevSectionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeSec && activeSec.id !== prevSectionRef.current) {
+      // If switching sections with unsaved changes, warn
+      if (isDirty && prevSectionRef.current !== null) {
+        // Auto-flush pending changes from previous section before switching
+        flush();
       }
-
-      // Save FAQ pairs
-      if (faqPairs) {
-        for (let i = 0; i < faqPairs.length; i++) {
-          const qVal = fieldValues[`faq_q_${i}`] ?? faqPairs[i].question;
-          const aVal = fieldValues[`faq_a_${i}`] ?? faqPairs[i].answer;
-          const ok1 = await saveSiteField(`faq_q_${i}`, qVal);
-          const ok2 = await saveSiteField(`faq_a_${i}`, aVal);
-          if (!ok1 || !ok2) allOk = false;
-        }
-      }
-
-      // Save style options
-      const styleField = activeSec.fields.find((f) => f.type === "style_options");
-      if (styleField) {
-        const val = fieldValues[styleField.key] ?? (Array.isArray(styleField.value) ? styleField.value.join("\n") : "");
-        const ok = await saveSiteField(styleField.key, val);
-        if (!ok) allOk = false;
-      }
-
-      // Save form field placeholders
-      const formField = activeSec.fields.find((f) => f.type === "form_fields");
-      if (formField && Array.isArray(formField.value)) {
-        for (let i = 0; i < formField.value.length; i++) {
-          const key = `booking_form_field_${i}`;
-          const val = fieldValues[key] ?? (formField.value as FormFieldDef[])[i]?.placeholder ?? "";
-          const ok = await saveSiteField(key, val);
-          if (!ok) allOk = false;
-        }
-      }
-
-      if (allOk) {
-        toast.success("Section saved successfully");
-        setDirty(false);
-        refreshHtml();
-      } else {
-        toast.error("Some fields failed to save");
-      }
-    } catch (err) {
-      toast.error("Failed to save section");
-    } finally {
-      setSaving(false);
+      prevSectionRef.current = activeSec.id;
     }
-  }, [activeSec, fieldValues, saveSiteField, refreshHtml]);
+  }, [activeSec, isDirty, flush]);
+
+  // ── Field change handler: marks field as dirty in the queue ──
+  const handleFieldChange = useCallback(
+    (key: string, value: string) => {
+      markDirty(key, value);
+    },
+    [markDirty]
+  );
+
+  // ── Manual save button handler ──
+  const handleSave = useCallback(async () => {
+    await flush();
+  }, [flush]);
 
   if (loading && !siteHtml) {
     return (
@@ -153,19 +183,22 @@ export default function SectionEditor() {
                 <span className="text-xl">{activeSec.icon}</span>
                 <h2 className="font-heading text-lg font-bold text-foreground">{activeSec.title}</h2>
               </div>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold"
-                size="sm"
-              >
-                {saving ? (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Save className="w-3.5 h-3.5 mr-1.5" />
-                )}
-                Save {activeSec.title}
-              </Button>
+              <div className="flex items-center gap-3">
+                <SaveStatusBadge status={status} dirtyCount={dirtyCount} />
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving || !isDirty}
+                  className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold disabled:opacity-40"
+                  size="sm"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5 mr-1.5" />
+                  )}
+                  {isSaving ? "Saving..." : isDirty ? `Save (${dirtyCount})` : "Saved"}
+                </Button>
+              </div>
             </div>
 
             {/* Fields */}
@@ -186,8 +219,7 @@ export default function SectionEditor() {
                 <FieldRenderer
                   key={field.key}
                   field={field}
-                  value={fieldValues[field.key]}
-                  onChange={(val) => updateField(field.key, val)}
+                  onChange={(val) => handleFieldChange(field.key, val)}
                   onUpload={uploadSiteImage}
                 />
               ))}
@@ -204,7 +236,7 @@ export default function SectionEditor() {
                         <textarea
                           className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[60px]"
                           defaultValue={pair.question}
-                          onChange={(e) => updateField(`faq_q_${i}`, e.target.value)}
+                          onChange={(e) => handleFieldChange(`faq_q_${i}`, e.target.value)}
                         />
                       </div>
                       <div>
@@ -214,7 +246,7 @@ export default function SectionEditor() {
                         <textarea
                           className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[60px]"
                           defaultValue={pair.answer}
-                          onChange={(e) => updateField(`faq_a_${i}`, e.target.value)}
+                          onChange={(e) => handleFieldChange(`faq_a_${i}`, e.target.value)}
                         />
                       </div>
                     </div>
@@ -223,10 +255,30 @@ export default function SectionEditor() {
               )}
             </div>
 
-            {/* Unsaved indicator */}
-            {dirty && (
+            {/* Unsaved indicator bar */}
+            {isDirty && !isSaving && (
+              <div className="px-5 py-3 border-t border-border bg-[oklch(0.75_0.12_85/5%)] flex items-center justify-between">
+                <p className="text-xs text-gold-dim">
+                  {dirtyCount} unsaved change{dirtyCount > 1 ? "s" : ""}
+                </p>
+                <button
+                  onClick={handleSave}
+                  className="text-xs text-gold hover:text-gold/80 font-medium transition-colors"
+                >
+                  Save now
+                </button>
+              </div>
+            )}
+
+            {/* Saving progress bar */}
+            {isSaving && (
               <div className="px-5 py-3 border-t border-border bg-[oklch(0.75_0.12_85/5%)]">
-                <p className="text-xs text-gold-dim">You have unsaved changes</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-[oklch(0.19_0.005_250)] rounded-full overflow-hidden">
+                    <div className="h-full bg-gold rounded-full animate-pulse" style={{ width: "60%" }} />
+                  </div>
+                  <span className="text-[10px] text-gold-dim">Saving...</span>
+                </div>
               </div>
             )}
           </div>
@@ -243,20 +295,19 @@ export default function SectionEditor() {
 /* ── Field Renderer ── */
 function FieldRenderer({
   field,
-  value,
   onChange,
   onUpload,
 }: {
   field: SectionField;
-  value: string | undefined;
   onChange: (val: string) => void;
   onUpload: (file: File, folder?: string) => Promise<string | null>;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   if (field.type === "photo") {
-    const currentVal = value ?? (typeof field.value === "string" ? field.value : "");
+    const currentVal = photoPreview ?? (typeof field.value === "string" ? field.value : "");
     return (
       <div className="space-y-2">
         <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
@@ -267,7 +318,9 @@ function FieldRenderer({
             src={currentVal}
             alt={field.label}
             className="w-full max-w-xs h-32 object-cover rounded-md border border-border"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
           />
         ) : (
           <div className="w-full max-w-xs h-20 bg-[oklch(0.19_0.005_250)] rounded-md border border-border flex items-center justify-center text-xs text-muted-foreground">
@@ -298,7 +351,10 @@ function FieldRenderer({
             if (!file) return;
             setUploading(true);
             const url = await onUpload(file, field.key.includes("hero") ? "hero" : "img");
-            if (url) onChange(url);
+            if (url) {
+              setPhotoPreview(url);
+              onChange(url);
+            }
             setUploading(false);
           }}
         />
@@ -313,11 +369,15 @@ function FieldRenderer({
         <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
           Form Fields
         </label>
-        <p className="text-xs text-muted-foreground">Edit the placeholder text that clients see on your booking form.</p>
+        <p className="text-xs text-muted-foreground">
+          Edit the placeholder text that clients see on your booking form.
+        </p>
         <div className="space-y-2">
           {fields.map((f, idx) => (
             <div key={idx} className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-20 flex-shrink-0 font-mono">{f.name}</span>
+              <span className="text-xs text-muted-foreground w-20 flex-shrink-0 font-mono">
+                {f.name}
+              </span>
               <input
                 type="text"
                 className="flex-1 bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
@@ -333,7 +393,11 @@ function FieldRenderer({
   }
 
   if (field.type === "style_options") {
-    const optsText = Array.isArray(field.value) ? (field.value as string[]).join("\n") : (typeof field.value === "string" ? field.value : "");
+    const optsText = Array.isArray(field.value)
+      ? (field.value as string[]).join("\n")
+      : typeof field.value === "string"
+        ? field.value
+        : "";
     return (
       <div className="space-y-2">
         <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
@@ -342,7 +406,7 @@ function FieldRenderer({
         <p className="text-xs text-muted-foreground">One option per line.</p>
         <textarea
           className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[120px]"
-          defaultValue={value ?? optsText}
+          defaultValue={optsText}
           onChange={(e) => onChange(e.target.value)}
           rows={6}
         />
@@ -358,7 +422,7 @@ function FieldRenderer({
         </label>
         <textarea
           className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[80px]"
-          defaultValue={value ?? (typeof field.value === "string" ? field.value : "")}
+          defaultValue={typeof field.value === "string" ? field.value : ""}
           onChange={(e) => onChange(e.target.value)}
           rows={4}
         />
@@ -375,7 +439,7 @@ function FieldRenderer({
       <input
         type="text"
         className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
-        defaultValue={value ?? (typeof field.value === "string" ? field.value : "")}
+        defaultValue={typeof field.value === "string" ? field.value : ""}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>

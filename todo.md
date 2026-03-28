@@ -22,3 +22,7 @@
 - [x] Check browser console for runtime errors and fix (domain issue resolved with dev key)
 - [x] Add error boundary improvements and loading states
 - [x] Final polish and checkpoint
+- [x] Implement Optimistic Queue with Batch + Lock save system (useSaveQueue hook)
+- [x] Update Section Editor to use the new save queue
+- [x] Add unsaved changes warning on navigation
+- [x] Write vitest tests for the save queue logic
