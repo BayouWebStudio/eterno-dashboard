@@ -138,30 +138,212 @@ const EDIT_JS = `
     window.parent.postMessage(msg, '*');
   }
 
+  /**
+   * Extract a section ID from a class name.
+   * Matches patterns like "about-section", "booking-cta-section", "gallery-section",
+   * "page-hero", "services-section", etc.
+   * Returns the section name portion (e.g. "about", "booking-cta", "services")
+   * or null if no known pattern is found.
+   */
+  function extractSectionIdFromClass(cls) {
+    if (!cls) return null;
+
+    // Direct class-to-id mappings for well-known patterns
+    if (cls.indexOf('gallery-body') >= 0) return 'tattoo-gallery';
+    if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
+    if (cls.indexOf('gallery-section') >= 0) return 'gallery';
+    if (cls.indexOf('page-hero') >= 0) return 'hero';
+
+    // Generic pattern: *-section class → extract the part before "-section"
+    var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
+    if (secMatch) return secMatch[1];
+
+    // Pattern: *-content, *-area, *-wrapper for top-level containers
+    // Only match if it looks like a section name (e.g. "about-content", "services-area")
+    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container)(?:\\s|$)/i);
+    if (containerMatch) {
+      var name = containerMatch[1];
+      // Avoid matching generic layout classes
+      if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
+        return name;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Walk up the DOM tree to find the section ID for an element.
+   * Checks: id attribute, data-section attribute, and class-based patterns.
+   * Matches the section detection logic in parseHtml.ts.
+   */
   function findSectionId(el) {
     var node = el;
     while (node && node !== document.body) {
+      // 1. Check id attribute (most reliable)
       if (node.id) return node.id;
+
+      // 2. Check data-section attribute
       if (node.dataset && node.dataset.section) return node.dataset.section;
+
+      // 3. Check class-based patterns on SECTION and DIV elements
       if (node.tagName === 'SECTION' || node.tagName === 'DIV') {
         var cls = node.className || '';
-        if (cls.indexOf('gallery-section') >= 0) return 'gallery';
-        if (cls.indexOf('gallery-body') >= 0) return 'tattoo-gallery';
+        if (typeof cls === 'string' && cls.length > 0) {
+          var extracted = extractSectionIdFromClass(cls);
+          if (extracted) return extracted;
+        }
       }
+
       node = node.parentElement;
     }
     return 'unknown';
   }
 
+  /**
+   * Build a field key for saving to the Convex API.
+   * Keys must match the conventions used in parseHtml.ts:
+   *   - hero_title, hero_subtitle, hero_eyebrow, hero_cta_text (hero section)
+   *   - about_title, about (bio content), about_photo (about section)
+   *   - section_title__[sectionId] (generic section titles)
+   *   - [sectionId]__content (generic body content)
+   *   - footer_name (footer)
+   *   - ig_handle (instagram)
+   *   - booking, booking_title, booking_intro (booking section)
+   *   - For data-field attributes, use them directly
+   */
   function findFieldKey(el) {
+    // If the element has an explicit data-field, use it
     if (el.dataset && el.dataset.field) return el.dataset.field;
+
     var tag = el.tagName.toLowerCase();
-    var parent = el.parentElement;
     var sectionId = findSectionId(el);
-    if (tag === 'h1' || tag === 'h2' || tag === 'h3') return sectionId + '_heading';
-    if (tag === 'p') return sectionId + '_text';
-    if (tag === 'a' && el.href) return sectionId + '_link';
-    return sectionId + '_' + tag;
+    var cls = el.className || '';
+
+    // ── Hero section: use specific hero_* keys ──
+    if (sectionId === 'hero' || sectionId === 'page-hero') {
+      if (cls.indexOf('hero-eyebrow') >= 0) return 'hero_eyebrow';
+      if (cls.indexOf('hero-title') >= 0 || cls.indexOf('hero-name') >= 0) return 'hero_title';
+      if (cls.indexOf('hero-subtitle') >= 0 || cls.indexOf('hero-tagline') >= 0 || cls.indexOf('hero-sub') >= 0) return 'hero_subtitle';
+      if (cls.indexOf('hero-cta') >= 0) return 'hero_cta_text';
+      if (tag === 'h1') return 'hero_title';
+      if (tag === 'h2' || tag === 'h3') return 'hero_subtitle';
+      if (tag === 'p') return 'hero_subtitle';
+      if (tag === 'a') return 'hero_cta_text';
+      return 'hero_title';
+    }
+
+    // ── About section: use about_title, about ──
+    if (sectionId === 'about' || sectionId === 'nosotros') {
+      if (tag === 'h2' || tag === 'h3') return 'about_title';
+      if (tag === 'p') return 'about';
+      return 'about_title';
+    }
+
+    // ── Footer ──
+    if (sectionId === 'footer' || (el.closest && el.closest('footer'))) {
+      if (cls.indexOf('footer-logo') >= 0) return 'footer_name';
+      return 'footer_name';
+    }
+
+    // ── Booking section ──
+    if (sectionId === 'booking' || sectionId === 'book') {
+      if (tag === 'h2') return 'booking_title';
+      if (tag === 'p') return 'booking_intro';
+      if (tag === 'a') return 'booking';
+      return 'booking_title';
+    }
+
+    // ── Testimonials section ──
+    if (sectionId === 'testimonials') {
+      if (cls.indexOf('testimonial-text') >= 0) {
+        var cardIndex = getCardIndex(el, 'testimonial-card');
+        return 'testimonial__' + cardIndex + '__text';
+      }
+      if (cls.indexOf('testimonial-author') >= 0) {
+        var authorCardIndex = getCardIndex(el, 'testimonial-card');
+        return 'testimonial__' + authorCardIndex + '__author';
+      }
+      if (tag === 'h2') return 'section_title__testimonials';
+      if (tag === 'p') return 'section_body__testimonials';
+      return 'section_title__testimonials';
+    }
+
+    // ── FAQ section ──
+    if (sectionId === 'faq') {
+      if (cls.indexOf('faq-question') >= 0) return 'faq_question';
+      if (cls.indexOf('faq-answer') >= 0) return 'faq_answer';
+      if (tag === 'h2') return 'section_title__faq';
+      return 'section_title__faq';
+    }
+
+    // ── Services section ──
+    if (sectionId === 'services') {
+      var serviceCardIdx = getCardIndex(el, 'service-card');
+      if (serviceCardIdx >= 0) {
+        if (tag === 'h3') return 'services__card_title_' + serviceCardIdx;
+        if (tag === 'p') return 'services__card_desc_' + serviceCardIdx;
+        if (cls.indexOf('service-price') >= 0) return 'service_price_' + serviceCardIdx;
+      }
+      if (tag === 'h2') return 'section_title__services';
+      return 'section_title__services';
+    }
+
+    // ── Styles/Specialty section ──
+    if (sectionId === 'styles' || sectionId === 'specialty') {
+      var styleCardIdx = getCardIndex(el, 'style-card');
+      if (styleCardIdx >= 0) {
+        if (tag === 'h3') return 'style_card_title_' + styleCardIdx;
+        if (tag === 'p') return 'style_card_desc_' + styleCardIdx;
+      }
+      if (tag === 'h2') return 'styles_title';
+      return 'styles_title';
+    }
+
+    // ── Shop section ──
+    if (sectionId === 'shop') {
+      if (tag === 'h2') return 'section_title__shop';
+      if (tag === 'p') return 'section_body__shop';
+      if (tag === 'a') return 'shop_link';
+      return 'section_title__shop';
+    }
+
+    // ── Contact ──
+    if (sectionId === 'contact') {
+      return 'contact_email';
+    }
+
+    // ── Instagram ──
+    if (sectionId === 'instagram') {
+      return 'ig_handle';
+    }
+
+    // ── Generic sections: use parseHtml.ts conventions ──
+    // section_title__[sectionId] for headings, [sectionId]__content for body text
+    if (sectionId && sectionId !== 'unknown') {
+      if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'section_title__' + sectionId;
+      if (tag === 'p' || tag === 'blockquote' || tag === 'li') return sectionId + '__content';
+      if (tag === 'a') return sectionId + '__link';
+      return 'section_title__' + sectionId;
+    }
+
+    // ── Fallback for unknown sections ──
+    return 'unknown_' + tag;
+  }
+
+  /**
+   * Find the index of the nearest card ancestor matching a class pattern.
+   * Used for testimonial-card, service-card, style-card indexing.
+   * Returns -1 if no card ancestor found.
+   */
+  function getCardIndex(el, cardClass) {
+    var card = el.closest ? el.closest('.' + cardClass) : null;
+    if (!card || !card.parentElement) return -1;
+    var siblings = card.parentElement.querySelectorAll('.' + cardClass);
+    for (var i = 0; i < siblings.length; i++) {
+      if (siblings[i] === card) return i;
+    }
+    return -1;
   }
 
   // ── Make text elements editable ──
@@ -216,6 +398,13 @@ const EDIT_JS = `
     if (newText !== originalText.trim()) {
       var key = findFieldKey(el);
       var sectionId = findSectionId(el);
+
+      // Don't send edits for elements where we couldn't determine the section
+      if (sectionId === 'unknown') {
+        showToast('Could not identify section — edit not saved');
+        return;
+      }
+
       post({
         type: 'text-edit',
         sectionId: sectionId,
@@ -252,11 +441,12 @@ const EDIT_JS = `
         e.preventDefault();
         e.stopPropagation();
         var sectionId = findSectionId(img);
+        var imgKey = img.dataset.field || buildImageKey(img, sectionId);
         post({
           type: 'image-swap',
           sectionId: sectionId,
           currentSrc: img.src,
-          key: img.dataset.field || sectionId + '_img'
+          key: imgKey
         });
       });
 
@@ -284,6 +474,17 @@ const EDIT_JS = `
     });
   }
 
+  /**
+   * Build an image field key based on section and context.
+   */
+  function buildImageKey(img, sectionId) {
+    var cls = img.className || '';
+    if (cls.indexOf('about-photo') >= 0 || cls.indexOf('about-portrait') >= 0) return 'about_photo';
+    if (sectionId === 'hero') return 'hero_bg';
+    if (sectionId === 'about') return 'about_photo';
+    return sectionId + '_img';
+  }
+
   // ── Gallery "Add Photos" button ──
   function setupGalleries() {
     var galleryEls = document.querySelectorAll(
@@ -309,11 +510,25 @@ const EDIT_JS = `
 
   // ── Section controls (delete) ──
   function setupSections() {
-    var sections = document.querySelectorAll('section[id], [data-section]');
+    // Select sections with id, data-section, or class-based section patterns
+    var sections = document.querySelectorAll('section[id], [data-section], section[class]');
+    var processed = new Set();
+
     sections.forEach(function(sec) {
-      var id = sec.id || sec.dataset.section;
+      // Determine the section ID
+      var id = sec.id || (sec.dataset && sec.dataset.section) || '';
+
+      // If no id/data-section, try to extract from class
+      if (!id && sec.className) {
+        id = extractSectionIdFromClass(sec.className) || '';
+      }
+
       if (!id) return;
-      if (id === 'page-hero' || id === 'footer') return;
+      if (processed.has(id)) return;
+      processed.add(id);
+
+      // Skip hero and footer — they shouldn't be deletable
+      if (id === 'page-hero' || id === 'hero' || id === 'footer') return;
 
       var controls = document.createElement('div');
       controls.className = 've-section-controls';

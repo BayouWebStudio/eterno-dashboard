@@ -93,3 +93,4 @@
 - [x] Add page dropdown to switch between index.html, tattoos.html, etc.
 - [x] Replace Sections sidebar route with the new VisualEditor
 - [x] Write tests for the visual editor
+- [x] Fix: Visual editor text edits fail with "unknown_heading" — section ID detection not finding correct parent section
