@@ -30,6 +30,18 @@ export default function Overview() {
     error,
   } = useSite();
 
+  // ── All hooks MUST be called before any early returns (React Rules of Hooks) ──
+  const [previewMode, setPreviewMode] = useState<"live" | "source">("live");
+  const [iframeKey, setIframeKey] = useState(0);
+
+  const handleRefreshPreview = useCallback(() => {
+    if (previewMode === "live") {
+      setIframeKey((k) => k + 1);
+    } else {
+      refreshHtml();
+    }
+  }, [previewMode, refreshHtml]);
+
   // ── Onboarding: no site found ──
   if (onboardingStatus === "none") {
     return (
@@ -86,19 +98,6 @@ export default function Overview() {
       </div>
     );
   }
-
-  // ── Preview mode: "live" (iframe URL) vs "source" (srcDoc from Convex) ──
-  const [previewMode, setPreviewMode] = useState<"live" | "source">("live");
-  const [iframeKey, setIframeKey] = useState(0);
-
-  const handleRefreshPreview = useCallback(() => {
-    if (previewMode === "live") {
-      // Cache-bust the iframe by changing its key
-      setIframeKey((k) => k + 1);
-    } else {
-      refreshHtml();
-    }
-  }, [previewMode, refreshHtml]);
 
   // ── Site loaded: show overview ──
   const domain = currentSite.domain || `${currentSite.slug}.eternowebstudio.com`;

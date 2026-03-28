@@ -68,3 +68,4 @@
 - [x] Extract filenames from image src paths for API calls
 - [x] Update GalleryEditor to call real endpoints instead of saveSiteField
 - [x] Write tests for gallery API integration
+- [x] Fix: React hooks order error in Overview.tsx — conditional hook call causing different hook order between renders
