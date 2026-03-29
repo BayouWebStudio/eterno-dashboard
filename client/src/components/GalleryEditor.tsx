@@ -219,10 +219,11 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
         toast.success("Gallery order saved! Allow 3–5 min to show on your site.", { duration: 5000 });
         setHasOrderChanges(false);
       } else {
-        toast.error("Failed to save gallery order");
+        toast.error("Failed to save gallery order — check console for details");
       }
-    } catch {
-      toast.error("Failed to save gallery order");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Gallery save failed: ${msg}`, { duration: 8000 });
     } finally {
       setSaving(false);
     }

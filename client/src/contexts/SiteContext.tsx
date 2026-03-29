@@ -298,10 +298,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           throw new Error(data?.error || `Save gallery order failed: ${res.status}`);
         }
         const data = await res.json();
-        return data.ok === true;
+        if (data.ok !== true) {
+          throw new Error(data?.error || "Gallery order save returned unexpected response");
+        }
+        return true;
       } catch (err) {
         console.error("[Site] Save gallery order failed:", err);
-        return false;
+        throw err; // re-throw so GalleryEditor can show the real message
       }
     },
     [convexHttpUrl, authFetch]
@@ -393,7 +396,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const res = await authFetch("/api/dashboard/reorder-sections", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sectionOrder }),
+          body: JSON.stringify({ sectionOrder, page: currentPageRef.current || "index.html" }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
