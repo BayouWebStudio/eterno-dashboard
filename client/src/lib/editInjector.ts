@@ -251,6 +251,7 @@ const EDIT_JS = `
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
     if (cls.indexOf('page-hero') >= 0) return 'hero';
+    if (cls.indexOf('about-preview') >= 0) return 'about';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
@@ -557,7 +558,7 @@ const EDIT_JS = `
 
   function buildImageKey(img, sectionId) {
     var cls = img.className || '';
-    if (cls.indexOf('about-photo') >= 0 || cls.indexOf('about-portrait') >= 0) return 'about_photo';
+    if (cls.indexOf('about-photo') >= 0 || cls.indexOf('about-portrait') >= 0 || cls.indexOf('about-img') >= 0) return 'about_photo';
     if (sectionId === 'hero') return 'hero_bg';
     if (sectionId === 'about') return 'about_photo';
     return sectionId + '_img';
