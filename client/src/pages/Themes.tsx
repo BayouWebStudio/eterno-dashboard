@@ -4,10 +4,11 @@
   Theme switching is not yet supported by the Convex backend API,
   so clicking "Apply" shows a coming-soon toast instead of erroring.
 */
+import { useState } from "react";
 import { useSite } from "@/contexts/SiteContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Check, Palette, Info } from "lucide-react";
+import { Check, Palette, Loader2 } from "lucide-react";
 
 interface ThemeOption {
   id: string;
@@ -56,14 +57,21 @@ const THEMES: ThemeOption[] = [
 ];
 
 export default function Themes() {
-  const { currentSite } = useSite();
+  const { currentSite, applyTheme, refreshHtml } = useSite();
   const currentTheme = currentSite?.theme || "midnight";
+  const [applying, setApplying] = useState<string | null>(null);
 
-  const handleApply = (themeId: string) => {
-    toast("Theme switching coming soon", {
-      description: "This feature requires a backend API endpoint that is not yet available. Contact your developer to enable it.",
-      icon: <Info className="w-4 h-4 text-gold" />,
-    });
+  const handleApply = async (theme: ThemeOption) => {
+    if (applying) return;
+    setApplying(theme.id);
+    const ok = await applyTheme(theme.id, theme.colors);
+    setApplying(null);
+    if (ok) {
+      toast.success(`${theme.name} theme applied! Allow 3–5 min for live site.`);
+      refreshHtml();
+    } else {
+      toast.error("Failed to apply theme.");
+    }
   };
 
   return (
@@ -76,15 +84,6 @@ export default function Themes() {
           <span className="text-gold font-medium">
             {THEMES.find((t) => t.id === currentTheme)?.name || currentTheme}
           </span>
-        </p>
-      </div>
-
-      {/* Info banner */}
-      <div className="flex items-start gap-3 p-3 rounded-lg border border-gold/20 bg-gold/5">
-        <Info className="w-4 h-4 text-gold mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Theme switching is coming soon. Once the backend API is ready, you will be able to apply
-          any of these themes to your live site with one click.
         </p>
       </div>
 
@@ -154,20 +153,22 @@ export default function Themes() {
                 <Button
                   variant={isActive ? "outline" : "default"}
                   size="sm"
-                  onClick={() => handleApply(theme.id)}
-                  disabled={isActive}
+                  onClick={() => handleApply(theme)}
+                  disabled={isActive || !!applying}
                   className={
                     isActive
                       ? "border-gold text-gold w-full"
                       : "bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold w-full"
                   }
                 >
-                  {isActive ? (
+                  {applying === theme.id ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  ) : isActive ? (
                     <Check className="w-3.5 h-3.5 mr-1.5" />
                   ) : (
                     <Palette className="w-3.5 h-3.5 mr-1.5" />
                   )}
-                  {isActive ? "Active" : "Apply Theme"}
+                  {applying === theme.id ? "Applying…" : isActive ? "Active" : "Apply Theme"}
                 </Button>
               </div>
             </div>

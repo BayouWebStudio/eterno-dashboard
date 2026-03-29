@@ -417,12 +417,14 @@ const EDIT_JS = `
 
   // ── Make text elements editable ──
   function setupEditableText() {
-    var selectors = 'h1,h2,h3,h4,h5,h6,p,span.editable,a,li,blockquote,label';
+    var selectors = 'h1,h2,h3,h4,h5,h6,p,span,div,a,li,blockquote,label';
     var els = document.querySelectorAll(selectors);
     els.forEach(function(el) {
       if (!el.textContent.trim()) return;
       if (el.closest('script') || el.closest('style') || el.closest('nav') || el.closest('.ve-section-controls')) return;
       if (el.tagName === 'A' && el.querySelector('img')) return;
+      // Skip structural containers (span/div with child elements are layout wrappers, not text nodes)
+      if ((el.tagName === 'SPAN' || el.tagName === 'DIV') && el.children.length > 0) return;
       el.setAttribute('data-editable', 'true');
 
       el.addEventListener('click', function(e) {
@@ -536,10 +538,12 @@ const EDIT_JS = `
         delBtn.className = 've-gallery-del';
         delBtn.innerHTML = '\\u00D7';
         delBtn.title = 'Remove from gallery';
+        delBtn.addEventListener('mousedown', function(e) {
+          e.stopPropagation();
+        });
         delBtn.addEventListener('click', function(e) {
           e.preventDefault();
           e.stopPropagation();
-          if (!confirm('Remove this photo from the gallery?')) return;
           post({
             type: 'gallery-delete',
             sectionId: findSectionId(img),
@@ -821,10 +825,31 @@ const EDIT_JS = `
   });
 
   // ── Init ──
+  // ── CSS background-image elements (hero-bg, etc.) ──
+  function setupBgImages() {
+    var bgEls = document.querySelectorAll('.hero-bg, .hero-banner, .page-hero-bg, .section-bg, .banner-bg');
+    bgEls.forEach(function(el) {
+      var bgImg = window.getComputedStyle(el).backgroundImage;
+      if (!bgImg || bgImg === 'none') return;
+      var btn = document.createElement('button');
+      btn.className = 've-img-btn';
+      btn.textContent = 'Change Hero Image';
+      btn.style.cssText = 'position:absolute;top:16px;left:16px;z-index:200;';
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg_image' });
+      });
+      el.style.position = 'relative';
+      el.appendChild(btn);
+    });
+  }
+
   function init() {
     document.body.classList.add('edit-mode');
     setupEditableText();
     setupImages();
+    setupBgImages();
     setupGalleries();
     setupGalleryDragDrop();
     setupSections();

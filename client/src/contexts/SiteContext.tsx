@@ -71,6 +71,8 @@ interface SiteContextValue {
   reorderSections: (sectionOrder: string[]) => Promise<boolean>;
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
+  restoreFileFromHistory: (file: string, targetSha?: string) => Promise<{ ok: boolean; error?: string }>;
+  applyTheme: (themeId: string, colors: { bg: string; accent: string; text: string; card: string }) => Promise<boolean>;
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -252,6 +254,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             imageFilenames: filenames,
             sectionId: sectionId || "gallery",
+            page: currentPageRef.current || "index.html",
           }),
         });
         if (!res.ok) {
@@ -279,6 +282,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             filename,
             sectionId: sectionId || "gallery",
+            page: currentPageRef.current || "index.html",
           }),
         });
         if (!res.ok) {
@@ -333,13 +337,16 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           if (data?.upgradeRequired) throw new Error("Free plan limit reached \u2014 upgrade to Pro");
           throw new Error(data?.error || `Add section failed: ${res.status}`);
         }
+        // Apply the updated HTML directly from the response to avoid GitHub cache race
+        const data = await res.json().catch(() => null);
+        if (data?.html) setSiteHtml(data.html);
         return true;
       } catch (err) {
         console.error(`[Site] Add section "${sectionType}" failed:`, err);
         return false;
       }
     },
-    [convexHttpUrl, authFetch]
+    [convexHttpUrl, authFetch, setSiteHtml]
   );
 
   // ── Reorder sections via /api/dashboard/reorder-sections ──
@@ -484,6 +491,49 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     }
   }, [isLoaded, isSignedIn, refreshInfo]);
 
+  // ── Apply a theme (replaces CSS variables across all pages) ──
+  const applyTheme = useCallback(
+    async (themeId: string, colors: { bg: string; accent: string; text: string; card: string }): Promise<boolean> => {
+      if (!convexHttpUrl) return false;
+      try {
+        const res = await authFetch("/api/dashboard/save-theme", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ themeId, colors }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || `Theme save failed: ${res.status}`);
+        }
+        return true;
+      } catch (err) {
+        console.error("[Site] Apply theme failed:", err);
+        return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
+  // ── Restore a file from the previous git commit ──
+  const restoreFileFromHistory = useCallback(
+    async (file: string, targetSha?: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!convexHttpUrl || !currentSite?.slug) return { ok: false, error: "No site loaded" };
+      try {
+        const res = await authFetch("/api/admin/restore-file-from-history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: currentSite.slug, file, ...(targetSha ? { targetSha } : {}) }),
+        });
+        const data = await res.json();
+        if (!res.ok) return { ok: false, error: data?.error || `Request failed: ${res.status}` };
+        return { ok: true };
+      } catch (err: any) {
+        return { ok: false, error: err?.message || "Unknown error" };
+      }
+    },
+    [convexHttpUrl, authFetch, currentSite?.slug]
+  );
+
   // ── Load HTML when site is available ──
   useEffect(() => {
     if (currentSite?.slug) {
@@ -516,6 +566,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         reorderSections,
         setupSite,
         connectSite,
+        restoreFileFromHistory,
+        applyTheme,
       }}
     >
       {children}

@@ -346,12 +346,19 @@ export default function SectionEditor() {
             : addSectionContent.trim();
           const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), contentToSend);
       if (ok) {
+        // Compute the section ID that the backend assigned (mirrors backend logic)
+        const newSectionId = addSectionType === "custom"
+          ? addSectionTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")
+          : addSectionType;
         toast.success("Section added! Allow 3\u20135 minutes to show on your website.");
         setShowAddSection(false);
         setAddSectionType("services");
         setAddSectionTitle("");
         setAddSectionContent("");
-        await refreshHtml();
+        // HTML was already updated directly in the context — auto-select the new section
+        setActiveSection(newSectionId);
+        // Refresh in background to sync available pages etc.
+        refreshHtml();
       } else {
         toast.error("Failed to add section. Please try again.");
       }
