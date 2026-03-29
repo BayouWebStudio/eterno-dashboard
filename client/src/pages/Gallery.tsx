@@ -18,6 +18,20 @@ export default function Gallery() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Resolve relative image paths to full URLs (mirrors GalleryEditor logic)
+  const resolveImageUrl = useCallback(
+    (src: string) => {
+      if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) return src;
+      const siteUrl = currentSite?.siteUrl?.replace(/\/$/, "") || "";
+      const slug = currentSite?.slug || "";
+      if (siteUrl && slug) return `${siteUrl}/${slug}/${src}`;
+      if (siteUrl) return `${siteUrl}/${src}`;
+      if (slug) return `https://raw.githubusercontent.com/BayouWebStories/${slug}/main/${src}`;
+      return src;
+    },
+    [currentSite]
+  );
+
   // Parse gallery images from HTML
   useEffect(() => {
     if (siteHtml) {
@@ -176,7 +190,7 @@ export default function Gallery() {
               `}
             >
               <img
-                src={src}
+                src={resolveImageUrl(src)}
                 alt={`Gallery ${idx + 1}`}
                 className="w-full aspect-square object-cover"
                 loading="lazy"

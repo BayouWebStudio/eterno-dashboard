@@ -89,8 +89,8 @@ export default function Store() {
         </Button>
       </div>
 
-      {/* Fields */}
-      <div className="bg-card border border-border rounded-lg p-5 space-y-5">
+      {/* Fields — key forces re-mount when siteHtml changes so defaultValue inputs reset */}
+      <div key={siteHtml?.length ?? 0} className="bg-card border border-border rounded-lg p-5 space-y-5">
         {shopSection.fields.map((field) => {
           const currentVal = fieldValues[field.key] ?? (typeof field.value === "string" ? field.value : "");
           return (

@@ -102,6 +102,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const currentPageRef = useRef(currentPage);
   currentPageRef.current = currentPage;
 
+  // Cancellation flag for setupSite polling — set on unmount to stop leaked timers
+  const setupCancelledRef = useRef(false);
+
   // ── Helper: authenticated fetch to Convex HTTP actions ──
   const authFetch = useCallback(
     async (path: string, options?: RequestInit): Promise<Response> => {
@@ -224,8 +227,20 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       try {
         const token = await getToken();
 
+        // Compress image if it's larger than 5MB to avoid browser limits and GitHub API size limits
+        let fileToUpload = file;
+        if (file.size > 5 * 1024 * 1024) {
+          try {
+            const { compressImage } = await import("@/lib/compressImage");
+            const result = await compressImage(file, { maxWidth: 3000, maxHeight: 3000, quality: 0.82 });
+            fileToUpload = result.file;
+          } catch {
+            // If compression fails, proceed with original file
+          }
+        }
+
         // Convert File to base64 — backend expects JSON, not FormData
-        const arrayBuffer = await file.arrayBuffer();
+        const arrayBuffer = await fileToUpload.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
         let binary = "";
         const chunkSize = 8192;
@@ -237,7 +252,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const res = await fetch(`${convexHttpUrl}/api/dashboard/upload-hero-bg`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64, fileName: file.name, folder }),
+          body: JSON.stringify({ imageBase64, fileName: fileToUpload.name, folder }),
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => null);
@@ -419,6 +434,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const setupSite = useCallback(
     async (igHandle: string, country: string): Promise<boolean> => {
       if (!convexHttpUrl) return false;
+      setupCancelledRef.current = false;
       setOnboardingStatus("building");
       setBuildProgress("Starting build...");
       try {
@@ -446,6 +462,10 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         setBuildProgress(steps[0]);
 
         const stepTimer = setInterval(() => {
+          if (setupCancelledRef.current) {
+            clearInterval(stepTimer);
+            return;
+          }
           stepIdx = Math.min(stepIdx + 1, steps.length - 1);
           setBuildProgress(steps[stepIdx]);
         }, 12000);
@@ -454,6 +474,12 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const poll = (): Promise<boolean> =>
           new Promise((resolve) => {
             const pollTimer = setInterval(async () => {
+              if (setupCancelledRef.current) {
+                clearInterval(pollTimer);
+                clearInterval(stepTimer);
+                resolve(false);
+                return;
+              }
               pollCount++;
               if (pollCount > 24) {
                 clearInterval(pollTimer);
@@ -467,7 +493,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
                 if (info.found && info.siteSlug && info.siteBuilt && !info.siteSlug.endsWith("_pending")) {
                   clearInterval(pollTimer);
                   clearInterval(stepTimer);
-                  setBuildProgress("Site is live!");
+                  if (!setupCancelledRef.current) setBuildProgress("Site is live!");
                   resolve(true);
                 }
               } catch {
@@ -477,6 +503,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           });
 
         const success = await poll();
+        if (setupCancelledRef.current) return false;
         if (success) {
           await refreshInfo();
           return true;
@@ -500,6 +527,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       refreshInfo();
     }
   }, [isLoaded, isSignedIn, refreshInfo]);
+
+  // ── Cancel any in-flight setupSite polling on provider unmount ──
+  useEffect(() => {
+    return () => {
+      setupCancelledRef.current = true;
+    };
+  }, []);
 
   // ── Apply a theme (replaces CSS variables across all pages) ──
   const applyTheme = useCallback(
