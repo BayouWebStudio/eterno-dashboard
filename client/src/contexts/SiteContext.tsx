@@ -282,7 +282,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   // ── Save gallery order via /api/dashboard/save-gallery-order ──
   const saveGalleryOrder = useCallback(
     async (filenames: string[], sectionId?: string): Promise<boolean> => {
-      if (!convexHttpUrl) return false;
+      if (!convexHttpUrl) {
+        console.error("[Site] saveGalleryOrder: convexHttpUrl is empty!");
+        throw new Error("Backend URL not configured");
+      }
+      console.log(`[Site] saveGalleryOrder: sending ${filenames.length} filenames, sectionId=${sectionId}, page=${currentPageRef.current}, url=${convexHttpUrl}`);
       try {
         const res = await authFetch("/api/dashboard/save-gallery-order", {
           method: "POST",
