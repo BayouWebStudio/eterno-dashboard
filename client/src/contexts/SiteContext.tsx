@@ -124,7 +124,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   // ── Fetch site info from /api/dashboard/info ──
   const refreshInfo = useCallback(async () => {
-    if (!convexHttpUrl) return;
+    if (!convexHttpUrl) {
+      // No backend URL configured — treat as new user so onboarding shows
+      setOnboardingStatus("none");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -150,7 +154,10 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       });
       setOnboardingStatus("ready");
     } catch (err) {
+      console.error("[SiteContext] refreshInfo failed:", err);
       setError(err instanceof Error ? err.message : "Failed to load site info");
+      // Treat any failure as a new user — shows onboarding rather than infinite "Loading..."
+      setOnboardingStatus("none");
     } finally {
       setLoading(false);
     }
