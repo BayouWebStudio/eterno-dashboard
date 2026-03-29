@@ -263,7 +263,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const res = await fetch(`${convexHttpUrl}/api/dashboard/upload-hero-bg`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64, fileName: fileToUpload.name, folder }),
+          body: JSON.stringify({
+            imageBase64,
+            fileName: fileToUpload.name,
+            folder,
+            // Pass current page so gallery uploads get injected into the right HTML file
+            page: folder === "gallery" ? (currentPageRef.current || "index.html") : undefined,
+          }),
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => null);
