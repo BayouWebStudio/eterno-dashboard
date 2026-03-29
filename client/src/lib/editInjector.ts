@@ -89,6 +89,33 @@ body.edit-mode [data-section]:hover > .ve-section-controls { display: flex; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 body.edit-mode .ve-gallery-section:hover .ve-gallery-add-btn { display: block; }
+/* Empty gallery placeholder — always visible in edit mode */
+body.edit-mode .ve-gallery-section:empty::before,
+body.edit-mode .ve-gallery-empty::before {
+  content: 'No photos yet';
+  display: block;
+  color: rgba(255,255,255,0.3);
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  padding: 8px 0 40px;
+}
+body.edit-mode .ve-gallery-empty {
+  min-height: 120px;
+  border: 2px dashed rgba(255,255,255,0.15);
+  border-radius: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.edit-mode .ve-gallery-empty .ve-gallery-add-btn {
+  display: block;
+  position: relative;
+  bottom: auto;
+  right: auto;
+  margin-top: 8px;
+}
 .ve-gallery-del {
   position: absolute;
   top: 4px;
@@ -584,6 +611,12 @@ const EDIT_JS = `
       });
       el.style.position = 'relative';
       el.appendChild(addBtn);
+
+      // If gallery is empty, add visible placeholder class so user knows they can add photos
+      var hasItems = el.querySelector('.masonry-item, .gallery-item, img');
+      if (!hasItems) {
+        el.classList.add('ve-gallery-empty');
+      }
     });
   }
 
