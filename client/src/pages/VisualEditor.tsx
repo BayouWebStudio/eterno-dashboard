@@ -172,18 +172,6 @@ export default function VisualEditor() {
     }
   }, [editMode]);
 
-  // ── Refs to hold latest handler versions (avoids stale closures in the message listener) ──
-  const handleTextEditRef = useRef(handleTextEdit);
-  const handleGalleryDeleteRef = useRef(handleGalleryDelete);
-  const handleGalleryReorderRef = useRef(handleGalleryReorder);
-  const handleSectionDeleteRef = useRef(handleSectionDelete);
-  const refreshHtmlRef = useRef(refreshHtml);
-  useEffect(() => { handleTextEditRef.current = handleTextEdit; }, [handleTextEdit]);
-  useEffect(() => { handleGalleryDeleteRef.current = handleGalleryDelete; }, [handleGalleryDelete]);
-  useEffect(() => { handleGalleryReorderRef.current = handleGalleryReorder; }, [handleGalleryReorder]);
-  useEffect(() => { handleSectionDeleteRef.current = handleSectionDelete; }, [handleSectionDelete]);
-  useEffect(() => { refreshHtmlRef.current = refreshHtml; }, [refreshHtml]);
-
   // ── Handle messages from iframe ──
   useEffect(() => {
     function handleMessage(e: MessageEvent) {
@@ -362,6 +350,18 @@ export default function VisualEditor() {
     },
     [deleteSiteSection, refreshHtml]
   );
+
+  // ── Refs to hold latest handler versions (avoids stale closures in the message listener) ──
+  const handleTextEditRef = useRef(handleTextEdit);
+  const handleGalleryDeleteRef = useRef(handleGalleryDelete);
+  const handleGalleryReorderRef = useRef(handleGalleryReorder);
+  const handleSectionDeleteRef = useRef(handleSectionDelete);
+  const refreshHtmlRef = useRef(refreshHtml);
+  useEffect(() => { handleTextEditRef.current = handleTextEdit; }, [handleTextEdit]);
+  useEffect(() => { handleGalleryDeleteRef.current = handleGalleryDelete; }, [handleGalleryDelete]);
+  useEffect(() => { handleGalleryReorderRef.current = handleGalleryReorder; }, [handleGalleryReorder]);
+  useEffect(() => { handleSectionDeleteRef.current = handleSectionDelete; }, [handleSectionDelete]);
+  useEffect(() => { refreshHtmlRef.current = refreshHtml; }, [refreshHtml]);
 
   // ── Page switch handler ──
   const handlePageSwitch = useCallback(
