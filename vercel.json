@@ -1,8 +1,7 @@
 {
-  "buildCommand": "cd client && npm install -g pnpm && pnpm install && pnpm exec vite build",
-  "outputDirectory": "client/dist",
+  "buildCommand": "cd client && npm install -g pnpm && pnpm install && pnpm exec vite build --outDir ../vercel-output",
+  "outputDirectory": "vercel-output",
   "installCommand": "echo skip",
-  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
