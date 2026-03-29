@@ -165,14 +165,15 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
 
       setDeleting(idx);
       try {
-        const ok = await deleteGalleryImage(filename, sectionId === "tattoo-gallery" ? "gallery" : sectionId);
+        const resolvedSectionId = sectionId === "tattoo-gallery" ? "gallery" : sectionId;
+        const ok = await deleteGalleryImage(filename, resolvedSectionId);
         if (ok) {
           setImages((prev) => prev.filter((_, i) => i !== idx));
           toast.success("Photo removed! Allow 3–5 min to update on your site.");
         } else {
           toast.error("Failed to delete image — try again");
         }
-      } catch {
+      } catch (err) {
         toast.error("Failed to delete image");
       } finally {
         setDeleting(null);
@@ -324,15 +325,15 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
                     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%231a1d24' width='200' height='200'/%3E%3Ctext fill='%23555' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='14'%3ENo Image%3C/text%3E%3C/svg%3E";
                 }}
               />
-              {/* Overlay controls */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+              {/* Overlay controls — pointer-events-none so it doesn't block clicks on buttons */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 pointer-events-none">
                 <GripVertical className="w-5 h-5 text-white/80" />
               </div>
-              {/* Delete button */}
+              {/* Delete button — z-10 ensures it sits above the overlay */}
               <button
                 onClick={() => handleDelete(idx)}
                 disabled={deleting === idx}
-                className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-black/60 text-white/80 hover:bg-destructive hover:text-white transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                className="absolute top-1.5 right-1.5 z-10 p-1.5 rounded-md bg-black/60 text-white/80 hover:bg-destructive hover:text-white transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
               >
                 {deleting === idx ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

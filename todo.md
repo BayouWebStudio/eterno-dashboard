@@ -100,3 +100,4 @@
 - [x] Fix: Dashboard save replaces entire index.html instead of patching specific sections — RESOLVED: dashboard was already using section-level patching; root cause was a one-time mirror event on first connect. Hex added guard + marker to prevent recurrence.
 - [x] Add <!-- premium-build --> marker comment — RESOLVED: Hex added marker to repo and guard on backend side; dashboard doesn't generate HTML so no change needed here.
 - [x] Fix: Themes page save fails — saveSiteField("theme") tries save-section endpoint but "theme" is not a section in site HTML
+- [x] Fix: Gallery delete button not clickable — overlay div with `absolute inset-0` was intercepting all clicks; added `pointer-events-none` to overlay and `z-10` to delete button
