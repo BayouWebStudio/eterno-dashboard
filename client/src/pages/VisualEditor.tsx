@@ -309,8 +309,9 @@ export default function VisualEditor() {
         } else {
           toast.error("Failed to save gallery order.");
         }
-      } catch {
-        toast.error("Failed to save gallery order.");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`Gallery save failed: ${msg}`, { duration: 8000 });
       }
     },
     [saveGalleryOrder]
