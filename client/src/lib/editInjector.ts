@@ -835,7 +835,7 @@ const EDIT_JS = `
       var btn = document.createElement('button');
       btn.className = 've-img-btn';
       btn.textContent = 'Change Hero Image';
-      btn.style.cssText = 'position:absolute;top:16px;left:16px;z-index:200;';
+      btn.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;white-space:nowrap;';
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
