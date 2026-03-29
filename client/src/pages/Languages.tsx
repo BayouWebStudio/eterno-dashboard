@@ -28,7 +28,7 @@ const LANGUAGES: LangOption[] = [
 ];
 
 export default function Languages() {
-  const { currentSite, saveSiteField, refreshHtml } = useSite();
+  const { currentSite, saveSiteField, refreshHtml, refreshInfo } = useSite();
   const [applying, setApplying] = useState<string | null>(null);
   const currentLang = currentSite?.lang || "en";
 
@@ -37,7 +37,8 @@ export default function Languages() {
     try {
       const ok = await saveSiteField("lang", code);
       if (ok) {
-        toast.success(`Language set to ${LANGUAGES.find((l) => l.code === code)?.name}`);
+        toast.success(`Language set to ${LANGUAGES.find((l) => l.code === code)?.name}! Allow 3–5 min for live site.`);
+        refreshInfo();
         refreshHtml();
       } else {
         toast.error("Failed to set language");
@@ -47,7 +48,7 @@ export default function Languages() {
     } finally {
       setApplying(null);
     }
-  }, [saveSiteField, refreshHtml]);
+  }, [saveSiteField, refreshHtml, refreshInfo]);
 
   return (
     <div className="max-w-3xl space-y-6">

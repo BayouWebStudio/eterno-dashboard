@@ -57,7 +57,7 @@ const THEMES: ThemeOption[] = [
 ];
 
 export default function Themes() {
-  const { currentSite, applyTheme, refreshHtml } = useSite();
+  const { currentSite, applyTheme, refreshHtml, refreshInfo } = useSite();
   const currentTheme = currentSite?.theme || "midnight";
   const [applying, setApplying] = useState<string | null>(null);
 
@@ -68,6 +68,7 @@ export default function Themes() {
     setApplying(null);
     if (ok) {
       toast.success(`${theme.name} theme applied! Allow 3–5 min for live site.`);
+      refreshInfo();
       refreshHtml();
     } else {
       toast.error("Failed to apply theme.");
