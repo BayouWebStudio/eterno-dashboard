@@ -835,14 +835,19 @@ const EDIT_JS = `
       var btn = document.createElement('button');
       btn.className = 've-img-btn';
       btn.textContent = 'Change Hero Image';
-      btn.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;white-space:nowrap;';
+      // Attach to the PARENT (hero section) not .hero-bg itself — .hero-bg has filter+transform
+      // which create a stacking context that dims and traps the button below the nav.
+      var container = el.parentElement || el;
+      btn.style.cssText = 'position:absolute;top:16px;right:16px;z-index:9999;white-space:nowrap;pointer-events:auto;';
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
         post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg_image' });
       });
-      el.style.position = 'relative';
-      el.appendChild(btn);
+      if (getComputedStyle(container).position === 'static') {
+        container.style.position = 'relative';
+      }
+      container.appendChild(btn);
     });
   }
 
