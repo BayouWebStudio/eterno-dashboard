@@ -29,7 +29,11 @@ const PAGE_NAMES: Record<string, string> = {
 };
 
 export function getPageLabel(page: string): string {
-  return PAGE_NAMES[page] || page.replace(".html", "").charAt(0).toUpperCase() + page.replace(".html", "").slice(1);
+  const base = page.replace(/\.html$/i, "");
+  return PAGE_NAMES[page] || base
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 export interface SiteInfo {

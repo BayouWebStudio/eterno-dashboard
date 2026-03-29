@@ -43,6 +43,7 @@ export function useSaveQueue({
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [dirtyCount, setDirtyCount] = useState(0);
   const [lastResult, setLastResult] = useState<SaveResult | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
   // ── Refs (mutable, no re-renders) ──
   const dirtyMapRef = useRef<Map<string, string>>(new Map());
@@ -98,6 +99,7 @@ export function useSaveQueue({
 
     // Acquire lock
     lockRef.current = true;
+    setIsLocked(true);
     setStatus("saving");
 
     const succeeded: string[] = [];
@@ -125,6 +127,7 @@ export function useSaveQueue({
 
     // Release lock
     lockRef.current = false;
+    setIsLocked(false);
 
     // Report
     if (failed.length > 0) {
@@ -163,7 +166,6 @@ export function useSaveQueue({
   // ── Derived state ──
   const isDirty = dirtyCount > 0;
   const isSaving = status === "saving" || status === "queued";
-  const isLocked = lockRef.current;
 
   // Cleanup timer on unmount
   useEffect(() => {

@@ -879,12 +879,19 @@ export function injectEditor(html: string, baseUrl: string): string {
     result = cssTag + result;
   }
 
-  // Rewrite relative image src to absolute
+  // Rewrite relative image src to absolute.
+  // Split on <script> and <style> blocks so we only rewrite paths in HTML markup,
+  // never inside script or style tag content.
   if (baseUrl) {
     const base = baseUrl.replace(/\/$/, "");
+
+    // Process the HTML in segments, skipping <script>...</script> and <style>...</style> blocks
     result = result.replace(
-      /src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
-      (match, path) => {
+      /(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>)|src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
+      (match, scriptOrStyle, path) => {
+        // If this match is a script/style block, return it unchanged
+        if (scriptOrStyle !== undefined) return match;
+        // Otherwise rewrite the relative src
         const cleanPath = path.replace(/^\.\//, "");
         return `src="${base}/${cleanPath}"`;
       }

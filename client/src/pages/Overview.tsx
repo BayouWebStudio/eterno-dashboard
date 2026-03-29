@@ -6,6 +6,7 @@
     2. "Build a new site" → create from scratch
 */
 import { useState, useCallback } from "react";
+import { Link } from "wouter";
 import { useSite } from "@/contexts/SiteContext";
 import {
   ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages,
@@ -642,7 +643,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label
 
 function QuickAction({ title, description, href, icon }: { title: string; description: string; href: string; icon: string }) {
   return (
-    <a
+    <Link
       href={href}
       className="block bg-card border border-border rounded-lg p-4 hover:border-gold-dim transition-all duration-150 group"
     >
@@ -651,6 +652,6 @@ function QuickAction({ title, description, href, icon }: { title: string; descri
         {title}
       </h4>
       <p className="text-xs text-muted-foreground">{description}</p>
-    </a>
+    </Link>
   );
 }
