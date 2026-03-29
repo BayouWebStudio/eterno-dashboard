@@ -33,8 +33,13 @@ function AuthInner({ children }: { children: ReactNode }) {
 
   const getToken = useCallback(async () => {
     try {
-      const token = await clerkGetToken({ template: "convex" });
-      return token;
+      // Try the "convex" JWT template first (has extra claims); fall back to
+      // the default session token if the template isn't configured in Clerk.
+      try {
+        const token = await clerkGetToken({ template: "convex" });
+        if (token) return token;
+      } catch { /* template not configured — fall through */ }
+      return await clerkGetToken();
     } catch {
       return null;
     }
