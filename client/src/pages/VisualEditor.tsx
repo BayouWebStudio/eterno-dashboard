@@ -172,6 +172,18 @@ export default function VisualEditor() {
     }
   }, [editMode]);
 
+  // ── Refs to hold latest handler versions (avoids stale closures in the message listener) ──
+  const handleTextEditRef = useRef(handleTextEdit);
+  const handleGalleryDeleteRef = useRef(handleGalleryDelete);
+  const handleGalleryReorderRef = useRef(handleGalleryReorder);
+  const handleSectionDeleteRef = useRef(handleSectionDelete);
+  const refreshHtmlRef = useRef(refreshHtml);
+  useEffect(() => { handleTextEditRef.current = handleTextEdit; }, [handleTextEdit]);
+  useEffect(() => { handleGalleryDeleteRef.current = handleGalleryDelete; }, [handleGalleryDelete]);
+  useEffect(() => { handleGalleryReorderRef.current = handleGalleryReorder; }, [handleGalleryReorder]);
+  useEffect(() => { handleSectionDeleteRef.current = handleSectionDelete; }, [handleSectionDelete]);
+  useEffect(() => { refreshHtmlRef.current = refreshHtml; }, [refreshHtml]);
+
   // ── Handle messages from iframe ──
   useEffect(() => {
     function handleMessage(e: MessageEvent) {
@@ -184,7 +196,7 @@ export default function VisualEditor() {
           break;
 
         case "text-edit":
-          handleTextEdit(data);
+          handleTextEditRef.current(data);
           break;
 
         case "image-swap":
@@ -198,26 +210,26 @@ export default function VisualEditor() {
           break;
 
         case "gallery-delete":
-          handleGalleryDelete(data);
+          handleGalleryDeleteRef.current(data);
           break;
 
         case "gallery-reorder":
-          handleGalleryReorder(data);
+          handleGalleryReorderRef.current(data);
           break;
 
         case "section-delete":
-          handleSectionDelete(data);
+          handleSectionDeleteRef.current(data);
           break;
 
         case "request-refresh":
-          refreshHtml();
+          refreshHtmlRef.current();
           break;
       }
     }
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, []); // empty array is correct — listener registered once, refs always stay current
 
   // ── Text edit handler ──
   const handleTextEdit = useCallback(
