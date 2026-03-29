@@ -101,3 +101,4 @@
 - [x] Add <!-- premium-build --> marker comment — RESOLVED: Hex added marker to repo and guard on backend side; dashboard doesn't generate HTML so no change needed here.
 - [x] Fix: Themes page save fails — saveSiteField("theme") tries save-section endpoint but "theme" is not a section in site HTML
 - [x] Fix: Gallery delete button not clickable — overlay div with `absolute inset-0` was intercepting all clicks; added `pointer-events-none` to overlay and `z-10` to delete button
+- [x] Fix: Landing page reverted to old version AGAIN — RESOLVED: Convex isSignature detection defaulted to false on GitHub API hiccups, serving old subfolder HTML. Hex fixed to always try dedicated repo first, only fallback on explicit 404.
