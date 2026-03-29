@@ -223,18 +223,28 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       if (!convexHttpUrl) return null;
       try {
         const token = await getToken();
-        const formData = new FormData();
-        formData.append("file", file);
-        if (folder) formData.append("folder", folder);
+
+        // Convert File to base64 — backend expects JSON, not FormData
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = "";
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...(bytes.subarray(i, Math.min(i + chunkSize, bytes.length)) as unknown as number[]));
+        }
+        const imageBase64 = btoa(binary);
 
         const res = await fetch(`${convexHttpUrl}/api/dashboard/upload-hero-bg`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64, fileName: file.name, folder }),
         });
-        if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || `Upload failed: ${res.status}`);
+        }
         const data = await res.json();
-        return data.url || data.path || null;
+        return data.imageUrl || data.url || data.path || null;
       } catch (err) {
         console.error("[Site] Upload image failed:", err);
         return null;
