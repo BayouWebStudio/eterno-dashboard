@@ -14,6 +14,7 @@ import {
   Palette,
   Globe,
   CreditCard,
+  CalendarDays,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
@@ -42,10 +43,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { userName, userImage, signOut } = useAuth();
   const { currentSite, loading, availablePages } = useSite();
 
+  const hasBookingPage = availablePages.includes("booking.html");
   const hasTestimonialsPage = availablePages.includes("testimonials.html");
-  const NAV_ITEMS = hasTestimonialsPage
-    ? [...BASE_NAV_ITEMS, { path: "/testimonials", label: "Testimonials", icon: MessageSquare }]
-    : BASE_NAV_ITEMS;
+  const NAV_ITEMS = [
+    ...BASE_NAV_ITEMS,
+    ...(hasBookingPage ? [{ path: "/bookings", label: "Bookings", icon: CalendarDays }] : []),
+    ...(hasTestimonialsPage ? [{ path: "/testimonials", label: "Testimonials", icon: MessageSquare }] : []),
+  ];
 
   return (
     <div className="min-h-screen flex bg-background">

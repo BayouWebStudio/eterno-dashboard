@@ -14,6 +14,7 @@ import Themes from "./pages/Themes";
 import Languages from "./pages/Languages";
 import Testimonials from "./pages/Testimonials";
 import Billing from "./pages/Billing";
+import Bookings from "./pages/Bookings";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/themes" component={Themes} />
       <Route path="/i18n" component={Languages} />
       <Route path="/testimonials" component={Testimonials} />
+      <Route path="/bookings" component={Bookings} />
       <Route path="/billing" component={Billing} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
