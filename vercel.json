@@ -1,16 +1,8 @@
 {
-  "buildCommand": "cd client && npm install -g pnpm && pnpm install && pnpm exec vite build --base=/dashboard/ --outDir ../vercel-output",
+  "buildCommand": "cd client && npm install -g pnpm && pnpm install && pnpm exec vite build --outDir ../vercel-output",
   "outputDirectory": "vercel-output",
   "installCommand": "echo skip",
   "rewrites": [
-    {
-      "source": "/dashboard/assets/:path*",
-      "destination": "/assets/:path*"
-    },
-    {
-      "source": "/dashboard/(.*)",
-      "destination": "/index.html"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
