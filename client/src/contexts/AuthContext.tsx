@@ -158,6 +158,13 @@ function AuthScreen() {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
 
+  // Clear auth-related hashes once signed in so Clerk doesn't get stuck
+  useEffect(() => {
+    if (isSignedIn && window.location.hash.includes("sign")) {
+      window.location.hash = "";
+    }
+  }, [isSignedIn]);
+
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
