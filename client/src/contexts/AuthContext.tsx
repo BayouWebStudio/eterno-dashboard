@@ -118,9 +118,9 @@ function AuthScreen() {
           </p>
         </div>
         {mode === "signin" ? (
-          <SignIn routing="virtual" appearance={clerkAppearance} />
+          <SignIn routing="hash" appearance={clerkAppearance} />
         ) : (
-          <SignUp routing="virtual" appearance={clerkAppearance} />
+          <SignUp routing="hash" appearance={clerkAppearance} />
         )}
         <p className="text-center text-sm text-muted-foreground mt-5">
           {mode === "signin" ? (
