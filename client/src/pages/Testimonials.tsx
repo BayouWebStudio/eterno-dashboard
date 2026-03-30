@@ -15,6 +15,7 @@ interface Testimonial {
   reviewText: string;
   status: "pending" | "approved" | "rejected";
   createdAt: number;
+  photoBase64?: string;
 }
 
 function StarRating({ rating }: { rating: number }) {
@@ -50,9 +51,18 @@ function TestimonialCard({
   return (
     <div className="bg-[oklch(0.16_0.005_250)] border border-border rounded-lg p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-semibold text-foreground">{t.name}</span>
-          <StarRating rating={t.rating} />
+        <div className="flex items-center gap-3">
+          {t.photoBase64 && (
+            <img
+              src={t.photoBase64}
+              alt={t.name}
+              className="w-11 h-11 rounded-full object-cover flex-shrink-0 border border-border"
+            />
+          )}
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-foreground">{t.name}</span>
+            <StarRating rating={t.rating} />
+          </div>
         </div>
         <span className="text-xs text-muted-foreground flex-shrink-0 mt-0.5">{date}</span>
       </div>
