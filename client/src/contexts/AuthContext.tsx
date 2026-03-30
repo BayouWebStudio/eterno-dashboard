@@ -96,6 +96,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const clerkAppearance = {
+  variables: {
+    colorPrimary: "#C9A84C",
+    colorBackground: "#1a1d24",
+    colorText: "#e0d5c0",
+    colorInputBackground: "#22262e",
+    colorInputText: "#e0d5c0",
+  },
+};
+
+function AuthScreen() {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="font-heading text-2xl font-bold text-gold mb-2">Eterno Dashboard</h1>
+          <p className="text-muted-foreground text-sm">
+            {mode === "signin" ? "Sign in to manage your website" : "Create your account"}
+          </p>
+        </div>
+        {mode === "signin" ? (
+          <SignIn routing="virtual" appearance={clerkAppearance} />
+        ) : (
+          <SignUp routing="virtual" appearance={clerkAppearance} />
+        )}
+        <p className="text-center text-sm text-muted-foreground mt-5">
+          {mode === "signin" ? (
+            <>Don't have an account?{" "}
+              <button onClick={() => setMode("signup")} className="text-gold hover:underline font-medium">Sign up</button>
+            </>
+          ) : (
+            <>Already have an account?{" "}
+              <button onClick={() => setMode("signin")} className="text-gold hover:underline font-medium">Sign in</button>
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
 
@@ -111,48 +153,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (!isSignedIn) {
-    const isSignUp = window.location.hash.startsWith("#/sign-up");
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="font-heading text-2xl font-bold text-gold mb-2">Eterno Dashboard</h1>
-            <p className="text-muted-foreground text-sm">
-              {isSignUp ? "Create your account" : "Sign in to manage your websites"}
-            </p>
-          </div>
-          {isSignUp ? (
-            <SignUp
-              routing="hash"
-              signInUrl="#"
-              appearance={{
-                variables: {
-                  colorPrimary: "#C9A84C",
-                  colorBackground: "#1a1d24",
-                  colorText: "#e0d5c0",
-                  colorInputBackground: "#22262e",
-                  colorInputText: "#e0d5c0",
-                },
-              }}
-            />
-          ) : (
-            <SignIn
-              routing="hash"
-              signUpUrl="#/sign-up"
-              appearance={{
-                variables: {
-                  colorPrimary: "#C9A84C",
-                  colorBackground: "#1a1d24",
-                  colorText: "#e0d5c0",
-                  colorInputBackground: "#22262e",
-                  colorInputText: "#e0d5c0",
-                },
-              }}
-            />
-          )}
-        </div>
-      </div>
-    );
+    return <AuthScreen />;
   }
 
   return <>{children}</>;
