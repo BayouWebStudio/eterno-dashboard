@@ -82,15 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <ClerkProvider
       publishableKey={CLERK_KEY}
       appearance={{
-        variables: {
-          colorPrimary: "#C9A84C",
-          colorBackground: "#141820",
-          colorText: "#f5f0e8",
-          colorTextSecondary: "#c8bfa8",
-          colorInputBackground: "#1e222c",
-          colorInputText: "#f5f0e8",
-          colorNeutral: "#f5f0e8",
-        },
+        variables: clerkAppearance.variables,
+        elements: clerkAppearance.elements,
       }}
     >
       <AuthInner>{children}</AuthInner>
@@ -107,6 +100,21 @@ const clerkAppearance = {
     colorInputBackground: "#1e222c",
     colorInputText: "#f5f0e8",
     colorNeutral: "#f5f0e8",
+  },
+  elements: {
+    headerTitle: { color: "#f5f0e8" },
+    headerSubtitle: { color: "#c8bfa8" },
+    formFieldLabel: { color: "#c8bfa8" },
+    formFieldInput: { color: "#f5f0e8", backgroundColor: "#1e222c", borderColor: "#2e3340" },
+    footerActionText: { color: "#c8bfa8" },
+    footerActionLink: { color: "#C9A84C" },
+    identityPreviewText: { color: "#c8bfa8" },
+    identityPreviewEditButton: { color: "#C9A84C" },
+    formButtonPrimary: { backgroundColor: "#C9A84C", color: "#0f1218" },
+    card: { backgroundColor: "#141820", borderColor: "#2e3340" },
+    alternativeMethodsBlockButton: { color: "#c8bfa8", borderColor: "#2e3340" },
+    dividerLine: { backgroundColor: "#2e3340" },
+    dividerText: { color: "#7a7060" },
   },
 };
 
