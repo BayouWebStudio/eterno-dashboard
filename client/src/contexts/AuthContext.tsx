@@ -2,7 +2,7 @@
   DESIGN: Dark Forge — Auth Context
   Wraps Clerk provider and exposes auth helpers for Convex API calls.
 */
-import { ClerkProvider, useAuth as useClerkAuth, useUser, SignIn } from "@clerk/react";
+import { ClerkProvider, useAuth as useClerkAuth, useUser, SignIn, SignUp } from "@clerk/react";
 import { createContext, useContext, useCallback, useState, useEffect, type ReactNode } from "react";
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
@@ -111,25 +111,45 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (!isSignedIn) {
+    const isSignUp = window.location.hash.startsWith("#/sign-up");
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="font-heading text-2xl font-bold text-gold mb-2">Eterno Dashboard</h1>
-            <p className="text-muted-foreground text-sm">Sign in to manage your websites</p>
+            <p className="text-muted-foreground text-sm">
+              {isSignUp ? "Create your account" : "Sign in to manage your websites"}
+            </p>
           </div>
-          <SignIn
-            routing="hash"
-            appearance={{
-              variables: {
-                colorPrimary: "#C9A84C",
-                colorBackground: "#1a1d24",
-                colorText: "#e0d5c0",
-                colorInputBackground: "#22262e",
-                colorInputText: "#e0d5c0",
-              },
-            }}
-          />
+          {isSignUp ? (
+            <SignUp
+              routing="hash"
+              signInUrl="#"
+              appearance={{
+                variables: {
+                  colorPrimary: "#C9A84C",
+                  colorBackground: "#1a1d24",
+                  colorText: "#e0d5c0",
+                  colorInputBackground: "#22262e",
+                  colorInputText: "#e0d5c0",
+                },
+              }}
+            />
+          ) : (
+            <SignIn
+              routing="hash"
+              signUpUrl="#/sign-up"
+              appearance={{
+                variables: {
+                  colorPrimary: "#C9A84C",
+                  colorBackground: "#1a1d24",
+                  colorText: "#e0d5c0",
+                  colorInputBackground: "#22262e",
+                  colorInputText: "#e0d5c0",
+                },
+              }}
+            />
+          )}
         </div>
       </div>
     );
