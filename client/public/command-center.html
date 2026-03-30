@@ -1,1253 +1,284 @@
+<!-- vesica-command-center -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mission Control — Hex Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:        #080810;
-      --bg2:       #0f0f1a;
-      --bg3:       #141428;
-      --card:      #12121f;
-      --card2:     #1a1a2e;
-      --border:    #1e1e35;
-      --violet:    #7c3aed;
-      --violet2:   #6d28d9;
-      --violet3:   #5b21b6;
-      --violet-glow: rgba(124, 58, 237, 0.15);
-      --violet-soft: rgba(124, 58, 237, 0.08);
-      --text:      #e2e8f0;
-      --text2:     #94a3b8;
-      --text3:     #64748b;
-      --green:     #10b981;
-      --green-glow: rgba(16, 185, 129, 0.15);
-      --yellow:    #f59e0b;
-      --yellow-glow: rgba(245, 158, 11, 0.15);
-      --red:       #ef4444;
-      --red-glow:  rgba(239, 68, 68, 0.15);
-      --radius:    12px;
-      --radius-sm: 8px;
-    }
-
-    html { font-size: 14px; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      min-height: 100vh;
-      padding: 0 0 80px 0;
-    }
-
-    /* ── TOP HEADER ── */
-    .header {
-      background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
-      border-bottom: 1px solid var(--border);
-      padding: 20px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      backdrop-filter: blur(12px);
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .logo {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, var(--violet) 0%, #a855f7 100%);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: 700;
-      color: #fff;
-      box-shadow: 0 0 24px var(--violet-glow);
-    }
-
-    .header-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.02em;
-    }
-
-    .header-subtitle {
-      font-size: 0.8rem;
-      color: var(--text3);
-      font-weight: 400;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
-
-    .live-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--green);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-
-    .live-dot {
-      width: 8px;
-      height: 8px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse-green 2s infinite;
-      box-shadow: 0 0 6px var(--green);
-    }
-
-    @keyframes pulse-green {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(1.2); }
-    }
-
-    .last-updated {
-      font-size: 0.78rem;
-      color: var(--text3);
-    }
-
-    /* ── MAIN LAYOUT ── */
-    .main {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 32px 32px 0;
-    }
-
-    /* ── STATS BAR ── */
-    .stats-bar {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .stat-card:hover {
-      border-color: var(--violet);
-      box-shadow: 0 0 20px var(--violet-soft);
-    }
-
-    .stat-icon {
-      font-size: 1.8rem;
-      line-height: 1;
-    }
-
-    .stat-label {
-      font-size: 0.75rem;
-      color: var(--text3);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .stat-value {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.02em;
-      font-family: 'DM Mono', monospace;
-    }
-
-    .stat-value.loading { color: var(--text3); font-size: 1rem; }
-
-    /* ── SECTION HEADINGS ── */
-    .section {
-      margin-bottom: 32px;
-    }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .section-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
-
-    .section-badge {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--violet);
-      background: var(--violet-soft);
-      border: 1px solid rgba(124,58,237,0.2);
-      padding: 3px 10px;
-      border-radius: 100px;
-    }
-
-    .section-line {
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    /* ── INSTAGRAM GRID ── */
-    .ig-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-    }
-
-    .ig-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .ig-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, var(--violet), transparent);
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .ig-card:hover {
-      border-color: var(--violet);
-      box-shadow: 0 4px 24px var(--violet-soft);
-    }
-
-    .ig-card:hover::before { opacity: 1; }
-
-    .ig-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .ig-avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: var(--bg3);
-      border: 2px solid var(--border);
-      object-fit: cover;
-      flex-shrink: 0;
-    }
-
-    .ig-avatar-placeholder {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--violet3), var(--violet));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
-    }
-
-    .ig-name {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .ig-handle {
-      font-size: 0.75rem;
-      color: var(--text3);
-    }
-
-    .ig-health {
-      margin-left: auto;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .ig-health.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .ig-health.yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
-    .ig-health.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
-    .ig-health.gray { background: var(--text3); }
-
-    .ig-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .ig-stat {
-      background: var(--bg3);
-      border-radius: var(--radius-sm);
-      padding: 10px 12px;
-    }
-
-    .ig-stat-label {
-      font-size: 0.68rem;
-      color: var(--text3);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-weight: 600;
-      margin-bottom: 3px;
-    }
-
-    .ig-stat-value {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
-    }
-
-    .ig-stat-value.small {
-      font-size: 0.8rem;
-    }
-
-    .ig-stat-value.loading {
-      color: var(--text3);
-      font-size: 0.75rem;
-      font-weight: 400;
-    }
-
-    .ig-stat-value.error {
-      color: var(--red);
-      font-size: 0.7rem;
-      font-weight: 400;
-    }
-
-    /* ── AGENTS GRID ── */
-    .agents-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 16px;
-    }
-
-    .agent-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      text-align: center;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .agent-card:hover {
-      border-color: var(--violet);
-      box-shadow: 0 4px 24px var(--violet-soft);
-    }
-
-    .agent-emoji {
-      font-size: 2rem;
-      margin-bottom: 10px;
-      display: block;
-    }
-
-    .agent-name {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .agent-role {
-      font-size: 0.72rem;
-      color: var(--text3);
-      line-height: 1.4;
-      margin-bottom: 14px;
-    }
-
-    .agent-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 4px 12px;
-      border-radius: 100px;
-    }
-
-    .agent-status.active {
-      color: var(--green);
-      background: var(--green-glow);
-      border: 1px solid rgba(16,185,129,0.2);
-    }
-
-    .agent-status.idle {
-      color: var(--text3);
-      background: rgba(100,116,139,0.1);
-      border: 1px solid rgba(100,116,139,0.2);
-    }
-
-    .agent-status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    .agent-last {
-      font-size: 0.68rem;
-      color: var(--text3);
-      margin-top: 8px;
-    }
-
-    /* ── CRONS TABLE ── */
-    .crons-table-wrap {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    thead {
-      background: var(--bg3);
-    }
-
-    thead th {
-      padding: 12px 16px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text3);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-
-    tbody tr {
-      border-bottom: 1px solid var(--border);
-      transition: background 0.15s;
-    }
-
-    tbody tr:last-child { border-bottom: none; }
-
-    tbody tr:hover { background: var(--bg3); }
-
-    tbody td {
-      padding: 11px 16px;
-      font-size: 0.82rem;
-      color: var(--text);
-    }
-
-    .cron-name { font-weight: 500; }
-    .cron-agent {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.75rem;
-      color: var(--text2);
-      background: var(--bg3);
-      padding: 2px 8px;
-      border-radius: 100px;
-    }
-    .cron-schedule { color: var(--text3); font-family: 'DM Mono', monospace; font-size: 0.75rem; }
-    .cron-next { color: var(--text2); font-size: 0.8rem; font-family: 'DM Mono', monospace; }
-    .cron-status { font-size: 0.78rem; font-weight: 500; }
-    .cron-status.ok { color: var(--green); }
-    .cron-status.fixed { color: var(--yellow); }
-    .cron-status.error { color: var(--red); }
-
-    /* ── REVENUE SECTION ── */
-    .revenue-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .revenue-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .revenue-card::after {
-      content: '';
-      position: absolute;
-      bottom: 0; right: 0;
-      width: 120px; height: 120px;
-      background: radial-gradient(circle at 100% 100%, var(--violet-soft) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .revenue-card:hover {
-      border-color: var(--violet);
-      box-shadow: 0 4px 32px var(--violet-soft);
-    }
-
-    .revenue-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .revenue-icon {
-      font-size: 1.4rem;
-    }
-
-    .revenue-title {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .revenue-subtitle {
-      font-size: 0.72rem;
-      color: var(--text3);
-    }
-
-    .revenue-amount {
-      font-size: 2.4rem;
-      font-weight: 700;
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
-      letter-spacing: -0.03em;
-      margin-bottom: 4px;
-    }
-
-    .revenue-amount .currency {
-      font-size: 1.2rem;
-      color: var(--text3);
-      vertical-align: top;
-      margin-top: 6px;
-      display: inline-block;
-    }
-
-    .revenue-amount.loading {
-      font-size: 1rem;
-      color: var(--text3);
-      margin-top: 12px;
-    }
-
-    .revenue-amount.error {
-      font-size: 0.85rem;
-      color: var(--text3);
-      margin-top: 12px;
-    }
-
-    .revenue-meta {
-      margin-top: 16px;
-      display: flex;
-      gap: 16px;
-    }
-
-    .revenue-meta-item {
-      background: var(--bg3);
-      border-radius: var(--radius-sm);
-      padding: 8px 12px;
-    }
-
-    .revenue-meta-label {
-      font-size: 0.65rem;
-      color: var(--text3);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .revenue-meta-value {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
-    }
-
-    .revenue-note {
-      margin-top: 12px;
-      font-size: 0.72rem;
-      color: var(--text3);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .revenue-note::before {
-      content: '⚡';
-      font-size: 0.65rem;
-    }
-
-    /* ── SPINNER ── */
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--border);
-      border-top-color: var(--violet);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      display: inline-block;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* ── LOADING STATE ── */
-    .skeleton {
-      background: linear-gradient(90deg, var(--bg3) 25%, var(--border) 50%, var(--bg3) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
-      border-radius: 4px;
-      color: transparent !important;
-    }
-
-    @keyframes shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-
-    /* ── RESPONSIVE ── */
-    @media (max-width: 1200px) {
-      .ig-grid { grid-template-columns: repeat(2, 1fr); }
-      .agents-grid { grid-template-columns: repeat(3, 1fr); }
-      .stats-bar { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (max-width: 768px) {
-      .main { padding: 16px; }
-      .ig-grid { grid-template-columns: 1fr; }
-      .agents-grid { grid-template-columns: repeat(2, 1fr); }
-      .revenue-grid { grid-template-columns: 1fr; }
-    }
-
-    /* ── REFRESH ANIMATION ── */
-    @keyframes fadeIn {
-      from { opacity: 0.4; }
-      to { opacity: 1; }
-    }
-
-    .refreshing { animation: fadeIn 0.4s ease; }
-
-    /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--violet); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Command Center — Raul Wesche</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#080810;color:#e8e8f0;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 32px;border-bottom:1px solid rgba(255,255,255,0.06);position:sticky;top:0;background:#080810;z-index:10}
+.logo{font-size:15px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#fff}
+.live{display:flex;align-items:center;gap:8px;font-size:13px;color:#888}
+.dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.main{padding:24px 32px;max-width:1400px;margin:0 auto}
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+.stat-card{background:#0f0f1e;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px 24px}
+.stat-label{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#666;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:700;color:#fff}
+.stat-sub{font-size:12px;color:#666;margin-top:4px}
+.section-title{font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#666;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:32px}
+.card{background:#0f0f1e;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px}
+.ig-card{display:flex;flex-direction:column;gap:12px}
+.ig-header{display:flex;align-items:center;gap:12px}
+.ig-avatar{width:44px;height:44px;border-radius:50%;background:#1a1a2e;overflow:hidden;flex-shrink:0}
+.ig-avatar img{width:100%;height:100%;object-fit:cover}
+.ig-handle{font-weight:600;font-size:15px;color:#fff}
+.ig-agent{font-size:11px;color:#666;margin-top:2px}
+.ig-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ig-stat{background:#080810;border-radius:8px;padding:10px 12px}
+.ig-stat-val{font-size:18px;font-weight:700;color:#fff}
+.ig-stat-lab{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px}
+.health{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.health.green{background:#22c55e} .health.yellow{background:#f59e0b} .health.red{background:#ef4444}
+.agent-card{text-align:center;padding:24px 16px}
+.agent-emoji{font-size:28px;margin-bottom:10px}
+.agent-name{font-size:14px;font-weight:600;color:#fff;margin-bottom:4px}
+.agent-role{font-size:11px;color:#666;line-height:1.4;margin-bottom:12px}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.active{background:rgba(34,197,94,0.15);color:#22c55e}
+.badge.idle{background:rgba(255,255,255,0.05);color:#666}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#555;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
+td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.cron-agent{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+.cron-agent.hex{background:rgba(124,58,237,0.2);color:#a78bfa}
+.cron-agent.scout{background:rgba(14,165,233,0.2);color:#38bdf8}
+.cron-agent.haus{background:rgba(249,115,22,0.2);color:#fb923c}
+.cron-agent.mint{background:rgba(34,197,94,0.2);color:#4ade80}
+.ok{color:#22c55e;font-size:13px}
+.revenue-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px}
+.rev-card{background:#0f0f1e;border:1px solid rgba(124,58,237,0.2);border-radius:12px;padding:24px}
+.rev-amount{font-size:32px;font-weight:700;color:#fff;margin:8px 0}
+.rev-sub{font-size:12px;color:#666}
+.loading{color:#555;font-style:italic}
+.next-run{color:#888;font-size:12px}
+</style>
 </head>
 <body>
-
-<!-- ═══════════════════════════════════════ HEADER ═══ -->
-<header class="header">
-  <div class="header-left">
-    <div class="logo">H</div>
-    <div>
-      <div class="header-title">Mission Control</div>
-      <div class="header-subtitle">Hex Dashboard · Eterno Web Studio</div>
-    </div>
-  </div>
-  <div class="header-right">
-    <div class="live-badge">
-      <div class="live-dot"></div>
-      LIVE
-    </div>
-    <div class="last-updated" id="last-updated">Connecting…</div>
-  </div>
+<header>
+  <div class="logo">🔮 Command Center</div>
+  <div class="live"><span class="dot"></span><span id="last-updated">Connecting...</span></div>
 </header>
+<div class="main">
 
-<!-- ═══════════════════════════════════════ MAIN ═══ -->
-<main class="main">
-
-  <!-- ── STATS BAR ── -->
-  <div class="stats-bar" id="stats-bar">
+  <!-- Stats Bar -->
+  <div class="stats-bar">
     <div class="stat-card">
-      <div class="stat-icon">👥</div>
-      <div>
-        <div class="stat-label">Total Followers</div>
-        <div class="stat-value loading" id="total-followers">—</div>
-      </div>
+      <div class="stat-label">Total Reach</div>
+      <div class="stat-value" id="total-followers">—</div>
+      <div class="stat-sub">across all managed accounts</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon">🤖</div>
-      <div>
-        <div class="stat-label">Active Agents</div>
-        <div class="stat-value">5</div>
-      </div>
+      <div class="stat-label">Active Agents</div>
+      <div class="stat-value">5</div>
+      <div class="stat-sub">Hex · Scout · Haus · Mint · Vesica</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon">⚡</div>
-      <div>
-        <div class="stat-label">Active Crons</div>
-        <div class="stat-value">16</div>
-      </div>
+      <div class="stat-label">Active Crons</div>
+      <div class="stat-value">16</div>
+      <div class="stat-sub">all systems operational</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon">🌐</div>
-      <div>
-        <div class="stat-label">Sites Managed</div>
-        <div class="stat-value">16</div>
-      </div>
+      <div class="stat-label">Sites Managed</div>
+      <div class="stat-value">16</div>
+      <div class="stat-sub">Eterno Web Studio clients</div>
     </div>
   </div>
 
-  <!-- ── INSTAGRAM ── -->
-  <div class="section">
-    <div class="section-header">
-      <span style="font-size:1.1rem">📸</span>
-      <span class="section-title">Instagram Accounts</span>
-      <span class="section-badge" id="ig-badge">Loading…</span>
-      <div class="section-line"></div>
+  <!-- Instagram Accounts -->
+  <div class="section-title">📸 Instagram Accounts</div>
+  <div id="ig-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px">
+    <div class="card ig-card"><div class="loading">Loading @weschetattoo...</div></div>
+    <div class="card ig-card"><div class="loading">Loading @omfgeometry...</div></div>
+    <div class="card ig-card"><div class="loading">Loading @inkedhaus...</div></div>
+    <div class="card ig-card"><div class="loading">Loading @vesica.studio.app...</div></div>
+  </div>
+
+  <!-- Revenue -->
+  <div class="section-title">💰 Revenue</div>
+  <div class="revenue-grid">
+    <div class="rev-card">
+      <div class="stat-label">Eterno Web Studio MRR</div>
+      <div class="rev-amount" id="stripe-mrr">Loading...</div>
+      <div class="rev-sub" id="stripe-subs">—</div>
     </div>
-    <div class="ig-grid" id="ig-grid">
-      <!-- JS rendered -->
+    <div class="rev-card">
+      <div class="stat-label">Wesche Store — Last 30 Days</div>
+      <div class="rev-amount" id="shopify-rev">Loading...</div>
+      <div class="rev-sub" id="shopify-orders">—</div>
     </div>
   </div>
 
-  <!-- ── REVENUE ── -->
-  <div class="section">
-    <div class="section-header">
-      <span style="font-size:1.1rem">💰</span>
-      <span class="section-title">Revenue</span>
-      <span class="section-badge">Live Feed</span>
-      <div class="section-line"></div>
-    </div>
-    <div class="revenue-grid">
-      <div class="revenue-card">
-        <div class="revenue-header">
-          <span class="revenue-icon">🌿</span>
-          <div>
-            <div class="revenue-title">Eterno Web Studio</div>
-            <div class="revenue-subtitle">MRR · Stripe subscriptions</div>
-          </div>
-        </div>
-        <div class="revenue-amount" id="stripe-mrr">
-          <div class="spinner"></div>
-        </div>
-        <div class="revenue-meta" id="stripe-meta" style="display:none">
-          <div class="revenue-meta-item">
-            <div class="revenue-meta-label">Subscriptions</div>
-            <div class="revenue-meta-value" id="stripe-subs">—</div>
-          </div>
-          <div class="revenue-meta-item">
-            <div class="revenue-meta-label">Last Charge</div>
-            <div class="revenue-meta-value" id="stripe-last">—</div>
-          </div>
-        </div>
-        <div class="revenue-note" id="stripe-note" style="display:none"></div>
-      </div>
-
-      <div class="revenue-card">
-        <div class="revenue-header">
-          <span class="revenue-icon">🔮</span>
-          <div>
-            <div class="revenue-title">Wesche Tattoo Store</div>
-            <div class="revenue-subtitle">Last 30 days · Shopify</div>
-          </div>
-        </div>
-        <div class="revenue-amount" id="shopify-revenue">
-          <div class="spinner"></div>
-        </div>
-        <div class="revenue-meta" id="shopify-meta" style="display:none">
-          <div class="revenue-meta-item">
-            <div class="revenue-meta-label">Orders</div>
-            <div class="revenue-meta-value" id="shopify-orders">—</div>
-          </div>
-          <div class="revenue-meta-item">
-            <div class="revenue-meta-label">Last Order</div>
-            <div class="revenue-meta-value" id="shopify-last">—</div>
-          </div>
-        </div>
-        <div class="revenue-note" id="shopify-note" style="display:none"></div>
-      </div>
-    </div>
+  <!-- Agents -->
+  <div class="section-title">🤖 Agent Team</div>
+  <div class="grid-5" style="margin-bottom:32px">
+    <div class="card agent-card"><div class="agent-emoji">🔮</div><div class="agent-name">Hex</div><div class="agent-role">Personal assistant. Integrator. Knows everything.</div><span class="badge active">Active</span></div>
+    <div class="card agent-card"><div class="agent-emoji">👁</div><div class="agent-name">Scout</div><div class="agent-role">@omfgeometry — audience & content signals</div><span class="badge active">Active</span></div>
+    <div class="card agent-card"><div class="agent-emoji">🏠</div><div class="agent-name">Haus</div><div class="agent-role">@inkedhaus — brand & product posts</div><span class="badge active">Active</span></div>
+    <div class="card agent-card"><div class="agent-emoji">🌿</div><div class="agent-name">Mint</div><div class="agent-role">Eterno Web Studio — builds client sites</div><span class="badge active">Active</span></div>
+    <div class="card agent-card"><div class="agent-emoji">✨</div><div class="agent-name">Vesica</div><div class="agent-role">@vesica.studio.app — sacred geometry app brand</div><span class="badge active">Active</span></div>
   </div>
 
-  <!-- ── AGENTS ── -->
-  <div class="section">
-    <div class="section-header">
-      <span style="font-size:1.1rem">🤖</span>
-      <span class="section-title">Agents</span>
-      <span class="section-badge">5 Deployed</span>
-      <div class="section-line"></div>
-    </div>
-    <div class="agents-grid" id="agents-grid">
-      <!-- JS rendered -->
-    </div>
+  <!-- Crons -->
+  <div class="section-title">⏰ Scheduled Tasks</div>
+  <div class="card" style="margin-bottom:32px">
+    <table>
+      <thead><tr><th>Task</th><th>Agent</th><th>Schedule</th><th>Next Run</th><th>Status</th></tr></thead>
+      <tbody id="cron-table"></tbody>
+    </table>
   </div>
 
-  <!-- ── CRONS ── -->
-  <div class="section">
-    <div class="section-header">
-      <span style="font-size:1.1rem">⚡</span>
-      <span class="section-title">Cron Jobs</span>
-      <span class="section-badge">16 Active</span>
-      <div class="section-line"></div>
-    </div>
-    <div class="crons-table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Job</th>
-            <th>Agent</th>
-            <th>Schedule</th>
-            <th>Next Run</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="crons-tbody">
-          <!-- JS rendered -->
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-</main>
+</div>
 
 <script>
-// ═══════════════════════════════════════════════════
-//  CONFIG
-// ═══════════════════════════════════════════════════
-const CONVEX_BASE = 'https://curious-lemming-262.convex.site';
-
-const IG_ACCOUNTS = [
-  {
-    handle: 'weschetattoo',
-    display: 'Wesche Tattoo',
-    igId: '17841400071580084',
-    token: 'EAAefH6LpAfIBRH72kAcZAfVrxCQ2RNfh0w0ZC6vwsofvozjLjRbD6FjHenFRs7O2yE6c3sZCfLLLJFnNWlzIcteNGMQXG9HJ43xqZBJOmfdS1kKlExCL4TcMXqdw2uU9mF3pRFYgPQQidl4meZBUFblfmV887M2HaeZBLniaoAWQr8NkAMGx7IVJhhMLOfnXFzZAodi489IzI2shnvc8AZDZD',
-    initials: 'W',
-    color: '#7c3aed'
-  },
-  {
-    handle: 'omfgeometry',
-    display: 'OMF Geometry',
-    igId: '17841402236246255',
-    token: 'EAAefH6LpAfIBRAsS3VvmegI0ZAd1PLTVZCHn24oEcKJjP4VJhqHTSjUZCqTkvKOafvYRiDFztIXYWY1yyVAff9ZAuuuD1xCZB9EWeSj9foo2iROsaB2Ck7JsnU1YvkLURZCZAqpoMWQZBBGSalNTZCJTb6kkbeR6ZAnfdqjk9ZANjEXhZC4pYI6WWNF0Ela7qpPphHeKII2sY8GG2W7xGaWG',
-    initials: 'O',
-    color: '#059669'
-  },
-  {
-    handle: 'inkedhaus',
-    display: 'InkedHaus',
-    igId: '17841455905486664',
-    token: 'EAAefH6LpAfIBRFBydZCl9NKrWg2E51LpHaktm74LX3FdxhpGn2QFU1LsREyPKhwjDiptSOtuUJlzMcDXKhliVvZCsWsD7x6TzG8gt1B79tggyUacQ9TJaKOTSgbNrdJQqgRRTq3DGf4n6GumHSCZABiLwPZCrnFVJ7IsJZBIJtUDSvCZCpchGYo6PbChzAd7DG3ahj3OBi9nzk2hhTLZBax',
-    initials: 'IH',
-    color: '#d97706'
-  },
-  {
-    handle: 'vesica.studio.app',
-    display: 'Vesica Studio',
-    igId: '17841440093462341',
-    token: 'EAAefH6LpAfIBRK6Vwtfbt3SeT8ynHVNkNTO0FXoRC68nfHJsRPeq5rTtrwjR0bXNNQTeSxkjDA90ukl2ZBPeFwIHEu9fstCVqO8kNnTIUxNViHWCYUoVue3MYKrpD3V40b0ZBA2D16NSF6ZAeQceREYbqeg94fGfdS1TeveK0tECsusFWM1pOzHMpkRiKjRKXVew0Tq5DA9x0z98QZDZD',
-    initials: 'V',
-    color: '#0ea5e9'
-  }
+const ACCOUNTS = [
+  { id:'17841400071580084', handle:'weschetattoo', agent:'Hex', token:'EAAefH6LpAfIBRH72kAcZAfVrxCQ2RNfh0w0ZC6vwsofvozjLjRbD6FjHenFRs7O2yE6c3sZCfLLLJFnNWlzIcteNGMQXG9HJ43xqZBJOmfdS1kKlExCL4TcMXqdw2uU9mF3pRFYgPQQidl4meZBUFblfmV887M2HaeZBLniaoAWQr8NkAMGx7IVJhhMLOfnXFzZAodi489IzI2shnvc8AZDZD' },
+  { id:'17841402236246255', handle:'omfgeometry', agent:'Scout', token:'EAAefH6LpAfIBRAsS3VvmegI0ZAd1PLTVZCHn24oEcKJjP4VJhqHTSjUZCqTkvKOafvYRiDFztIXYWY1yyVAff9ZAuuuD1xCZB9EWeSj9foo2iROsaB2Ck7JsnU1YvkLURZCZAqpoMWQZBBGSalNTZCJTb6kkbeR6ZAnfdqjk9ZANjEXhZC4pYI6WWNF0Ela7qpPphHeKII2sY8GG2W7xGaWG' },
+  { id:'17841455905486664', handle:'inkedhaus', agent:'Haus', token:'EAAefH6LpAfIBRFBydZCl9NKrWg2E51LpHaktm74LX3FdxhpGn2QFU1LsREyPKhwjDiptSOtuUJlzMcDXKhliVvZCsWsD7x6TzG8gt1B79tggyUacQ9TJaKOTSgbNrdJQqgRRTq3DGf4n6GumHSCZABiLwPZCrnFVJ7IsJZBIJtUDSvCZCpchGYo6PbChzAd7DG3ahj3OBi9nzk2hhTLZBax' },
+  { id:'17841440093462341', handle:'vesica.studio.app', agent:'Vesica', token:'EAAefH6LpAfIBRK6Vwtfbt3SeT8ynHVNkNTO0FXoRC68nfHJsRPeq5rTtrwjR0bXNNQTeSxkjDA90ukl2ZBPeFwIHEu9fstCVqO8kNnTIUxNViHWCYUoVue3MYKrpD3V40b0ZBA2D16NSF6ZAeQceREYbqeg94fGfdS1TeveK0tECsusFWM1pOzHMpkRiKjRKXVew0Tq5DA9x0z98QZDZD' },
 ];
-
-const AGENTS = [
-  { name: 'Hex', emoji: '🔮', role: 'Personal assistant, orchestrator', status: 'active', last: 'Today' },
-  { name: 'Scout', emoji: '👁', role: '@omfgeometry content & curation', status: 'active', last: 'Today' },
-  { name: 'Haus', emoji: '🏠', role: '@inkedhaus brand & content', status: 'active', last: 'Today' },
-  { name: 'Mint', emoji: '🌿', role: 'Eterno Web Studio builder', status: 'active', last: 'Today' },
-  { name: 'Vesica', emoji: '✨', role: 'Vesica Studio app agent', status: 'idle', last: 'Today' }
-];
-
-// ═══════════════════════════════════════════════════
-//  UTILITIES
-// ═══════════════════════════════════════════════════
-function fmt(n) {
-  if (n === undefined || n === null) return '—';
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-  return n.toLocaleString();
-}
-
-function fmtDollar(n) {
-  if (n === undefined || n === null) return '—';
-  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function healthColor(followers, engagementRate) {
-  if (!followers) return 'gray';
-  if (engagementRate >= 1.5) return 'green';
-  if (engagementRate >= 0.5) return 'yellow';
-  return 'red';
-}
-
-// ═══════════════════════════════════════════════════
-//  CRON NEXT-RUN CALCULATOR
-// ═══════════════════════════════════════════════════
-function getNextRun(schedule) {
-  const now = new Date();
-  // CT offset: -5 (CST) or -6 (CDT). Use Intl to get current CT time.
-  const ctNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-  const ctH = ctNow.getHours();
-  const ctMin = ctNow.getMinutes();
-  const ctDay = ctNow.getDay(); // 0=Sun, 1=Mon ... 6=Sat
-
-  // parse "Daily Xam CT", "Daily X:Ypm CT", "Mon+Thu Xam CT", etc.
-  const dailyMatch = schedule.match(/Daily (\d+)(?::(\d+))?(am|pm) CT/i);
-  const weeklyMatch = schedule.match(/((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:\+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun))*) (\d+)(?::(\d+))?(am|pm) CT/i);
-
-  const dayNames = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
-
-  function toLabel(daysFromNow, targetH, targetMin) {
-    if (daysFromNow === 0) {
-      const hDisp = targetH > 12 ? targetH - 12 : (targetH === 0 ? 12 : targetH);
-      const ampm = targetH >= 12 ? 'pm' : 'am';
-      const mStr = targetMin > 0 ? `:${String(targetMin).padStart(2,'0')}` : '';
-      return `Today ${hDisp}${mStr}${ampm}`;
-    }
-    if (daysFromNow === 1) {
-      const hDisp = targetH > 12 ? targetH - 12 : (targetH === 0 ? 12 : targetH);
-      const ampm = targetH >= 12 ? 'pm' : 'am';
-      const mStr = targetMin > 0 ? `:${String(targetMin).padStart(2,'0')}` : '';
-      return `Tomorrow ${hDisp}${mStr}${ampm}`;
-    }
-    // future day
-    const names = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const futureDay = (ctDay + daysFromNow) % 7;
-    const hDisp = targetH > 12 ? targetH - 12 : (targetH === 0 ? 12 : targetH);
-    const ampm = targetH >= 12 ? 'pm' : 'am';
-    const mStr = targetMin > 0 ? `:${String(targetMin).padStart(2,'0')}` : '';
-    return `${names[futureDay]} ${hDisp}${mStr}${ampm}`;
-  }
-
-  if (dailyMatch) {
-    let h = parseInt(dailyMatch[1]);
-    const m = parseInt(dailyMatch[2] || '0');
-    const ampm = dailyMatch[3].toLowerCase();
-    if (ampm === 'pm' && h !== 12) h += 12;
-    if (ampm === 'am' && h === 12) h = 0;
-    const past = ctH > h || (ctH === h && ctMin >= m);
-    return toLabel(past ? 1 : 0, h, m);
-  }
-
-  if (weeklyMatch) {
-    const dayStrs = weeklyMatch[1].split('+');
-    let h = parseInt(weeklyMatch[2]);
-    const m = parseInt(weeklyMatch[3] || '0');
-    const ampm = weeklyMatch[4].toLowerCase();
-    if (ampm === 'pm' && h !== 12) h += 12;
-    if (ampm === 'am' && h === 12) h = 0;
-    const targetDays = dayStrs.map(d => dayNames[d.slice(0,3)]);
-
-    let minDays = 8;
-    for (const td of targetDays) {
-      let diff = td - ctDay;
-      if (diff < 0) diff += 7;
-      if (diff === 0 && (ctH > h || (ctH === h && ctMin >= m))) diff = 7;
-      if (diff < minDays) minDays = diff;
-    }
-    return toLabel(minDays, h, m);
-  }
-
-  return 'Next run';
-}
 
 const CRONS = [
-  { name: 'InkedHaus Daily Post',        agent: 'Haus 🏠',  schedule: 'Daily 9am CT',      status: 'ok' },
-  { name: 'OMF Engagement',              agent: 'Scout 👁', schedule: 'Daily 9am CT',      status: 'ok' },
-  { name: 'OMF Daily Preview',           agent: 'Scout 👁', schedule: 'Daily 9:30am CT',   status: 'fixed' },
-  { name: 'OMF Daily Stories',           agent: 'Scout 👁', schedule: 'Daily 11am CT',     status: 'fixed' },
-  { name: 'OMF Stories Batch 2',         agent: 'Scout 👁', schedule: 'Daily 1pm CT',      status: 'ok' },
-  { name: 'OMF Scout Preview',           agent: 'Scout 👁', schedule: 'Daily 2:30pm CT',   status: 'fixed' },
-  { name: 'FB Comment Replier',          agent: 'Hex 🔮',   schedule: 'Daily 8pm CT',      status: 'ok' },
-  { name: 'IG Comment Replier',          agent: 'Hex 🔮',   schedule: 'Daily 10am CT',     status: 'ok' },
-  { name: 'InkedHaus Comment Replier',   agent: 'Haus 🏠',  schedule: 'Daily 12pm CT',     status: 'ok' },
-  { name: 'OMF Website Update',          agent: 'Scout 👁', schedule: 'Mon+Thu 10am CT',   status: 'ok' },
-  { name: 'InkedHaus Weekly Blog',       agent: 'Haus 🏠',  schedule: 'Wed 10am CT',       status: 'ok' },
-  { name: 'OMF Weekly Blog',             agent: 'Scout 👁', schedule: 'Mon 10:30am CT',    status: 'fixed' },
-  { name: 'InkedHaus Weekly Analytics', agent: 'Haus 🏠',  schedule: 'Sun 8am CT',        status: 'ok' },
-  { name: 'OMF Weekly Analytics',       agent: 'Scout 👁', schedule: 'Sun 9am CT',        status: 'ok' },
-  { name: 'Good Morning Message',        agent: 'Hex 🔮',   schedule: 'Daily 6:30am CT',   status: 'ok' },
-  { name: 'Nightly Summary',             agent: 'Hex 🔮',   schedule: 'Daily 10pm CT',     status: 'ok' },
+  {name:'Good Morning Message',agent:'hex',schedule:'Daily 6:30am CT',cronH:6,cronM:30},
+  {name:'InkedHaus Daily Post',agent:'haus',schedule:'Daily 9am CT',cronH:9,cronM:0},
+  {name:'OMF Engagement',agent:'scout',schedule:'Daily 9am CT',cronH:9,cronM:0},
+  {name:'OMF Daily Preview',agent:'scout',schedule:'Daily 9:30am CT',cronH:9,cronM:30},
+  {name:'IG Comment Replier',agent:'hex',schedule:'Daily 10am CT',cronH:10,cronM:0},
+  {name:'InkedHaus Comment Replier',agent:'haus',schedule:'Daily 12pm CT',cronH:12,cronM:0},
+  {name:'OMF Daily Stories',agent:'scout',schedule:'Daily 11am CT',cronH:11,cronM:0},
+  {name:'OMF Stories Batch 2',agent:'scout',schedule:'Daily 1pm CT',cronH:13,cronM:0},
+  {name:'OMF Scout Preview',agent:'scout',schedule:'Daily 2:30pm CT',cronH:14,cronM:30},
+  {name:'FB Comment Replier',agent:'hex',schedule:'Daily 8pm CT',cronH:20,cronM:0},
+  {name:'Nightly Summary',agent:'hex',schedule:'Daily 10pm CT',cronH:22,cronM:0},
+  {name:'InkedHaus Weekly Blog',agent:'haus',schedule:'Wed 10am CT',cronH:10,cronM:0,dow:3},
+  {name:'OMF Weekly Blog',agent:'scout',schedule:'Mon 10:30am CT',cronH:10,cronM:30,dow:1},
+  {name:'OMF Website Update',agent:'scout',schedule:'Mon+Thu 10am CT',cronH:10,cronM:0,dow:[1,4]},
+  {name:'InkedHaus Weekly Analytics',agent:'haus',schedule:'Sun 8am CT',cronH:8,cronM:0,dow:0},
+  {name:'OMF Weekly Analytics',agent:'scout',schedule:'Sun 9am CT',cronH:9,cronM:0,dow:0},
 ];
 
-// ═══════════════════════════════════════════════════
-//  RENDER AGENTS
-// ═══════════════════════════════════════════════════
-function renderAgents() {
-  const grid = document.getElementById('agents-grid');
-  grid.innerHTML = AGENTS.map(a => `
-    <div class="agent-card">
-      <span class="agent-emoji">${a.emoji}</span>
-      <div class="agent-name">${a.name}</div>
-      <div class="agent-role">${a.role}</div>
-      <span class="agent-status ${a.status}">
-        <span class="agent-status-dot"></span>
-        ${a.status === 'active' ? 'Active' : 'Idle'}
-      </span>
-      <div class="agent-last">Last active: ${a.last}</div>
-    </div>
-  `).join('');
+function nextRun(cron) {
+  const now = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Chicago'}));
+  const next = new Date(now);
+  next.setSeconds(0,0);
+  next.setHours(cron.cronH, cron.cronM);
+  const dows = cron.dow !== undefined ? (Array.isArray(cron.dow) ? cron.dow : [cron.dow]) : null;
+  if (dows) {
+    let d = 0;
+    while (d < 8) {
+      const candidate = new Date(next);
+      candidate.setDate(next.getDate() + d);
+      if (dows.includes(candidate.getDay()) && candidate > now) return candidate;
+      d++;
+    }
+  } else {
+    if (next <= now) next.setDate(next.getDate() + 1);
+    return next;
+  }
+  return next;
 }
 
-// ═══════════════════════════════════════════════════
-//  RENDER CRONS
-// ═══════════════════════════════════════════════════
-function renderCrons() {
-  const tbody = document.getElementById('crons-tbody');
+function formatNext(d) {
+  const now = new Date();
+  const diff = d - now;
+  const h = Math.floor(diff/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  if (h < 1) return `in ${m}m`;
+  if (h < 24) return `in ${h}h ${m}m`;
+  const days = Math.floor(h/24);
+  return `in ${days}d`;
+}
+
+function buildCronTable() {
+  const tbody = document.getElementById('cron-table');
   tbody.innerHTML = CRONS.map(c => {
-    const statusLabel = c.status === 'ok' ? '✅ OK' : c.status === 'fixed' ? '🔧 Fixed' : '❌ Error';
-    const statusClass = c.status;
-    return `
-      <tr>
-        <td class="cron-name">${c.name}</td>
-        <td><span class="cron-agent">${c.agent}</span></td>
-        <td class="cron-schedule">${c.schedule}</td>
-        <td class="cron-next">${getNextRun(c.schedule)}</td>
-        <td class="cron-status ${statusClass}">${statusLabel}</td>
-      </tr>
-    `;
+    const next = nextRun(c);
+    return `<tr>
+      <td>${c.name}</td>
+      <td><span class="cron-agent ${c.agent}">${c.agent}</span></td>
+      <td style="color:#888">${c.schedule}</td>
+      <td class="next-run">${formatNext(next)}</td>
+      <td class="ok">✅ OK</td>
+    </tr>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════
-//  RENDER IG CARDS (skeleton first)
-// ═══════════════════════════════════════════════════
-function renderIGSkeleton() {
-  const grid = document.getElementById('ig-grid');
-  grid.innerHTML = IG_ACCOUNTS.map(a => `
-    <div class="ig-card" id="ig-card-${a.handle}">
-      <div class="ig-header">
-        <div class="ig-avatar-placeholder" style="background: linear-gradient(135deg, ${a.color}88, ${a.color});">${a.initials}</div>
-        <div>
-          <div class="ig-name">${a.display}</div>
-          <div class="ig-handle">@${a.handle}</div>
-        </div>
-        <div class="ig-health gray" id="ig-health-${a.handle}"></div>
-      </div>
-      <div class="ig-stats">
-        <div class="ig-stat">
-          <div class="ig-stat-label">Followers</div>
-          <div class="ig-stat-value loading" id="ig-followers-${a.handle}">…</div>
-        </div>
-        <div class="ig-stat">
-          <div class="ig-stat-label">Posts</div>
-          <div class="ig-stat-value loading" id="ig-posts-${a.handle}">…</div>
-        </div>
-        <div class="ig-stat">
-          <div class="ig-stat-label">Last Post</div>
-          <div class="ig-stat-value small loading" id="ig-lastpost-${a.handle}">…</div>
-        </div>
-        <div class="ig-stat">
-          <div class="ig-stat-label">Engagement</div>
-          <div class="ig-stat-value loading" id="ig-eng-${a.handle}">…</div>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ═══════════════════════════════════════════════════
-//  FETCH INSTAGRAM DATA
-// ═══════════════════════════════════════════════════
-async function fetchIGAccount(account) {
-  const base = 'https://graph.facebook.com/v19.0';
-  const { igId, token, handle } = account;
-
+async function fetchIG(account) {
   try {
-    // Profile + follower count
-    const profileRes = await fetch(
-      `${base}/${igId}?fields=followers_count,media_count,username,profile_picture_url&access_token=${token}`
-    );
-    const profile = await profileRes.json();
-
-    if (profile.error) throw new Error(profile.error.message);
-
-    // Latest post
-    const mediaRes = await fetch(
-      `${base}/${igId}/media?fields=timestamp,like_count,comments_count,media_url&limit=1&access_token=${token}`
-    );
-    const media = await mediaRes.json();
-    const latestPost = media.data?.[0];
-
-    const followers = profile.followers_count || 0;
-    const posts = profile.media_count || 0;
-    const lastPostDate = latestPost ? fmtDate(latestPost.timestamp) : 'N/A';
-    const likes = latestPost?.like_count || 0;
-    const comments = latestPost?.comments_count || 0;
-    const engRate = followers > 0 ? (((likes + comments) / followers) * 100).toFixed(2) : 0;
-
-    // Update DOM
-    document.getElementById(`ig-followers-${handle}`).textContent = fmt(followers);
-    document.getElementById(`ig-followers-${handle}`).className = 'ig-stat-value';
-    document.getElementById(`ig-posts-${handle}`).textContent = fmt(posts);
-    document.getElementById(`ig-posts-${handle}`).className = 'ig-stat-value';
-    document.getElementById(`ig-lastpost-${handle}`).textContent = lastPostDate;
-    document.getElementById(`ig-lastpost-${handle}`).className = 'ig-stat-value small';
-    document.getElementById(`ig-eng-${handle}`).textContent = engRate + '%';
-    document.getElementById(`ig-eng-${handle}`).className = 'ig-stat-value';
-
-    const health = document.getElementById(`ig-health-${handle}`);
-    health.className = 'ig-health ' + healthColor(followers, parseFloat(engRate));
-
-    return followers;
-  } catch (err) {
-    console.warn(`IG fetch failed for ${handle}:`, err.message);
-    const fields = ['followers','posts','lastpost','eng'];
-    fields.forEach(f => {
-      const el = document.getElementById(`ig-${f}-${handle}`);
-      if (el) { el.textContent = 'Error'; el.className = 'ig-stat-value error'; }
-    });
-    return 0;
-  }
-}
-
-async function fetchAllIG() {
-  const results = await Promise.all(IG_ACCOUNTS.map(fetchIGAccount));
-  const total = results.reduce((a, b) => a + b, 0);
-
-  const el = document.getElementById('total-followers');
-  el.textContent = fmt(total);
-  el.className = 'stat-value';
-
-  const badge = document.getElementById('ig-badge');
-  badge.textContent = `${IG_ACCOUNTS.length} Accounts · ${fmt(total)} total`;
-}
-
-// ═══════════════════════════════════════════════════
-//  FETCH REVENUE
-// ═══════════════════════════════════════════════════
-async function fetchStripeRevenue() {
-  const mrrEl = document.getElementById('stripe-mrr');
-  const metaEl = document.getElementById('stripe-meta');
-  const noteEl = document.getElementById('stripe-note');
-
-  try {
-    const res = await fetch(`${CONVEX_BASE}/api/dashboard/revenue`, {
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    mrrEl.innerHTML = `<span class="currency">$</span>${(data.mrr || 0).toLocaleString()}`;
-    mrrEl.className = 'revenue-amount';
-
-    document.getElementById('stripe-subs').textContent = data.activeSubscriptions || '—';
-    document.getElementById('stripe-last').textContent = data.lastCharge
-      ? `${fmtDate(data.lastCharge.date)} · $${((data.lastCharge.amount || 0) / 100).toFixed(0)}`
-      : '—';
-    metaEl.style.display = 'flex';
-
-  } catch (err) {
-    // Fallback: static estimate while backend is being set up
-    mrrEl.innerHTML = `<span class="currency">~$</span>2,800`;
-    mrrEl.className = 'revenue-amount';
-    document.getElementById('stripe-subs').textContent = '15';
-    document.getElementById('stripe-last').textContent = 'Estimate';
-    metaEl.style.display = 'flex';
-    noteEl.textContent = 'Live endpoint at /api/dashboard/revenue — not yet connected';
-    noteEl.style.display = 'flex';
-  }
-}
-
-async function fetchShopifyRevenue() {
-  const revEl = document.getElementById('shopify-revenue');
-  const metaEl = document.getElementById('shopify-meta');
-  const noteEl = document.getElementById('shopify-note');
-
-  try {
-    const res = await fetch(`${CONVEX_BASE}/api/dashboard/shopify-revenue`, {
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    revEl.innerHTML = `<span class="currency">$</span>${(data.revenue || 0).toLocaleString()}`;
-    revEl.className = 'revenue-amount';
-
-    document.getElementById('shopify-orders').textContent = data.orderCount || '—';
-    document.getElementById('shopify-last').textContent = data.lastOrder
-      ? `${fmtDate(data.lastOrder.date)}`
-      : '—';
-    metaEl.style.display = 'flex';
-
-  } catch (err) {
-    revEl.innerHTML = `<em style="font-size:0.85rem;color:var(--text3);font-style:normal;">Backend endpoint not connected</em>`;
-    revEl.className = 'revenue-amount error';
-    noteEl.textContent = 'Connect via /api/dashboard/shopify-revenue on Convex';
-    noteEl.style.display = 'flex';
-  }
+    const [profile, media] = await Promise.all([
+      fetch(`https://graph.facebook.com/${account.id}?fields=followers_count,media_count,username,profile_picture_url&access_token=${account.token}`).then(r=>r.json()),
+      fetch(`https://graph.facebook.com/${account.id}/media?fields=timestamp,like_count,comments_count&limit=1&access_token=${account.token}`).then(r=>r.json())
+    ]);
+    const post = media.data?.[0];
+    const engagement = post ? (((post.like_count||0)+(post.comments_count||0))/profile.followers_count*100).toFixed(2) : '—';
+    const lastPost = post ? new Date(post.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+    const health = parseFloat(engagement) > 2 ? 'green' : parseFloat(engagement) > 0.5 ? 'yellow' : 'red';
+    return { ...profile, engagement, lastPost, health, agent: account.agent };
+  } catch(e) { return null; }
 }
 
 async function fetchRevenue() {
-  await Promise.all([fetchStripeRevenue(), fetchShopifyRevenue()]);
+  try {
+    const r = await fetch('https://curious-lemming-262.convex.site/api/dashboard/revenue');
+    const d = await r.json();
+    document.getElementById('stripe-mrr').textContent = d.mrr ? `$${d.mrr.toLocaleString()}/mo` : '—';
+    document.getElementById('stripe-subs').textContent = d.activeSubscriptions ? `${d.activeSubscriptions} active subscriptions` : '—';
+  } catch(e) {
+    document.getElementById('stripe-mrr').textContent = '—';
+    document.getElementById('stripe-subs').textContent = 'Backend endpoint coming soon';
+  }
+  try {
+    const r = await fetch('https://curious-lemming-262.convex.site/api/dashboard/shopify-revenue');
+    const d = await r.json();
+    document.getElementById('shopify-rev').textContent = d.revenue ? `$${d.revenue.toLocaleString()}` : '—';
+    document.getElementById('shopify-orders').textContent = d.orders ? `${d.orders} orders` : '—';
+  } catch(e) {
+    document.getElementById('shopify-rev').textContent = '—';
+    document.getElementById('shopify-orders').textContent = 'Backend endpoint coming soon';
+  }
 }
 
-// ═══════════════════════════════════════════════════
-//  MAIN REFRESH LOOP
-// ═══════════════════════════════════════════════════
 async function fetchAllData() {
-  const el = document.getElementById('last-updated');
-  el.textContent = 'Refreshing…';
-
-  await Promise.all([
-    fetchAllIG(),
-    fetchRevenue()
-  ]);
-
-  const now = new Date();
-  el.textContent = 'Updated ' + now.toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'America/Chicago'
-  }) + ' CT';
-
-  // Recalculate next-run for crons (time has passed)
-  renderCrons();
+  const grid = document.getElementById('ig-grid');
+  const results = await Promise.all(ACCOUNTS.map(fetchIG));
+  let totalFollowers = 0;
+  grid.innerHTML = results.map((data, i) => {
+    if (!data) return `<div class="card ig-card"><div style="color:#ef4444">Failed to load @${ACCOUNTS[i].handle}</div></div>`;
+    totalFollowers += data.followers_count || 0;
+    return `<div class="card ig-card">
+      <div class="ig-header">
+        <div class="ig-avatar"><img src="${data.profile_picture_url}" onerror="this.src=''" alt=""></div>
+        <div><div class="ig-handle">@${data.username}</div><div class="ig-agent">Managed by ${data.agent}</div></div>
+      </div>
+      <div class="ig-stats">
+        <div class="ig-stat"><div class="ig-stat-val">${(data.followers_count||0).toLocaleString()}</div><div class="ig-stat-lab">Followers</div></div>
+        <div class="ig-stat"><div class="ig-stat-val">${(data.media_count||0).toLocaleString()}</div><div class="ig-stat-lab">Posts</div></div>
+        <div class="ig-stat"><div class="ig-stat-val">${data.engagement}%</div><div class="ig-stat-lab">Engagement</div></div>
+      </div>
+      <div style="font-size:12px;color:#888"><span class="health ${data.health}"></span>Last post: ${data.lastPost}</div>
+    </div>`;
+  }).join('');
+  if (totalFollowers > 0) {
+    const k = totalFollowers >= 1000000 ? (totalFollowers/1000000).toFixed(1)+'M' : (totalFollowers/1000).toFixed(1)+'K';
+    document.getElementById('total-followers').textContent = k;
+  }
+  await fetchRevenue();
+  document.getElementById('last-updated').textContent = '● LIVE · ' + new Date().toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'2-digit',minute:'2-digit'}) + ' CT';
 }
 
-// ═══════════════════════════════════════════════════
-//  BOOT
-// ═══════════════════════════════════════════════════
-(function init() {
-  renderAgents();
-  renderIGSkeleton();
-  renderCrons();
-  fetchAllData();
-  setInterval(fetchAllData, 60_000);
-})();
+buildCronTable();
+fetchAllData();
+setInterval(fetchAllData, 60000);
+setInterval(buildCronTable, 60000);
 </script>
 </body>
 </html>
