@@ -84,10 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       appearance={{
         variables: {
           colorPrimary: "#C9A84C",
-          colorBackground: "#1a1d24",
-          colorText: "#e0d5c0",
-          colorInputBackground: "#22262e",
-          colorInputText: "#e0d5c0",
+          colorBackground: "#141820",
+          colorText: "#f5f0e8",
+          colorTextSecondary: "#c8bfa8",
+          colorInputBackground: "#1e222c",
+          colorInputText: "#f5f0e8",
+          colorNeutral: "#f5f0e8",
         },
       }}
     >
@@ -99,10 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 const clerkAppearance = {
   variables: {
     colorPrimary: "#C9A84C",
-    colorBackground: "#1a1d24",
-    colorText: "#e0d5c0",
-    colorInputBackground: "#22262e",
-    colorInputText: "#e0d5c0",
+    colorBackground: "#141820",
+    colorText: "#f5f0e8",
+    colorTextSecondary: "#c8bfa8",
+    colorInputBackground: "#1e222c",
+    colorInputText: "#f5f0e8",
+    colorNeutral: "#f5f0e8",
   },
 };
 
