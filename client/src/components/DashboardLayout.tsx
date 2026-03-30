@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   Palette,
   Globe,
+  CreditCard,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
@@ -32,6 +33,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
   { path: "/store", label: "Store", icon: ShoppingBag },
   { path: "/themes", label: "Themes", icon: Palette },
   { path: "/i18n", label: "Languages", icon: Globe },
+  { path: "/billing", label: "Billing", icon: CreditCard },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
