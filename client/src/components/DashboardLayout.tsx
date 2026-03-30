@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   Palette,
   Globe,
+  MessageSquare,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -25,7 +26,7 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const BASE_NAV_ITEMS: NavItem[] = [
   { path: "/", label: "Overview", icon: LayoutDashboard },
   { path: "/sections", label: "Editor", icon: FileEdit },
   { path: "/store", label: "Store", icon: ShoppingBag },
@@ -37,7 +38,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [location] = useLocation();
   const { userName, userImage, signOut } = useAuth();
-  const { currentSite, loading } = useSite();
+  const { currentSite, loading, availablePages } = useSite();
+
+  const hasTestimonialsPage = availablePages.includes("testimonials.html");
+  const NAV_ITEMS = hasTestimonialsPage
+    ? [...BASE_NAV_ITEMS, { path: "/testimonials", label: "Testimonials", icon: MessageSquare }]
+    : BASE_NAV_ITEMS;
 
   return (
     <div className="min-h-screen flex bg-background">
