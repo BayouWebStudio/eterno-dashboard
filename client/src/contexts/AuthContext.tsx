@@ -107,7 +107,20 @@ const clerkAppearance = {
 };
 
 function AuthScreen() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const getMode = () => window.location.hash.includes("sign-up") ? "signup" : "signin";
+  const [mode, setMode] = useState<"signin" | "signup">(getMode);
+
+  useEffect(() => {
+    const onHash = () => setMode(getMode());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const switchTo = (m: "signin" | "signup") => {
+    window.location.hash = m === "signup" ? "/sign-up" : "/";
+    setMode(m);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md">
@@ -118,18 +131,18 @@ function AuthScreen() {
           </p>
         </div>
         {mode === "signin" ? (
-          <SignIn routing="hash" appearance={clerkAppearance} />
+          <SignIn routing="hash" signUpUrl="#/sign-up" appearance={clerkAppearance} />
         ) : (
-          <SignUp routing="hash" appearance={clerkAppearance} />
+          <SignUp routing="hash" signInUrl="#/" appearance={clerkAppearance} />
         )}
         <p className="text-center text-sm text-muted-foreground mt-5">
           {mode === "signin" ? (
             <>Don't have an account?{" "}
-              <button onClick={() => setMode("signup")} className="text-gold hover:underline font-medium">Sign up</button>
+              <button onClick={() => switchTo("signup")} className="text-gold hover:underline font-medium">Sign up</button>
             </>
           ) : (
             <>Already have an account?{" "}
-              <button onClick={() => setMode("signin")} className="text-gold hover:underline font-medium">Sign in</button>
+              <button onClick={() => switchTo("signin")} className="text-gold hover:underline font-medium">Sign in</button>
             </>
           )}
         </p>
