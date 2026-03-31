@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Upload, Trash2, GripVertical, Loader2, ImageIcon, RefreshCw } from "lucide-react";
 
 export default function Gallery() {
-  const { siteHtml, loading, saveSiteField, uploadSiteImage, refreshHtml, currentSite } = useSite();
+  const { siteHtml, loading, saveSiteField, uploadSiteImage, refreshHtml, currentSite, deleteGalleryImage } = useSite();
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -56,10 +56,22 @@ export default function Gallery() {
     setUploading(false);
   }, [uploadSiteImage]);
 
-  const handleDelete = useCallback((idx: number) => {
+  const handleDelete = useCallback(async (idx: number) => {
+    const filename = images[idx];
+    if (!filename) return;
     setImages((prev) => prev.filter((_, i) => i !== idx));
-    toast.success("Image removed");
-  }, []);
+    try {
+      const ok = await deleteGalleryImage(filename);
+      if (ok) {
+        toast.success("Image deleted");
+      } else {
+        toast.error("Failed to delete image from server");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Delete failed: ${msg}`);
+    }
+  }, [images, deleteGalleryImage]);
 
   const handleDragStart = useCallback((idx: number) => {
     setDragIdx(idx);

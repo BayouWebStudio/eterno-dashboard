@@ -251,14 +251,19 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         }
 
         // Convert File to base64 — backend expects JSON, not FormData
-        const arrayBuffer = await fileToUpload.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        const chunkSize = 8192;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode(...(bytes.subarray(i, Math.min(i + chunkSize, bytes.length)) as unknown as number[]));
-        }
-        const imageBase64 = btoa(binary);
+        // Use FileReader.readAsDataURL which handles encoding natively and
+        // avoids browser-specific btoa() limits on large binary strings.
+        const imageBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            // Strip the "data:<mime>;base64," prefix — backend expects raw base64
+            const base64 = dataUrl.split(",")[1] || "";
+            resolve(base64);
+          };
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(fileToUpload);
+        });
 
         const res = await fetch(`${convexHttpUrl}/api/dashboard/upload-hero-bg`, {
           method: "POST",
@@ -635,8 +640,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         if (!res.ok) return { ok: false, error: data?.error || `Request failed: ${res.status}` };
         return { ok: true };
-      } catch (err: any) {
-        return { ok: false, error: err?.message || "Unknown error" };
+      } catch (err: unknown) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
     },
     [convexHttpUrl, authFetch, currentSite?.slug]
