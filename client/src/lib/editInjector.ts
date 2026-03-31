@@ -247,17 +247,27 @@ const EDIT_JS = `
    */
   function extractSectionIdFromClass(cls) {
     if (!cls) return null;
+    // Gallery variants
     if (cls.indexOf('gallery-body') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
+    // Hero
     if (cls.indexOf('page-hero') >= 0) return 'hero';
+    // About variants (index: about-preview/about-grid, sub-pages: about-body/about-layout, bio-section, stats-section)
     if (cls.indexOf('about-preview') >= 0 || cls.indexOf('about-grid') >= 0) return 'about';
+    if (cls.indexOf('about-body') >= 0 || cls.indexOf('about-layout') >= 0) return 'about';
     if (cls.indexOf('stats-section') >= 0 || cls.indexOf('bio-section') >= 0) return 'about';
+    // Booking variants (index: booking-preview, sub-pages: booking-body/booking-layout/booking-info, tattoos: booking-cta-section)
+    if (cls.indexOf('booking-preview') >= 0 || cls.indexOf('booking-body') >= 0 || cls.indexOf('booking-layout') >= 0 || cls.indexOf('booking-info') >= 0) return 'booking';
+    if (cls.indexOf('booking-cta') >= 0) return 'booking';
+    // Testimonials variants (index: testimonials-preview, sub-pages: testimonials-body, share-section)
+    if (cls.indexOf('testimonials-preview') >= 0 || cls.indexOf('testimonials-body') >= 0) return 'testimonials';
+    if (cls.indexOf('share-section') >= 0 || cls.indexOf('placeholder-block') >= 0) return 'testimonials';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
 
-    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container)(?:\\s|$)/i);
+    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|body|info|layout)(?:\\s|$)/i);
     if (containerMatch) {
       var name = containerMatch[1];
       if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
@@ -305,7 +315,7 @@ const EDIT_JS = `
     var cls = el.className || '';
 
     if (sectionId === 'hero' || sectionId === 'page-hero') {
-      if (cls.indexOf('hero-eyebrow') >= 0) return 'hero_eyebrow';
+      if (cls.indexOf('hero-eyebrow') >= 0 || cls.indexOf('page-eyebrow') >= 0) return 'hero_eyebrow';
       if (cls.indexOf('hero-title') >= 0 || cls.indexOf('hero-name') >= 0) return 'hero_title';
       if (cls.indexOf('hero-subtitle') >= 0 || cls.indexOf('hero-tagline') >= 0 || cls.indexOf('hero-sub') >= 0) return 'hero_subtitle';
       if (cls.indexOf('hero-cta') >= 0) return 'hero_cta_text';

@@ -170,10 +170,15 @@ export function parseSections(html: string): SectionGroup[] {
     if (aboutData.aboutTitle) aboutFields.push({ key: "about_title", label: "Section Title", type: "text", value: aboutData.aboutTitle });
     aboutFields.push({ key: "about", label: "Bio", type: "textarea", value: aboutData.bioParas.join("\n\n") });
 
-    // Stats
-    const aboutSecBody = (html.match(/<section[^>]+id="about"[^>]*>([\s\S]*?)<\/section>/i) || ["", ""])[1];
-    const statNumbers = Array.from(aboutSecBody.matchAll(/<(?:span|div)[^>]*class="[^"]*stat-num(?:ber)?[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/gi));
-    const statLabels = Array.from(aboutSecBody.matchAll(/<(?:span|div)[^>]*class="[^"]*stat-label[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/gi));
+    // Stats — search in about section (id="about"), about-preview, or stats-section
+    const aboutSecBody = (
+      html.match(/<section[^>]+id="about"[^>]*>([\s\S]*?)<\/section>/i) ||
+      html.match(/<section[^>]+class="[^"]*about-preview[^"]*"[^>]*>([\s\S]*?)<\/section>/i) ||
+      html.match(/<div[^>]+class="[^"]*stats-section[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
+      ["", ""]
+    )[1];
+    const statNumbers = Array.from(aboutSecBody.matchAll(/<(?:span|div)[^>]*class="[^"]*(?:stat-num(?:ber)?|stat-big)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/gi));
+    const statLabels = Array.from(aboutSecBody.matchAll(/<(?:span|div)[^>]*class="[^"]*(?:stat-label|stat-small)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/gi));
     statNumbers.forEach((m, i) => {
       if (i >= 6) return;
       aboutFields.push({ key: `about_stat_number_${i}`, label: `Stat ${i + 1} Number`, type: "text", value: strip(m[1]) });
