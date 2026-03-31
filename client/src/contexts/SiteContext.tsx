@@ -212,16 +212,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           payload.page = currentPageRef.current;
         }
 
-        console.log(`[Site] saveSiteField: key="${key}", value="${value}", slug="${currentSite?.slug}", isSignature=${isSignatureSite}, page=${currentPageRef.current}`);
         const res = await authFetch("/api/dashboard/save-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const resText = await res.text();
-        console.log(`[Site] saveSiteField response: status=${res.status}, body=${resText}`);
         if (!res.ok) {
-          const data = (() => { try { return JSON.parse(resText); } catch { return null; } })();
+          const data = await res.json().catch(() => null);
           if (data?.upgradeRequired) throw new Error("Free plan limit reached — upgrade to Pro");
           throw new Error(data?.error || `Save failed: ${res.status}`);
         }
