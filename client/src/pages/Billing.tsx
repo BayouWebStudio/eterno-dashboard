@@ -117,15 +117,19 @@ export default function Billing() {
               You'll be asked to enter your email — Stripe will send a magic link.
             </p>
           </div>
-          <a
-            href="https://billing.stripe.com/p/login/cNibJ1d9Y9R30XCcFl3Je00"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-gold/40 text-sm transition-colors"
+          {/* Free-plan users also go through the backend billing-portal endpoint */}
+          <button
+            onClick={openPortal}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-gold/40 text-sm transition-colors disabled:opacity-60"
           >
-            <ExternalLink className="w-4 h-4" />
-            Open Billing Portal
-          </a>
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <ExternalLink className="w-4 h-4" />
+            )}
+            {loading ? "Opening…" : "Open Billing Portal"}
+          </button>
         </div>
       )}
     </div>

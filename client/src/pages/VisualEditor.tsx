@@ -8,6 +8,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSite, getPageLabel } from "@/contexts/SiteContext";
 import { injectEditor } from "@/lib/editInjector";
 import { compressImage } from "@/lib/compressImage";
+import PageSelector from "@/components/PageSelector";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -15,92 +16,12 @@ import {
   Eye,
   Loader2,
   AlertCircle,
-  FileText,
-  ChevronDown,
-  Check,
   Plus,
   RefreshCw,
   X,
   Maximize2,
   Minimize2,
 } from "lucide-react";
-
-/** Page selector dropdown (reused from SectionEditor) */
-function PageSelector({
-  availablePages,
-  currentPage,
-  onSwitch,
-  disabled,
-}: {
-  availablePages: string[];
-  currentPage: string;
-  onSwitch: (page: string) => void;
-  disabled: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  if (availablePages.length <= 1) return null;
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setOpen(!open)}
-        disabled={disabled}
-        className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-150 text-sm
-          ${open
-            ? "border-gold bg-[oklch(0.19_0.005_250)] text-gold"
-            : "border-border bg-card text-foreground hover:border-gold-dim hover:text-gold"
-          }
-          ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-        `}
-      >
-        <FileText className="w-3.5 h-3.5 text-gold flex-shrink-0" />
-        <span className="font-medium">{getPageLabel(currentPage)}</span>
-        <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-card border border-border rounded-lg shadow-xl z-50 py-1 max-h-80 overflow-y-auto">
-          {availablePages.map((page) => {
-            const isActive = page === currentPage;
-            return (
-              <button
-                key={page}
-                onClick={() => {
-                  if (!isActive) onSwitch(page);
-                  setOpen(false);
-                }}
-                className={`
-                  w-full text-left flex items-center gap-2 px-3 py-2 text-sm transition-colors
-                  ${isActive
-                    ? "bg-[oklch(0.19_0.005_250)] text-gold"
-                    : "text-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-gold"
-                  }
-                `}
-              >
-                <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-gold" : "text-muted-foreground"}`} />
-                <span className="font-medium">{getPageLabel(page)}</span>
-                {isActive && <Check className="w-3.5 h-3.5 ml-auto text-gold" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function VisualEditor() {
   const {

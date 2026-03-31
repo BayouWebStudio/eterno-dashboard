@@ -227,6 +227,8 @@ const EDIT_JS = `
   var originalGalleryOrder = [];
   var saveOrderBar = null;
 
+  // '*' is required for srcdoc iframes (origin is "null"). Safe because
+  // iframe content is fully controlled via srcdoc — we inject it ourselves.
   function post(msg) {
     window.parent.postMessage(msg, '*');
   }

@@ -16,6 +16,7 @@ export default function Gallery() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const dragIdxRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Resolve relative image paths to full URLs (mirrors GalleryEditor logic)
@@ -62,22 +63,25 @@ export default function Gallery() {
 
   const handleDragStart = useCallback((idx: number) => {
     setDragIdx(idx);
+    dragIdxRef.current = idx;
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
     e.preventDefault();
-    if (dragIdx === null || dragIdx === idx) return;
+    if (dragIdxRef.current === null || dragIdxRef.current === idx) return;
     setImages((prev) => {
       const next = [...prev];
-      const [moved] = next.splice(dragIdx, 1);
+      const [moved] = next.splice(dragIdxRef.current!, 1);
       next.splice(idx, 0, moved);
       return next;
     });
     setDragIdx(idx);
-  }, [dragIdx]);
+    dragIdxRef.current = idx;
+  }, []);
 
   const handleDragEnd = useCallback(() => {
     setDragIdx(null);
+    dragIdxRef.current = null;
   }, []);
 
   const handleSaveOrder = useCallback(async () => {

@@ -9,6 +9,7 @@ import { useSite, getPageLabel } from "@/contexts/SiteContext";
 import { parseSections, type SectionField, type FormFieldDef } from "@/lib/parseHtml";
 import { useSaveQueue } from "@/hooks/useSaveQueue";
 import GalleryEditor from "@/components/GalleryEditor";
+import PageSelector from "@/components/PageSelector";
 import { useUnsavedWarning } from "@/hooks/useUnsavedWarning";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -21,8 +22,6 @@ import {
   Check,
   AlertTriangle,
   Clock,
-  FileText,
-  ChevronDown,
   Trash2,
   Plus,
   X,
@@ -65,91 +64,6 @@ function SaveStatusBadge({ status, dirtyCount }: { status: string; dirtyCount: n
     );
   }
   return null;
-}
-
-/** Page selector dropdown */
-function PageSelector({
-  availablePages,
-  currentPage,
-  onSwitch,
-  disabled,
-}: {
-  availablePages: string[];
-  currentPage: string;
-  onSwitch: (page: string) => void;
-  disabled: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  if (availablePages.length <= 1) return null;
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setOpen(!open)}
-        disabled={disabled}
-        className={`
-          flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-150
-          ${open
-            ? "border-gold bg-[oklch(0.19_0.005_250)] text-gold"
-            : "border-border bg-card text-foreground hover:border-gold-dim hover:text-gold"
-          }
-          ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-        `}
-      >
-        <FileText className="w-4 h-4 text-gold flex-shrink-0" />
-        <span className="text-sm font-medium">{getPageLabel(currentPage)}</span>
-        <span className="text-[10px] text-muted-foreground font-mono">{currentPage}</span>
-        <ChevronDown className={`w-3.5 h-3.5 ml-1 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-card border border-border rounded-lg shadow-xl z-50 py-1 max-h-80 overflow-y-auto">
-          <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-            Pages ({availablePages.length})
-          </p>
-          {availablePages.map((page) => {
-            const isActive = page === currentPage;
-            return (
-              <button
-                key={page}
-                onClick={() => {
-                  if (!isActive) onSwitch(page);
-                  setOpen(false);
-                }}
-                className={`
-                  w-full text-left flex items-center gap-3 px-3 py-2 transition-colors
-                  ${isActive
-                    ? "bg-[oklch(0.19_0.005_250)] text-gold"
-                    : "text-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-gold"
-                  }
-                `}
-              >
-                <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-gold" : "text-muted-foreground"}`} />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium block">{getPageLabel(page)}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono">{page}</span>
-                </div>
-                {isActive && <Check className="w-3.5 h-3.5 text-gold flex-shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function SectionEditor() {
@@ -420,6 +334,7 @@ export default function SectionEditor() {
             currentPage={currentPage}
             onSwitch={handlePageSwitch}
             disabled={htmlLoading || isSaving}
+            showSlug
           />
           {htmlLoading && (
             <span className="flex items-center gap-1.5 text-xs text-gold animate-pulse">
