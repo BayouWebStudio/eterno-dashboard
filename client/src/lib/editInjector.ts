@@ -252,6 +252,7 @@ const EDIT_JS = `
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
     if (cls.indexOf('page-hero') >= 0) return 'hero';
     if (cls.indexOf('about-preview') >= 0 || cls.indexOf('about-grid') >= 0) return 'about';
+    if (cls.indexOf('stats-section') >= 0 || cls.indexOf('bio-section') >= 0) return 'about';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
@@ -320,9 +321,17 @@ const EDIT_JS = `
         var numIdx = getStatIndex(el, 'stat-num');
         if (numIdx >= 0) return 'about_stat_number_' + numIdx;
       }
+      if (cls.indexOf('stat-big') >= 0) {
+        var bigIdx = getStatIndex(el, 'stat-big');
+        if (bigIdx >= 0) return 'about_stat_number_' + bigIdx;
+      }
       if (cls.indexOf('stat-label') >= 0) {
         var lblIdx = getStatIndex(el, 'stat-label');
         if (lblIdx >= 0) return 'about_stat_label_' + lblIdx;
+      }
+      if (cls.indexOf('stat-small') >= 0) {
+        var smIdx = getStatIndex(el, 'stat-small');
+        if (smIdx >= 0) return 'about_stat_label_' + smIdx;
       }
       if (cls.indexOf('stat-number') >= 0) {
         var snIdx = getStatIndex(el, 'stat-number');
