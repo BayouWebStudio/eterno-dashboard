@@ -417,8 +417,9 @@ const EDIT_JS = `
   }
 
   function getStatIndex(el, statClass) {
-    // Find all elements with the same stat class within the about section
-    var section = el.closest ? el.closest('section') : null;
+    // Find all elements with the same stat class within the about/stats section
+    // Try <section> first, then fall back to common stat container classes
+    var section = el.closest ? (el.closest('section') || el.closest('.stats-section') || el.closest('.about-preview') || el.closest('.about-grid')) : null;
     if (!section) return -1;
     var all = section.querySelectorAll('.' + statClass);
     for (var i = 0; i < all.length; i++) {
