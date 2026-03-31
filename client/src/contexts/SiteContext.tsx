@@ -272,8 +272,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
             imageBase64,
             fileName: fileToUpload.name,
             folder,
-            // Pass current page so gallery uploads get injected into the right HTML file
-            page: folder === "gallery" ? (currentPageRef.current || "index.html") : undefined,
+            // Pass current page so uploads target the correct page on multi-page sites
+            page: currentPageRef.current || "index.html",
           }),
         });
         if (!res.ok) {

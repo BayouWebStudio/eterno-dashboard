@@ -362,7 +362,7 @@ const EDIT_JS = `
     if (sectionId === 'booking' || sectionId === 'book') {
       if (tag === 'h2') return 'booking_title';
       if (tag === 'p') return 'booking_intro';
-      if (tag === 'a') return 'booking';
+      if (tag === 'a') return 'booking_cta_text';
       return 'booking_title';
     }
 
@@ -381,8 +381,14 @@ const EDIT_JS = `
     }
 
     if (sectionId === 'faq') {
-      if (cls.indexOf('faq-question') >= 0) return 'faq_question';
-      if (cls.indexOf('faq-answer') >= 0) return 'faq_answer';
+      if (cls.indexOf('faq-question') >= 0) {
+        var faqIdx = getCardIndex(el, 'faq-item');
+        return 'faq_question_' + (faqIdx >= 0 ? faqIdx : 0);
+      }
+      if (cls.indexOf('faq-answer') >= 0) {
+        var faqAnsIdx = getCardIndex(el, 'faq-item');
+        return 'faq_answer_' + (faqAnsIdx >= 0 ? faqAnsIdx : 0);
+      }
       if (tag === 'h2') return 'section_title__faq';
       return 'section_title__faq';
     }
@@ -431,7 +437,7 @@ const EDIT_JS = `
   function getStatIndex(el, statClass) {
     // Find all elements with the same stat class within the about/stats section
     // Try <section> first, then fall back to common stat container classes
-    var section = el.closest ? (el.closest('section') || el.closest('.stats-section') || el.closest('.about-preview') || el.closest('.about-grid')) : null;
+    var section = el.closest ? (el.closest('section') || el.closest('.stats-section') || el.closest('.about-preview') || el.closest('.about-grid') || el.closest('.about-body') || el.closest('.about-layout')) : null;
     if (!section) return -1;
     var all = section.querySelectorAll('.' + statClass);
     for (var i = 0; i < all.length; i++) {
@@ -528,7 +534,6 @@ const EDIT_JS = `
         value: newText,
         originalValue: originalText.trim()
       });
-      showToast('Change saved');
     }
     activeEl = null;
     originalText = '';
