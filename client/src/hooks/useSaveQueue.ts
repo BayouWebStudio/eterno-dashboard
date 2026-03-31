@@ -51,6 +51,7 @@ export function useSaveQueue({
   const autoFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveFnRef = useRef(saveFn);
   const onFlushCompleteRef = useRef(onFlushComplete);
+  const retryCountRef = useRef<Map<string, number>>(new Map());
 
   // Keep refs in sync with latest props
   useEffect(() => {
@@ -111,6 +112,7 @@ export function useSaveQueue({
         const ok = await saveFnRef.current(key, value);
         if (ok) {
           succeeded.push(key);
+          retryCountRef.current.delete(key);
         } else {
           failed.push(key);
           // Put failed fields back into dirty map so they can be retried
@@ -144,8 +146,45 @@ export function useSaveQueue({
 
     // Auto-re-flush if new dirty fields accumulated during the save
     if (dirtyMapRef.current.size > 0) {
-      // Small delay to let the UI breathe
-      setTimeout(() => flush(), 50);
+      const MAX_RETRIES = 3;
+      const BACKOFF_DELAYS = [50, 200, 1000];
+
+      // Check if all remaining dirty fields have exceeded max retries
+      let allExhausted = true;
+      let maxRetryCount = 0;
+      for (const key of dirtyMapRef.current.keys()) {
+        const count = retryCountRef.current.get(key) ?? 0;
+        if (count < MAX_RETRIES) {
+          allExhausted = false;
+        }
+        maxRetryCount = Math.max(maxRetryCount, count);
+      }
+
+      if (allExhausted) {
+        // All remaining fields have exceeded max retries — give up
+        const exhaustedKeys = [...dirtyMapRef.current.keys()];
+        dirtyMapRef.current.clear();
+        setDirtyCount(0);
+        // Clean up retry counts for exhausted keys
+        for (const key of exhaustedKeys) {
+          retryCountRef.current.delete(key);
+        }
+        const exhaustedResult: SaveResult = { succeeded: [], failed: exhaustedKeys };
+        setLastResult(exhaustedResult);
+        setStatus("error");
+        onFlushCompleteRef.current?.(exhaustedResult);
+      } else {
+        // Increment retry counts for dirty fields and schedule with backoff
+        for (const key of dirtyMapRef.current.keys()) {
+          const count = retryCountRef.current.get(key) ?? 0;
+          retryCountRef.current.set(key, count + 1);
+        }
+        const delay = BACKOFF_DELAYS[Math.min(maxRetryCount, BACKOFF_DELAYS.length - 1)];
+        setTimeout(() => flush(), delay);
+      }
+    } else {
+      // No dirty fields left — clear all retry counts
+      retryCountRef.current.clear();
     }
 
     return result;
@@ -154,6 +193,7 @@ export function useSaveQueue({
   // ── Reset: clear all dirty state (e.g. when switching sections) ──
   const reset = useCallback(() => {
     dirtyMapRef.current.clear();
+    retryCountRef.current.clear();
     setDirtyCount(0);
     setStatus("idle");
     setLastResult(null);

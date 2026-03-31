@@ -455,10 +455,23 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Onboarding: setup site from Instagram handle ──
+  const setupAbortRef = useRef<AbortController | null>(null);
+  const setupTimersRef = useRef<{ stepTimer: ReturnType<typeof setInterval> | null; pollTimer: ReturnType<typeof setInterval> | null }>({ stepTimer: null, pollTimer: null });
+
   const setupSite = useCallback(
     async (igHandle: string, country: string): Promise<boolean> => {
       if (!convexHttpUrl) return false;
+
+      // Abort any previous setup and clear timers synchronously
+      setupAbortRef.current?.abort();
+      if (setupTimersRef.current.stepTimer) clearInterval(setupTimersRef.current.stepTimer);
+      if (setupTimersRef.current.pollTimer) clearInterval(setupTimersRef.current.pollTimer);
+      setupTimersRef.current = { stepTimer: null, pollTimer: null };
+
+      const abortController = new AbortController();
+      setupAbortRef.current = abortController;
       setupCancelledRef.current = false;
+
       setOnboardingStatus("building");
       setBuildProgress("Starting build...");
       try {
@@ -466,6 +479,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ igHandle, country }),
+          signal: abortController.signal,
         });
         const data = await res.json();
 
@@ -486,21 +500,25 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         setBuildProgress(steps[0]);
 
         const stepTimer = setInterval(() => {
-          if (setupCancelledRef.current) {
+          if (abortController.signal.aborted) {
             clearInterval(stepTimer);
+            setupTimersRef.current.stepTimer = null;
             return;
           }
           stepIdx = Math.min(stepIdx + 1, steps.length - 1);
           setBuildProgress(steps[stepIdx]);
         }, 12000);
+        setupTimersRef.current.stepTimer = stepTimer;
 
         let pollCount = 0;
         const poll = (): Promise<boolean> =>
           new Promise((resolve) => {
             const pollTimer = setInterval(async () => {
-              if (setupCancelledRef.current) {
+              if (abortController.signal.aborted) {
                 clearInterval(pollTimer);
                 clearInterval(stepTimer);
+                setupTimersRef.current.pollTimer = null;
+                setupTimersRef.current.stepTimer = null;
                 resolve(false);
                 return;
               }
@@ -508,26 +526,40 @@ export function SiteProvider({ children }: { children: ReactNode }) {
               if (pollCount > 24) {
                 clearInterval(pollTimer);
                 clearInterval(stepTimer);
+                setupTimersRef.current.pollTimer = null;
+                setupTimersRef.current.stepTimer = null;
                 resolve(false);
                 return;
               }
               try {
-                const chkRes = await authFetch("/api/dashboard/info");
+                const chkRes = await authFetch("/api/dashboard/info", {
+                  signal: abortController.signal,
+                });
                 const info = await chkRes.json();
                 if (info.found && info.siteSlug && info.siteBuilt && !info.siteSlug.endsWith("_pending")) {
                   clearInterval(pollTimer);
                   clearInterval(stepTimer);
-                  if (!setupCancelledRef.current) setBuildProgress("Site is live!");
+                  setupTimersRef.current.pollTimer = null;
+                  setupTimersRef.current.stepTimer = null;
+                  if (!abortController.signal.aborted) setBuildProgress("Site is live!");
                   resolve(true);
                 }
-              } catch {
-                // keep polling
+              } catch (err) {
+                // If aborted, stop polling; otherwise keep going
+                if (abortController.signal.aborted) {
+                  clearInterval(pollTimer);
+                  clearInterval(stepTimer);
+                  setupTimersRef.current.pollTimer = null;
+                  setupTimersRef.current.stepTimer = null;
+                  resolve(false);
+                }
               }
             }, 5000);
+            setupTimersRef.current.pollTimer = pollTimer;
           });
 
         const success = await poll();
-        if (setupCancelledRef.current) return false;
+        if (abortController.signal.aborted) return false;
         if (success) {
           await refreshInfo();
           return true;
@@ -537,6 +569,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           return false;
         }
       } catch (err) {
+        // Ignore abort errors
+        if (err instanceof DOMException && err.name === "AbortError") return false;
         setError(err instanceof Error ? err.message : "Something went wrong");
         setOnboardingStatus("none");
         return false;
@@ -556,6 +590,12 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return () => {
       setupCancelledRef.current = true;
+      // Abort in-flight fetch requests immediately
+      setupAbortRef.current?.abort();
+      // Clear timers synchronously so no callbacks fire after unmount
+      if (setupTimersRef.current.stepTimer) clearInterval(setupTimersRef.current.stepTimer);
+      if (setupTimersRef.current.pollTimer) clearInterval(setupTimersRef.current.pollTimer);
+      setupTimersRef.current = { stepTimer: null, pollTimer: null };
     };
   }, []);
 
