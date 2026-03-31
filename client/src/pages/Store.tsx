@@ -115,8 +115,14 @@ function AddProductModal({
         currency: "usd",
         type: "one_time",
       };
-      if (form.inventory.trim()) body.inventory = parseInt(form.inventory);
-      if (form.shipping.trim()) body.shippingCost = Math.round(parseFloat(form.shipping) * 100);
+      if (form.inventory.trim()) {
+        const inv = parseInt(form.inventory);
+        if (!isNaN(inv)) body.inventory = inv;
+      }
+      if (form.shipping.trim()) {
+        const ship = parseFloat(form.shipping);
+        if (!isNaN(ship)) body.shippingCost = Math.round(ship * 100);
+      }
       if (form.imageUrl.trim()) body.imageUrl = form.imageUrl.trim();
 
       const res = await authFetch("/api/stripe/connect/create-product", {
@@ -128,8 +134,8 @@ function AddProductModal({
       toast.success("Product added");
       onAdded();
       onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to add product");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e) || "Failed to add product");
     } finally {
       setSaving(false);
     }
@@ -269,8 +275,8 @@ function ProductRow({
       if (!res.ok) throw new Error(await res.text());
       onUpdated(fields as Partial<Product>);
       return true;
-    } catch (e: any) {
-      toast.error(e.message || "Update failed");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e) || "Update failed");
       return false;
     } finally {
       setSaving(false);
@@ -283,8 +289,10 @@ function ProductRow({
   };
 
   const handleSaveEdit = async () => {
-    const inv = editInventory.trim() === "" ? undefined : parseInt(editInventory);
-    const ship = editShipping.trim() === "" ? undefined : Math.round(parseFloat(editShipping) * 100);
+    const rawInv = editInventory.trim() === "" ? NaN : parseInt(editInventory);
+    const inv = isNaN(rawInv) ? undefined : rawInv;
+    const rawShip = editShipping.trim() === "" ? NaN : parseFloat(editShipping);
+    const ship = isNaN(rawShip) ? undefined : Math.round(rawShip * 100);
     const ok = await patchProduct({ inventory: inv, shippingCost: ship });
     if (ok) {
       toast.success("Product updated");
@@ -304,8 +312,8 @@ function ProductRow({
       if (!res.ok) throw new Error(await res.text());
       toast.success("Product deleted");
       onDeleted();
-    } catch (e: any) {
-      toast.error(e.message || "Delete failed");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e) || "Delete failed");
       setDeleting(false);
       setConfirmDelete(false);
     }
@@ -476,8 +484,8 @@ export default function Store() {
       if (!res.ok) throw new Error(await res.text());
       const { url } = await res.json();
       if (url) window.location.href = url;
-    } catch (e: any) {
-      toast.error(e.message || "Failed to start Stripe onboarding");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e) || "Failed to start Stripe onboarding");
       setConnectingStripe(false);
     }
   };
@@ -553,8 +561,8 @@ export default function Store() {
       toast.success("Printify connected");
       setPrintifyKey("");
       await loadPrintifyStatus();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to connect Printify");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e) || "Failed to connect Printify");
     } finally {
       setConnectingPrintify(false);
     }
@@ -568,8 +576,8 @@ export default function Store() {
       const data = await res.json();
       toast.success(`Synced ${data.synced ?? 0} products from Printify`);
       await loadProducts();
-    } catch (e: any) {
-      toast.error(e.message || "Sync failed");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e) || "Sync failed");
     } finally {
       setSyncingPrintify(false);
     }
@@ -581,8 +589,8 @@ export default function Store() {
       if (!res.ok) throw new Error(await res.text());
       toast.success("Printify disconnected");
       setPrintifyStatus({ connected: false });
-    } catch (e: any) {
-      toast.error(e.message || "Failed to disconnect");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e) || "Failed to disconnect");
     }
   };
 

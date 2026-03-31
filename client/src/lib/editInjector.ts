@@ -417,7 +417,7 @@ const EDIT_JS = `
     if (sectionId === 'shop') {
       if (tag === 'h2') return 'section_title__shop';
       if (tag === 'p') return 'section_body__shop';
-      if (tag === 'a') return 'shop_link';
+      if (tag === 'a') return 'shop_link_text';
       return 'section_title__shop';
     }
 
@@ -427,7 +427,7 @@ const EDIT_JS = `
     if (sectionId && sectionId !== 'unknown') {
       if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'section_title__' + sectionId;
       if (tag === 'p' || tag === 'blockquote' || tag === 'li') return sectionId + '__content';
-      if (tag === 'a') return sectionId + '__link';
+      if (tag === 'a') return sectionId + '__link_text';
       return 'section_title__' + sectionId;
     }
 
@@ -889,7 +889,7 @@ const EDIT_JS = `
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg_image' });
+        post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg' });
       });
       el.style.position = 'relative';
       el.appendChild(btn);
@@ -934,10 +934,16 @@ export function injectEditor(html: string, baseUrl: string): string {
   if (baseUrl) {
     const base = baseUrl.replace(/\/$/, "");
     result = result.replace(
-      /src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
-      (match, path) => {
+      /(<[a-z][a-z0-9]*\b[^>]*?\s)src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
+      (match, tagPrefix, path) => {
+        // Only rewrite src for image-related tags (img, picture); skip script, source, video, audio, iframe, embed
+        const tagMatch = tagPrefix.match(/^<(\w+)/i);
+        const tag = tagMatch ? tagMatch[1].toLowerCase() : "";
+        if (["script", "source", "video", "audio", "iframe", "embed", "track"].includes(tag)) {
+          return match;
+        }
         const cleanPath = path.replace(/^\.\//, "");
-        return `src="${base}/${cleanPath}"`;
+        return `${tagPrefix}src="${base}/${cleanPath}"`;
       }
     );
     result = result.replace(

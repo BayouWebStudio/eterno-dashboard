@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Upload, Trash2, GripVertical, Loader2, ImageIcon, RefreshCw } from "lucide-react";
 
 export default function Gallery() {
-  const { siteHtml, loading, saveSiteField, uploadSiteImage, refreshHtml, currentSite, deleteGalleryImage } = useSite();
+  const { siteHtml, loading, saveSiteField, uploadSiteImage, refreshHtml, currentSite, deleteGalleryImage, saveGalleryOrder } = useSite();
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,8 +57,9 @@ export default function Gallery() {
   }, [uploadSiteImage]);
 
   const handleDelete = useCallback(async (idx: number) => {
-    const filename = images[idx];
-    if (!filename) return;
+    const src = images[idx];
+    if (!src) return;
+    const filename = src.split('/').pop() || src;
     setImages((prev) => prev.filter((_, i) => i !== idx));
     try {
       const ok = await deleteGalleryImage(filename);
@@ -99,7 +100,7 @@ export default function Gallery() {
   const handleSaveOrder = useCallback(async () => {
     setSaving(true);
     try {
-      const ok = await saveSiteField("gallery_images", JSON.stringify(images));
+      const ok = await saveGalleryOrder(images);
       if (ok) {
         toast.success("Gallery order saved");
         refreshHtml();
@@ -112,7 +113,7 @@ export default function Gallery() {
     } finally {
       setSaving(false);
     }
-  }, [images, saveSiteField, refreshHtml]);
+  }, [images, saveGalleryOrder, refreshHtml]);
 
   if (loading && !siteHtml) {
     return (
