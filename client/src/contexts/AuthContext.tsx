@@ -81,6 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider
       publishableKey={CLERK_KEY}
+      afterSignInUrl="/"
+      afterSignUpUrl="/"
       appearance={{
         variables: clerkAppearance.variables,
         elements: clerkAppearance.elements,
@@ -143,9 +145,9 @@ function AuthScreen() {
           </p>
         </div>
         {mode === "signin" ? (
-          <SignIn routing="hash" signUpUrl="#/sign-up" appearance={clerkAppearance} />
+          <SignIn routing="hash" signUpUrl="#/sign-up" afterSignInUrl="/" appearance={clerkAppearance} />
         ) : (
-          <SignUp routing="hash" signInUrl="#/" appearance={clerkAppearance} />
+          <SignUp routing="hash" signInUrl="#/" afterSignUpUrl="/" appearance={clerkAppearance} />
         )}
         <p className="text-center text-sm text-muted-foreground mt-5">
           {mode === "signin" ? (
@@ -165,6 +167,7 @@ function AuthScreen() {
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
+  const [loadingTooLong, setLoadingTooLong] = useState(false);
 
   // Clear auth-related hashes once signed in so Clerk doesn't get stuck
   useEffect(() => {
@@ -173,12 +176,35 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     }
   }, [isSignedIn]);
 
+  // Safety: if Clerk hasn't loaded after 8 seconds, clear any stale hash
+  // and allow the auth screen to render (prevents infinite spinner)
+  useEffect(() => {
+    if (isLoaded) return;
+    const timer = setTimeout(() => {
+      // If still not loaded and hash contains a sign-up/sign-in callback,
+      // clear the hash so Clerk can re-initialize cleanly
+      if (window.location.hash.includes("sign")) {
+        window.location.hash = "";
+      }
+      setLoadingTooLong(true);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [isLoaded]);
+
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm">Loading...</p>
+          {loadingTooLong && (
+            <button
+              onClick={() => { window.location.hash = ""; window.location.reload(); }}
+              className="text-xs text-gold hover:underline mt-2"
+            >
+              Taking too long? Click to retry
+            </button>
+          )}
         </div>
       </div>
     );
