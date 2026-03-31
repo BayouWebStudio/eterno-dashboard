@@ -172,8 +172,8 @@ export function parseSections(html: string): SectionGroup[] {
 
     // Stats
     const aboutSecBody = (html.match(/<section[^>]+id="about"[^>]*>([\s\S]*?)<\/section>/i) || ["", ""])[1];
-    const statNumbers = Array.from(aboutSecBody.matchAll(/<span[^>]*class="[^"]*stat-number[^"]*"[^>]*>([\s\S]*?)<\/span>/gi));
-    const statLabels = Array.from(aboutSecBody.matchAll(/<span[^>]*class="[^"]*stat-label[^"]*"[^>]*>([\s\S]*?)<\/span>/gi));
+    const statNumbers = Array.from(aboutSecBody.matchAll(/<(?:span|div)[^>]*class="[^"]*stat-num(?:ber)?[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/gi));
+    const statLabels = Array.from(aboutSecBody.matchAll(/<(?:span|div)[^>]*class="[^"]*stat-label[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/gi));
     statNumbers.forEach((m, i) => {
       if (i >= 6) return;
       aboutFields.push({ key: `about_stat_number_${i}`, label: `Stat ${i + 1} Number`, type: "text", value: strip(m[1]) });

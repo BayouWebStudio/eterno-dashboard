@@ -89,33 +89,6 @@ body.edit-mode [data-section]:hover > .ve-section-controls { display: flex; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 body.edit-mode .ve-gallery-section:hover .ve-gallery-add-btn { display: block; }
-/* Empty gallery placeholder — always visible in edit mode */
-body.edit-mode .ve-gallery-section:empty::before,
-body.edit-mode .ve-gallery-empty::before {
-  content: 'No photos yet';
-  display: block;
-  color: rgba(255,255,255,0.3);
-  font-size: 13px;
-  font-family: system-ui, sans-serif;
-  text-align: center;
-  padding: 8px 0 40px;
-}
-body.edit-mode .ve-gallery-empty {
-  min-height: 120px;
-  border: 2px dashed rgba(255,255,255,0.15);
-  border-radius: 8px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-body.edit-mode .ve-gallery-empty .ve-gallery-add-btn {
-  display: block;
-  position: relative;
-  bottom: auto;
-  right: auto;
-  margin-top: 8px;
-}
 .ve-gallery-del {
   position: absolute;
   top: 4px;
@@ -278,7 +251,6 @@ const EDIT_JS = `
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
     if (cls.indexOf('page-hero') >= 0) return 'hero';
-    if (cls.indexOf('about-preview') >= 0) return 'about';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
@@ -343,6 +315,18 @@ const EDIT_JS = `
     }
 
     if (sectionId === 'about' || sectionId === 'nosotros') {
+      if (cls.indexOf('stat-num') >= 0) {
+        var numIdx = getStatIndex(el, 'stat-num');
+        if (numIdx >= 0) return 'about_stat_number_' + numIdx;
+      }
+      if (cls.indexOf('stat-label') >= 0) {
+        var lblIdx = getStatIndex(el, 'stat-label');
+        if (lblIdx >= 0) return 'about_stat_label_' + lblIdx;
+      }
+      if (cls.indexOf('stat-number') >= 0) {
+        var snIdx = getStatIndex(el, 'stat-number');
+        if (snIdx >= 0) return 'about_stat_number_' + snIdx;
+      }
       if (tag === 'h2' || tag === 'h3') return 'about_title';
       if (tag === 'p') return 'about';
       return 'about_title';
@@ -420,6 +404,17 @@ const EDIT_JS = `
     }
 
     return 'unknown_' + tag;
+  }
+
+  function getStatIndex(el, statClass) {
+    // Find all elements with the same stat class within the about section
+    var section = el.closest ? el.closest('section') : null;
+    if (!section) return -1;
+    var all = section.querySelectorAll('.' + statClass);
+    for (var i = 0; i < all.length; i++) {
+      if (all[i] === el) return i;
+    }
+    return -1;
   }
 
   function getCardIndex(el, cardClass) {
@@ -585,7 +580,7 @@ const EDIT_JS = `
 
   function buildImageKey(img, sectionId) {
     var cls = img.className || '';
-    if (cls.indexOf('about-photo') >= 0 || cls.indexOf('about-portrait') >= 0 || cls.indexOf('about-img') >= 0) return 'about_photo';
+    if (cls.indexOf('about-photo') >= 0 || cls.indexOf('about-portrait') >= 0) return 'about_photo';
     if (sectionId === 'hero') return 'hero_bg';
     if (sectionId === 'about') return 'about_photo';
     return sectionId + '_img';
@@ -611,12 +606,6 @@ const EDIT_JS = `
       });
       el.style.position = 'relative';
       el.appendChild(addBtn);
-
-      // If gallery is empty, add visible placeholder class so user knows they can add photos
-      var hasItems = el.querySelector('.masonry-item, .gallery-item, img');
-      if (!hasItems) {
-        el.classList.add('ve-gallery-empty');
-      }
     });
   }
 
@@ -868,19 +857,14 @@ const EDIT_JS = `
       var btn = document.createElement('button');
       btn.className = 've-img-btn';
       btn.textContent = 'Change Hero Image';
-      // Attach to the PARENT (hero section) not .hero-bg itself — .hero-bg has filter+transform
-      // which create a stacking context that dims and traps the button below the nav.
-      var container = el.parentElement || el;
-      btn.style.cssText = 'position:absolute;top:16px;right:16px;z-index:9999;white-space:nowrap;pointer-events:auto;';
+      btn.style.cssText = 'position:absolute;top:16px;left:16px;z-index:200;';
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
         post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg_image' });
       });
-      if (getComputedStyle(container).position === 'static') {
-        container.style.position = 'relative';
-      }
-      container.appendChild(btn);
+      el.style.position = 'relative';
+      el.appendChild(btn);
     });
   }
 
@@ -918,19 +902,12 @@ export function injectEditor(html: string, baseUrl: string): string {
     result = cssTag + result;
   }
 
-  // Rewrite relative image src to absolute.
-  // Split on <script> and <style> blocks so we only rewrite paths in HTML markup,
-  // never inside script or style tag content.
+  // Rewrite relative image src to absolute
   if (baseUrl) {
     const base = baseUrl.replace(/\/$/, "");
-
-    // Process the HTML in segments, skipping <script>...</script> and <style>...</style> blocks
     result = result.replace(
-      /(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>)|src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
-      (match, scriptOrStyle, path) => {
-        // If this match is a script/style block, return it unchanged
-        if (scriptOrStyle !== undefined) return match;
-        // Otherwise rewrite the relative src
+      /src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
+      (match, path) => {
         const cleanPath = path.replace(/^\.\//, "");
         return `src="${base}/${cleanPath}"`;
       }
