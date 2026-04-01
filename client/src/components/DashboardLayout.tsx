@@ -44,7 +44,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { currentSite, loading, availablePages } = useSite();
 
   const hasBookingPage = availablePages.includes("booking.html");
-  const hasTestimonialsPage = availablePages.includes("testimonials.html");
+  const hasTestimonialsPage = availablePages.includes("testimonials.html") || availablePages.includes("reviews.html");
   const NAV_ITEMS = [
     ...BASE_NAV_ITEMS,
     ...(hasBookingPage ? [{ path: "/bookings", label: "Bookings", icon: CalendarDays }] : []),

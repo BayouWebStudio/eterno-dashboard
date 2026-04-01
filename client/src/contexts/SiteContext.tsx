@@ -19,6 +19,8 @@ const PAGE_NAMES: Record<string, string> = {
   "tattoos.html": "Tattoos",
   "booking.html": "Booking",
   "testimonials.html": "Testimonials",
+  "reviews.html": "Reviews",
+  "gallery.html": "Gallery",
   "jewelry.html": "Jewelry",
   "art.html": "Art",
   "paintings.html": "Paintings",
@@ -26,11 +28,18 @@ const PAGE_NAMES: Record<string, string> = {
   "shop.html": "Shop",
   "faq.html": "FAQ",
   "contact.html": "Contact",
+  "artists/index.html": "Our Artists",
 };
 
 export function getPageLabel(page: string): string {
+  if (PAGE_NAMES[page]) return PAGE_NAMES[page];
+  // For subdirectory index pages (e.g. "artists/index.html" → "Artists")
+  if (page.includes("/") && page.endsWith("/index.html")) {
+    const dir = page.split("/")[0];
+    return dir.charAt(0).toUpperCase() + dir.slice(1);
+  }
   const base = page.replace(/\.html$/i, "");
-  return PAGE_NAMES[page] || base
+  return base
     .split(/[-_]/)
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
