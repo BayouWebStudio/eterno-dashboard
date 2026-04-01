@@ -228,7 +228,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          if (data?.upgradeRequired) throw new Error("Free plan limit reached — upgrade to Pro");
           throw new Error(data?.error || `Save failed: ${res.status}`);
         }
         return true;
@@ -397,7 +396,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          if (data?.upgradeRequired) throw new Error("Free plan limit reached \u2014 upgrade to Pro");
           throw new Error(data?.error || `Add section failed: ${res.status}`);
         }
         // Apply the updated HTML directly from the response to avoid GitHub cache race
