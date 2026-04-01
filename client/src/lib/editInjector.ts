@@ -458,6 +458,21 @@ const EDIT_JS = `
     return -1;
   }
 
+  // ── Check if an element is inside a repeating card/item (not individually saveable) ──
+  function isInsideCard(el) {
+    // Walk up looking for card/item containers, but stop at section level
+    var node = el.parentElement;
+    while (node && node !== document.body) {
+      if (node.tagName === 'SECTION') return false; // reached section, no card found
+      var cls = (node.className || '').toString();
+      if (/\b\w+[-_](?:card|item|slide|tile)\b/i.test(cls) && !/\b(?:grid|list|container|section|wrapper)\b/i.test(cls)) {
+        return true;
+      }
+      node = node.parentElement;
+    }
+    return false;
+  }
+
   // ── Check if an element is inside a gallery container ──
   function isGalleryImage(el) {
     return !!(
@@ -479,6 +494,10 @@ const EDIT_JS = `
       if (el.tagName === 'A' && el.querySelector('img')) return;
       // Skip structural containers (span/div with child elements are layout wrappers, not text nodes)
       if ((el.tagName === 'SPAN' || el.tagName === 'DIV') && el.children.length > 0) return;
+      // Skip elements inside repeating card/item components — these can't be
+      // individually targeted by the save endpoint and would overwrite the
+      // section heading instead. Users should edit these via Source HTML.
+      if (isInsideCard(el)) return;
       el.setAttribute('data-editable', 'true');
 
       el.addEventListener('click', function(e) {
