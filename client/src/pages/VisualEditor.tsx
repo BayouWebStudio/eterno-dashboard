@@ -59,16 +59,14 @@ export default function VisualEditor() {
   const [addSectionContent, setAddSectionContent] = useState("");
   const [adding, setAdding] = useState(false);
 
-  // Build the base URL for resolving relative paths
+  // Build the base URL for resolving relative paths (e.g. img/photo.jpg → full URL)
   const siteBaseUrl = useMemo(() => {
     if (!currentSite) return "";
-    // siteUrl is the root domain (e.g. https://eternowebstudio.com)
-    // slug is the site path (e.g. weschetattoo)
-    const siteUrl = currentSite.siteUrl || "";
     const slug = currentSite.slug || "";
-    if (siteUrl && slug) {
-      const base = siteUrl.replace(/\/$/, "");
-      return `${base}/${slug}`;
+    // Use GitHub raw content URL for the dedicated repo — this always works
+    // regardless of custom domains, CDN caching, or monorepo routing
+    if (slug) {
+      return `https://raw.githubusercontent.com/BayouWebStudio/${slug}/main`;
     }
     // Fallback: construct from domain
     const domain = currentSite.domain || "";
