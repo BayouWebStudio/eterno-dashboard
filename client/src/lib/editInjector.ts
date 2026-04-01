@@ -272,7 +272,9 @@ const EDIT_JS = `
     var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|body|info|layout)(?:\\s|$)/i);
     if (containerMatch) {
       var name = containerMatch[1];
-      if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
+      // Skip generic layout names AND component-level names (cards, items, tags etc.)
+      if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0
+          && !/-(?:card|item|tag|btn|button|link|badge|icon|img|text|label|row|col)$/.test(name)) {
         return name;
       }
     }
