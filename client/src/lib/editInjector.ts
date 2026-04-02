@@ -912,8 +912,11 @@ const EDIT_JS = `
         e.stopPropagation();
         post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg' });
       });
-      el.style.position = 'relative';
-      el.appendChild(btn);
+      // Append to parent container if the bg element is position:absolute (e.g. .hero-bg inside .hero)
+      var computed = window.getComputedStyle(el);
+      var target = (computed.position === 'absolute' || computed.position === 'fixed') && el.parentElement ? el.parentElement : el;
+      target.style.position = 'relative';
+      target.appendChild(btn);
     });
   }
 
