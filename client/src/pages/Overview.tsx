@@ -102,12 +102,10 @@ export default function Overview() {
 
   // ── Site loaded: show overview ──
   const domain = currentSite.domain || `${currentSite.slug}.eternowebstudio.com`;
-  // siteUrl from API already includes the full path (e.g. "https://eternowebstudio.com/slug/")
-  // For custom domains it's just "https://domain.com". Only append slug if not already present.
-  const rawSiteUrl = currentSite.siteUrl || `https://eternowebstudio.com/${currentSite.slug}/`;
-  const liveUrl = rawSiteUrl.includes(`/${currentSite.slug}`)
-    ? rawSiteUrl.replace(/\/$/, "")
-    : `${rawSiteUrl.replace(/\/$/, "")}/${currentSite.slug}`;
+  // For custom domains use the domain directly; for default sites append the slug
+  const liveUrl = currentSite.domain
+    ? `https://${currentSite.domain}`
+    : `https://eternowebstudio.com/${currentSite.slug}`;
 
   return (
     <div className="space-y-6 max-w-5xl">
