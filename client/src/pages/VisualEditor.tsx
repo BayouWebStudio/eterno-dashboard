@@ -483,7 +483,7 @@ export default function VisualEditor() {
           ref={iframeRef}
           srcDoc={srcdoc}
           className="w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts allow-same-origin allow-modals"
           title="Visual Editor"
         />
       </div>
