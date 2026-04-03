@@ -71,6 +71,28 @@ body.edit-mode [data-section]:hover > .ve-section-controls { display: flex; }
 .ve-section-btn:hover { background: rgba(0,0,0,0.85); }
 .ve-section-btn.danger { color: #ff6b6b; }
 .ve-section-btn.danger:hover { background: rgba(180,0,0,0.7); color: #fff; }
+.ve-artist-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background: rgba(180,0,0,0.8);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.ve-artist-delete:hover { background: rgba(220,0,0,0.95); }
+body.edit-mode .artist-radio-item { position: relative; }
+body.edit-mode .artist-radio-item:hover .ve-artist-delete { display: flex; }
 .ve-gallery-add-btn {
   display: none;
   position: absolute;
@@ -920,6 +942,29 @@ const EDIT_JS = `
     });
   }
 
+  // ── Artist card delete buttons (booking page) ──
+  function setupArtistCards() {
+    var cards = document.querySelectorAll('.artist-radio-item');
+    cards.forEach(function(card) {
+      var nameEl = card.querySelector('.artist-radio-name');
+      if (!nameEl) return;
+      var artistName = nameEl.textContent || '';
+      var delBtn = document.createElement('button');
+      delBtn.className = 've-artist-delete';
+      delBtn.textContent = '×';
+      delBtn.title = 'Remove ' + artistName;
+      delBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (confirm('Remove "' + artistName + '" from booking options?')) {
+          card.remove();
+          post({ type: 'artist-delete', artistName: artistName });
+        }
+      });
+      card.appendChild(delBtn);
+    });
+  }
+
   function init() {
     document.body.classList.add('edit-mode');
     setupEditableText();
@@ -928,6 +973,7 @@ const EDIT_JS = `
     setupGalleries();
     setupGalleryDragDrop();
     setupSections();
+    setupArtistCards();
     post({ type: 'editor-ready' });
   }
 

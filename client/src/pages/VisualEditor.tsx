@@ -32,6 +32,7 @@ export default function VisualEditor() {
     saveSiteField,
     uploadSiteImage,
     deleteSiteSection,
+    deleteArtist,
     addSiteSection,
     deleteGalleryImage,
     saveGalleryOrder,
@@ -128,6 +129,10 @@ export default function VisualEditor() {
 
         case "section-delete":
           handleSectionDeleteRef.current(data);
+          break;
+
+        case "artist-delete":
+          handleArtistDeleteRef.current(data);
           break;
 
         case "request-refresh":
@@ -273,16 +278,36 @@ export default function VisualEditor() {
     [deleteSiteSection, refreshHtml]
   );
 
+  // ── Artist delete handler ──
+  const handleArtistDelete = useCallback(
+    async (data: { artistName: string }) => {
+      try {
+        const ok = await deleteArtist(data.artistName);
+        if (ok) {
+          toast.success("Artist removed from booking. Allow 3–5 min for live site.");
+          refreshHtml();
+        } else {
+          toast.error("Failed to remove artist.");
+        }
+      } catch {
+        toast.error("Failed to remove artist.");
+      }
+    },
+    [deleteArtist, refreshHtml]
+  );
+
   // ── Refs to hold latest handler versions (avoids stale closures in the message listener) ──
   const handleTextEditRef = useRef(handleTextEdit);
   const handleGalleryDeleteRef = useRef(handleGalleryDelete);
   const handleGalleryReorderRef = useRef(handleGalleryReorder);
   const handleSectionDeleteRef = useRef(handleSectionDelete);
+  const handleArtistDeleteRef = useRef(handleArtistDelete);
   const refreshHtmlRef = useRef(refreshHtml);
   useEffect(() => { handleTextEditRef.current = handleTextEdit; }, [handleTextEdit]);
   useEffect(() => { handleGalleryDeleteRef.current = handleGalleryDelete; }, [handleGalleryDelete]);
   useEffect(() => { handleGalleryReorderRef.current = handleGalleryReorder; }, [handleGalleryReorder]);
   useEffect(() => { handleSectionDeleteRef.current = handleSectionDelete; }, [handleSectionDelete]);
+  useEffect(() => { handleArtistDeleteRef.current = handleArtistDelete; }, [handleArtistDelete]);
   useEffect(() => { refreshHtmlRef.current = refreshHtml; }, [refreshHtml]);
 
   // ── Page switch handler ──
