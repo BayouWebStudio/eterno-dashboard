@@ -55,6 +55,7 @@ export interface SiteInfo {
   igHandle?: string;
   siteUrl?: string;
   siteBuilt?: boolean;
+  hasAgent?: boolean;
 }
 
 type OnboardingStatus = "idle" | "none" | "building" | "connecting" | "ready";
@@ -160,6 +161,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         igHandle: data.igHandle,
         siteUrl: data.siteUrl,
         siteBuilt: data.siteBuilt,
+        hasAgent: data.hasAgent,
       });
       setOnboardingStatus("ready");
     } catch (err) {

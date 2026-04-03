@@ -15,6 +15,7 @@ import Languages from "./pages/Languages";
 import Testimonials from "./pages/Testimonials";
 import Billing from "./pages/Billing";
 import Bookings from "./pages/Bookings";
+import AIAgent from "./pages/AIAgent";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/testimonials" component={Testimonials} />
       <Route path="/bookings" component={Bookings} />
       <Route path="/billing" component={Billing} />
+      <Route path="/ai-agent" component={AIAgent} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

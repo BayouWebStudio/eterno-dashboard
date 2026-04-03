@@ -14,6 +14,7 @@ import {
   Palette,
   Globe,
   CreditCard,
+  Bot,
   CalendarDays,
   MessageSquare,
   ChevronLeft,
@@ -45,10 +46,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const hasBookingPage = availablePages.includes("booking.html");
   const hasTestimonialsPage = availablePages.includes("testimonials.html") || availablePages.includes("reviews.html");
+  const hasAgent = currentSite?.hasAgent ?? false;
   const NAV_ITEMS = [
     ...BASE_NAV_ITEMS,
     ...(hasBookingPage ? [{ path: "/bookings", label: "Bookings", icon: CalendarDays }] : []),
     ...(hasTestimonialsPage ? [{ path: "/testimonials", label: "Testimonials", icon: MessageSquare }] : []),
+    ...(hasAgent ? [{ path: "/ai-agent", label: "AI Agent", icon: Bot }] : []),
   ];
 
   return (
