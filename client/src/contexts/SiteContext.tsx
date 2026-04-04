@@ -124,10 +124,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const authFetch = useCallback(
     async (path: string, options?: RequestInit): Promise<Response> => {
       const token = await getToken();
+      if (!token) {
+        throw new Error("Session expired — please sign in again");
+      }
       const headers: Record<string, string> = {
         ...(options?.headers as Record<string, string> || {}),
+        Authorization: `Bearer ${token}`,
       };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
       return fetch(`${convexHttpUrl}${path}`, { ...options, headers });
     },
     [convexHttpUrl, getToken]
@@ -247,8 +250,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     async (file: File, folder?: string): Promise<string | null> => {
       if (!convexHttpUrl) return null;
       try {
-        const token = await getToken();
-
         // Compress image if it's larger than 5MB to avoid browser limits and GitHub API size limits
         let fileToUpload = file;
         if (file.size > 5 * 1024 * 1024) {
@@ -276,14 +277,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           reader.readAsDataURL(fileToUpload);
         });
 
-        const res = await fetch(`${convexHttpUrl}/api/dashboard/upload-hero-bg`, {
+        const res = await authFetch("/api/dashboard/upload-hero-bg", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             imageBase64,
             fileName: fileToUpload.name,
             folder,
-            // Pass current page so uploads target the correct page on multi-page sites
             page: currentPageRef.current || "index.html",
           }),
         });
@@ -298,7 +298,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         return null;
       }
     },
-    [convexHttpUrl, getToken]
+    [convexHttpUrl, authFetch]
   );
 
   // ── Save gallery order via /api/dashboard/save-gallery-order ──

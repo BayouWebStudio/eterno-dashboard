@@ -103,11 +103,11 @@ export default function Overview() {
   }
 
   // ── Site loaded: show overview ──
-  const domain = currentSite.domain || `${currentSite.slug}.eternowebstudio.com`;
-  // For custom domains use the domain directly; for default sites append the slug
+  // For custom domains use the domain directly; for default sites use path format
   const liveUrl = currentSite.domain
     ? `https://${currentSite.domain}`
     : `https://eternowebstudio.com/${currentSite.slug}`;
+  const displayDomain = currentSite.domain || `eternowebstudio.com/${currentSite.slug}`;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -119,12 +119,12 @@ export default function Overview() {
               {currentSite.name}
             </h2>
             <a
-              href={`https://${domain}`}
+              href={liveUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-gold-dim hover:text-gold transition-colors flex items-center gap-1.5 font-mono"
             >
-              {domain}
+              {displayDomain}
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
@@ -144,7 +144,7 @@ export default function Overview() {
               asChild
               className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold"
             >
-              <a href={`https://${domain}`} target="_blank" rel="noopener noreferrer">
+              <a href={liveUrl} target="_blank" rel="noopener noreferrer">
                 <Globe className="w-3.5 h-3.5 mr-1.5" />
                 Visit Site
               </a>
@@ -154,7 +154,7 @@ export default function Overview() {
 
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard icon={Globe} label="Domain" value={domain} />
+          <StatCard icon={Globe} label="Domain" value={displayDomain} />
           <StatCard icon={Palette} label="Theme" value={currentSite.theme || "Default"} />
           <StatCard icon={Languages} label="Language" value={currentSite.lang || "EN"} />
           <StatCard icon={Calendar} label="Plan" value={currentSite.plan || "Standard"} />
