@@ -13,6 +13,8 @@ import {
   Loader2, Link2, Rocket, ArrowLeft, CheckCircle2, Monitor, Code2
 } from "lucide-react";
 import BuildStatusIndicator from "@/components/BuildStatusIndicator";
+import AnalyticsCard from "@/components/AnalyticsCard";
+import SeoScoreCard from "@/components/SeoScoreCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -157,6 +159,12 @@ export default function Overview() {
           <StatCard icon={Languages} label="Language" value={currentSite.lang || "EN"} />
           <StatCard icon={Calendar} label="Plan" value={currentSite.plan || "Standard"} />
         </div>
+      </div>
+
+      {/* Analytics & SEO */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <AnalyticsCard />
+        <SeoScoreCard />
       </div>
 
       {/* Live Preview */}
