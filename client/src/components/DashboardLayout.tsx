@@ -4,7 +4,7 @@
   Sidebar uses gold accent bar for active item.
 */
 import { useState, type ReactNode } from "react";
-import { Link, useLocation, Redirect } from "wouter";
+import { useLocation, Redirect } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import {

@@ -193,19 +193,8 @@
   }
 }
 
-/* Utility: gold text */
-.text-gold {
-  color: oklch(0.75 0.12 85);
-}
-.text-gold-dim {
-  color: oklch(0.55 0.09 85);
-}
-.bg-gold {
-  background-color: oklch(0.75 0.12 85);
-}
-.border-gold {
-  border-color: oklch(0.75 0.12 85);
-}
+/* Gold utilities — now handled by @theme --color-gold / --color-gold-dim.
+   Keep border-gold-dim as a convenience (25% alpha not expressible via opacity modifier). */
 .border-gold-dim {
   border-color: oklch(0.75 0.12 85 / 25%);
 }

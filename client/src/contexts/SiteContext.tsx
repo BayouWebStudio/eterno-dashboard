@@ -120,9 +120,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   // AbortController for refreshHtml — cancels previous in-flight request on rapid page switches
   const htmlAbortRef = useRef<AbortController | null>(null);
 
-  // Cancellation flag for setupSite polling — set on unmount to stop leaked timers
-  const setupCancelledRef = useRef(false);
-
   // ── Helper: authenticated fetch to Convex HTTP actions ──
   const authFetch = useCallback(
     async (path: string, options?: RequestInit): Promise<Response> => {
@@ -520,7 +517,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
       const abortController = new AbortController();
       setupAbortRef.current = abortController;
-      setupCancelledRef.current = false;
+      // (cancellation handled by AbortController)
 
       setOnboardingStatus("building");
       setBuildProgress("Starting build...");
@@ -652,7 +649,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   // ── Cancel any in-flight setupSite polling on provider unmount ──
   useEffect(() => {
     return () => {
-      setupCancelledRef.current = true;
+      // Abort in-flight fetch requests immediately
       // Abort in-flight fetch requests immediately
       setupAbortRef.current?.abort();
       // Clear timers synchronously so no callbacks fire after unmount

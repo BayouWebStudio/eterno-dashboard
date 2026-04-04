@@ -78,8 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider
       publishableKey={CLERK_KEY}
-      afterSignInUrl="/"
-      afterSignUpUrl="/"
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
       appearance={{
         variables: clerkAppearance.variables,
         elements: clerkAppearance.elements,
@@ -142,9 +142,9 @@ function AuthScreen() {
           </p>
         </div>
         {mode === "signin" ? (
-          <SignIn routing="hash" signUpUrl="#/sign-up" afterSignInUrl="/" appearance={clerkAppearance} />
+          <SignIn routing="hash" signUpUrl="#/sign-up" fallbackRedirectUrl="/" appearance={clerkAppearance} />
         ) : (
-          <SignUp routing="hash" signInUrl="#/" afterSignUpUrl="/" appearance={clerkAppearance} />
+          <SignUp routing="hash" signInUrl="#/" fallbackRedirectUrl="/" appearance={clerkAppearance} />
         )}
         <p className="text-center text-sm text-muted-foreground mt-5">
           {mode === "signin" ? (
