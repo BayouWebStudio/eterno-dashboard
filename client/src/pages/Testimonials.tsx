@@ -5,8 +5,10 @@
 */
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Star, Check, Trash2, MessageSquare, Clock, RefreshCw } from "lucide-react";
+import { useSite } from "@/contexts/SiteContext";
+import { Star, Check, Trash2, MessageSquare, Clock, RefreshCw, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import EmptyStateGuide from "@/components/EmptyStateGuide";
 
 interface Testimonial {
   _id: string;
@@ -97,6 +99,7 @@ function TestimonialCard({
 
 export default function Testimonials() {
   const { getToken, convexHttpUrl } = useAuth();
+  const { currentSite } = useSite();
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -201,13 +204,16 @@ export default function Testimonials() {
           Loading testimonials...
         </div>
       ) : testimonials.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-          <div className="w-12 h-12 rounded-full bg-[oklch(0.18_0.005_250)] flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <p className="text-sm font-medium text-muted-foreground">No testimonials submitted yet</p>
-          <p className="text-xs text-muted-foreground/60">When clients submit reviews on your site they'll appear here for approval.</p>
-        </div>
+        <EmptyStateGuide
+          icon={MessageSquare}
+          title="No testimonials submitted yet"
+          description="Your clients can leave reviews directly on your site. Once submitted, they appear here for you to approve before going live."
+          steps={[
+            { label: "Share your review page with happy clients", detail: currentSite?.domain ? `${currentSite.domain}/testimonials` : "Link is on your site" },
+            { label: "Review submissions as they come in", detail: "Approve the ones you want displayed on your site" },
+            { label: "Approved reviews show up on your site automatically" },
+          ]}
+        />
       ) : (
         <div className="space-y-8">
           {/* Pending */}

@@ -5,8 +5,10 @@
 */
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { CalendarDays, Check, Archive, Trash2, Mail, Phone, RefreshCw, Eye } from "lucide-react";
+import { useSite } from "@/contexts/SiteContext";
+import { CalendarDays, Check, Archive, Trash2, Mail, Phone, RefreshCw, Eye, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import EmptyStateGuide from "@/components/EmptyStateGuide";
 
 interface Booking {
   _id: string;
@@ -117,6 +119,7 @@ function BookingCard({
 
 export default function Bookings() {
   const { getToken, convexHttpUrl } = useAuth();
+  const { currentSite } = useSite();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -215,13 +218,29 @@ export default function Bookings() {
           Loading bookings...
         </div>
       ) : bookings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-          <div className="w-12 h-12 rounded-full bg-[oklch(0.18_0.005_250)] flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <p className="text-sm font-medium text-muted-foreground">No booking inquiries yet</p>
-          <p className="text-xs text-muted-foreground/60">When clients submit a booking on your site they'll appear here.</p>
-        </div>
+        <EmptyStateGuide
+          icon={CalendarDays}
+          title="No booking inquiries yet"
+          description="Once clients start submitting through your booking page, their inquiries will appear here for you to manage."
+          steps={[
+            { label: "Your booking page is live", detail: currentSite?.domain ? `${currentSite.domain}/booking` : "Accessible from your site navigation" },
+            { label: "Share the link with potential clients", detail: "Post it on your social media or send it directly" },
+            { label: "New inquiries show up here automatically", detail: "You can mark them as read, archive, or delete" },
+          ]}
+          action={
+            currentSite?.domain ? (
+              <a
+                href={`https://${currentSite.domain}/booking`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-md bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View Booking Page
+              </a>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="space-y-8">
           {/* New */}

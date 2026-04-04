@@ -12,6 +12,7 @@ import {
   Link as LinkIcon, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import EmptyStateGuide from "@/components/EmptyStateGuide";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -704,15 +705,25 @@ export default function Store() {
             Loading products…
           </div>
         ) : products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-            <div className="w-11 h-11 rounded-full bg-[oklch(0.18_0.005_250)] flex items-center justify-center">
-              <Package className="w-5 h-5 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">No products yet</p>
-            <p className="text-xs text-muted-foreground/60">
-              {stripeStatus?.connected ? "Click \"Add Product\" to create your first product." : "Connect Stripe above to start adding products."}
-            </p>
-          </div>
+          <EmptyStateGuide
+            icon={Package}
+            title="No products yet"
+            description={stripeStatus?.connected
+              ? "Your store is connected and ready to go. Add your first product to start selling."
+              : "Connect your Stripe account above to start accepting payments and adding products."}
+            steps={stripeStatus?.connected
+              ? [
+                  { label: "Click \"Add Product\" above to create a listing", detail: "Set a name, price, and optional image" },
+                  { label: "Products appear on your site's store page automatically" },
+                  { label: "Track orders and revenue here as sales come in" },
+                ]
+              : [
+                  { label: "Connect Stripe to accept payments", detail: "Click the Connect button in the Stripe section above" },
+                  { label: "Add products with pricing and images" },
+                  { label: "Customers purchase directly from your site" },
+                ]
+            }
+          />
         ) : (
           <div className="space-y-2">
             {products.map((p) => (
