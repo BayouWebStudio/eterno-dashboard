@@ -146,7 +146,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await authFetch("/api/dashboard/info");
+      const res = await authFetch(`/api/dashboard/info?_t=${Date.now()}`);
       const data = await res.json();
 
       if (!data.found || !data.siteSlug || !data.siteBuilt || data.siteSlug.endsWith("_pending")) {
@@ -190,7 +190,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
     setHtmlLoading(true);
     try {
-      const res = await authFetch(`/api/dashboard/site-html?page=${encodeURIComponent(pageToLoad)}`, {
+      const res = await authFetch(`/api/dashboard/site-html?page=${encodeURIComponent(pageToLoad)}&_t=${Date.now()}`, {
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`Failed to load site HTML: ${res.status}`);
