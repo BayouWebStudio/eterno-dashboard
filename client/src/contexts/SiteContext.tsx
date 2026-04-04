@@ -117,6 +117,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const currentPageRef = useRef(currentPage);
   currentPageRef.current = currentPage;
 
+  // AbortController for refreshHtml — cancels previous in-flight request on rapid page switches
+  const htmlAbortRef = useRef<AbortController | null>(null);
+
   // Cancellation flag for setupSite polling — set on unmount to stop leaked timers
   const setupCancelledRef = useRef(false);
 
@@ -182,9 +185,17 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const refreshHtml = useCallback(async (page?: string) => {
     if (!convexHttpUrl || !currentSite?.slug) return;
     const pageToLoad = page || currentPageRef.current || "index.html";
+
+    // Cancel any previous in-flight request to avoid out-of-order responses
+    htmlAbortRef.current?.abort();
+    const controller = new AbortController();
+    htmlAbortRef.current = controller;
+
     setHtmlLoading(true);
     try {
-      const res = await authFetch(`/api/dashboard/site-html?page=${encodeURIComponent(pageToLoad)}`);
+      const res = await authFetch(`/api/dashboard/site-html?page=${encodeURIComponent(pageToLoad)}`, {
+        signal: controller.signal,
+      });
       if (!res.ok) throw new Error(`Failed to load site HTML: ${res.status}`);
       const data = await res.json();
       const html = typeof data === "string" ? data : data.html || "";
@@ -202,6 +213,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         setCurrentPage(pageToLoad);
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Failed to load site HTML");
     } finally {
       setHtmlLoading(false);
@@ -372,7 +384,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const res = await authFetch("/api/dashboard/remove-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sectionKeyword }),
+          body: JSON.stringify({ sectionKeyword, page: currentPageRef.current || "index.html" }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
@@ -418,7 +430,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         const res = await authFetch("/api/dashboard/add-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sectionType, title, content }),
+          body: JSON.stringify({ sectionType, title, content, page: currentPageRef.current || "index.html" }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
@@ -561,7 +573,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
                 return;
               }
               pollCount++;
-              if (pollCount > 24) {
+              if (pollCount > 60) {
                 clearInterval(pollTimer);
                 clearInterval(stepTimer);
                 setupTimersRef.current.pollTimer = null;
@@ -623,6 +635,19 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       refreshInfo();
     }
   }, [isLoaded, isSignedIn, refreshInfo]);
+
+  // ── Clear stale state on sign-out ──
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      setCurrentSite(null);
+      setSiteHtml("");
+      setOnboardingStatus("idle");
+      setError(null);
+      setIsSignatureSite(false);
+      setAvailablePages([]);
+      setCurrentPage("index.html");
+    }
+  }, [isLoaded, isSignedIn]);
 
   // ── Cancel any in-flight setupSite polling on provider unmount ──
   useEffect(() => {

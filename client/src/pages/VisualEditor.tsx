@@ -202,7 +202,7 @@ export default function VisualEditor() {
       try {
         for (const file of Array.from(files)) {
           const result = await compressImage(file);
-          const url = await uploadSiteImage(result.file, "gallery");
+          const url = await uploadSiteImage(result.file, pendingGalleryUpload || "gallery");
           if (url) uploaded++;
         }
         if (uploaded > 0) {

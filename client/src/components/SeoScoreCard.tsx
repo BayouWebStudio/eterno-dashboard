@@ -32,9 +32,11 @@ export default function SeoScoreCard() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = await getToken();
       const res = await fetch(`${convexHttpUrl}/api/seo/check`, {
@@ -44,8 +46,14 @@ export default function SeoScoreCard() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
-      if (res.ok) setData(await res.json());
-    } catch { /* silent */ }
+      if (res.ok) {
+        setData(await res.json());
+      } else {
+        setError("Failed to run SEO check");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "SEO check unavailable");
+    }
     setLoading(false);
   }, [getToken, convexHttpUrl]);
 
@@ -72,7 +80,26 @@ export default function SeoScoreCard() {
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Search className="w-4 h-4 text-gold" />
+          <h3 className="text-sm font-heading font-bold text-foreground">SEO Health</h3>
+        </div>
+        <div className="flex flex-col items-center justify-center py-6 text-muted-foreground gap-2">
+          <p className="text-xs">{error || "SEO check unavailable"}</p>
+          <button
+            onClick={load}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs text-foreground border border-border rounded hover:bg-[oklch(0.16_0.005_250)] transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const scoreColor = data.score >= 80 ? "text-emerald-400" : data.score >= 50 ? "text-amber-400" : "text-red-400";
   const scoreBg = data.score >= 80 ? "bg-emerald-400/10 border-emerald-400/20" : data.score >= 50 ? "bg-amber-400/10 border-amber-400/20" : "bg-red-400/10 border-red-400/20";

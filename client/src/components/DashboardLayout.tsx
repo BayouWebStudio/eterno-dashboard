@@ -4,7 +4,7 @@
   Sidebar uses gold accent bar for active item.
 */
 import { useState, type ReactNode } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, Redirect } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import {
@@ -49,7 +49,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location, setLocation] = useLocation();
   const { userName, userImage, signOut } = useAuth();
-  const { currentSite, loading, availablePages } = useSite();
+  const { currentSite, loading, availablePages, onboardingStatus } = useSite();
+
+  // Redirect new users (no site built) to onboarding on the overview page
+  if (onboardingStatus === "none" && location !== "/") {
+    return <Redirect to="/" />;
+  }
 
   const hasBookingPage = availablePages.includes("booking.html");
   const hasTestimonialsPage = availablePages.includes("testimonials.html") || availablePages.includes("reviews.html");

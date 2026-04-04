@@ -22,16 +22,24 @@ export default function AnalyticsCard() {
   const { getToken, convexHttpUrl } = useAuth();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = await getToken();
       const res = await fetch(`${convexHttpUrl}/api/dashboard/analytics`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (res.ok) setData(await res.json());
-    } catch { /* silent */ }
+      if (res.ok) {
+        setData(await res.json());
+      } else {
+        setError("Failed to load analytics");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Analytics unavailable");
+    }
     setLoading(false);
   }, [getToken, convexHttpUrl]);
 
@@ -52,7 +60,26 @@ export default function AnalyticsCard() {
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="w-4 h-4 text-gold" />
+          <h3 className="text-sm font-heading font-bold text-foreground">Site Analytics</h3>
+        </div>
+        <div className="flex flex-col items-center justify-center py-6 text-muted-foreground gap-2">
+          <p className="text-xs">{error || "Analytics unavailable"}</p>
+          <button
+            onClick={load}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs text-foreground border border-border rounded hover:bg-[oklch(0.16_0.005_250)] transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const maxViews = Math.max(...(data.daily?.map((d) => d.views) ?? [1]), 1);
 
