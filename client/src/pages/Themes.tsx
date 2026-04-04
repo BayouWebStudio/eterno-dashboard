@@ -189,6 +189,13 @@ function FontSelect({
    ══════════════════════════════════════ */
 export default function Themes() {
   const { currentSite, siteHtml, applyTheme, refreshHtml, refreshInfo } = useSite();
+
+  // Build base URL for resolving relative paths in srcdoc iframe
+  const siteBaseUrl = currentSite?.domain
+    ? `https://${currentSite.domain}/`
+    : currentSite?.slug
+      ? `https://eternowebstudio.com/${currentSite.slug}/`
+      : "";
   const currentTheme = currentSite?.theme || "midnight";
 
   usePreloadFonts();
@@ -247,7 +254,11 @@ export default function Themes() {
     const dim = computeDim(debouncedColors.text);
     const border = computeBorder(debouncedColors.card);
 
-    const overrideStyle = `<style>
+    const baseTag = siteBaseUrl ? `<base href="${siteBaseUrl}">` : "";
+
+    const overrideBlock = `${baseTag}
+<link rel="stylesheet" href="${buildGoogleFontsUrl(debouncedHeading, debouncedBody)}">
+<style>
   :root {
     --black: ${debouncedColors.bg} !important;
     --charcoal: ${debouncedColors.card} !important;
@@ -262,14 +273,17 @@ export default function Themes() {
   body, p, a, span, li, td, input, textarea, select, button {
     font-family: '${debouncedBody}', sans-serif !important;
   }
-</style>
-<link rel="stylesheet" href="${buildGoogleFontsUrl(debouncedHeading, debouncedBody)}">`;
+</style>`;
 
-    // Inject before </head>
-    if (siteHtml.includes("</head>")) {
-      return siteHtml.replace("</head>", overrideStyle + "\n</head>");
+    // Inject after <head> (base tag must come first so relative URLs resolve)
+    if (siteHtml.includes("<head>")) {
+      return siteHtml.replace("<head>", "<head>\n" + overrideBlock);
     }
-    return overrideStyle + siteHtml;
+    // Fallback: inject before </head>
+    if (siteHtml.includes("</head>")) {
+      return siteHtml.replace("</head>", overrideBlock + "\n</head>");
+    }
+    return overrideBlock + siteHtml;
   }, [siteHtml, debouncedColors, debouncedHeading, debouncedBody]);
 
   // ── Apply handler ──
@@ -501,7 +515,7 @@ export default function Themes() {
                   srcDoc={previewHtml}
                   title="Site Preview"
                   className="w-full h-full border-0"
-                  sandbox="allow-same-origin"
+                  sandbox="allow-scripts allow-same-origin"
                   style={{ backgroundColor: colors.bg }}
                 />
               ) : (
