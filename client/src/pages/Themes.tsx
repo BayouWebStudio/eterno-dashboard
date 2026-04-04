@@ -69,17 +69,26 @@ const BODY_FONTS = [
 ];
 
 /* ── Helpers ── */
+/** Normalize any hex string to 6-digit lowercase (handles 3-digit shorthand). */
+function normalizeHex(hex: string): string {
+  let h = hex.replace("#", "").toLowerCase();
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (h.length !== 6 || !/^[0-9a-f]{6}$/.test(h)) return "000000"; // fallback
+  return h;
+}
 function computeDim(text: string): string {
-  // Slightly transparent version of text color
-  return text + "99";
+  return `#${normalizeHex(text)}99`; // 8-digit hex with 60% alpha
 }
 function computeBorder(card: string): string {
-  // Slightly lighter version of card
-  const hex = card.replace("#", "");
+  const hex = normalizeHex(card);
   const r = Math.min(255, parseInt(hex.slice(0, 2), 16) + 30);
   const g = Math.min(255, parseInt(hex.slice(2, 4), 16) + 30);
   const b = Math.min(255, parseInt(hex.slice(4, 6), 16) + 30);
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+/** Check if a hex string is a valid complete color. */
+function isValidHex(v: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(v);
 }
 
 function buildGoogleFontsUrl(heading: string, body: string): string {
@@ -124,13 +133,21 @@ function ColorPicker({
   value: string;
   onChange: (v: string) => void;
 }) {
+  // Separate text state so partial hex input doesn't break the preview
+  const [textValue, setTextValue] = useState(value);
+  // Sync text when parent value changes (e.g. preset selection)
+  useEffect(() => { setTextValue(value); }, [value]);
+
   return (
     <div className="flex items-center gap-3">
       <div className="relative">
         <input
           type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={isValidHex(value) ? value : "#000000"}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setTextValue(e.target.value);
+          }}
           className="w-9 h-9 rounded-lg border border-border cursor-pointer bg-transparent appearance-none [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border-0"
         />
       </div>
@@ -138,10 +155,18 @@ function ColorPicker({
         <div className="text-xs font-medium text-foreground">{label}</div>
         <input
           type="text"
-          value={value}
+          value={textValue}
           onChange={(e) => {
             const v = e.target.value;
-            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v);
+            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) {
+              setTextValue(v);
+              // Only propagate to color state when it's a valid complete hex
+              if (isValidHex(v)) onChange(v);
+            }
+          }}
+          onBlur={() => {
+            // On blur, snap back to the last valid color if incomplete
+            if (!isValidHex(textValue)) setTextValue(value);
           }}
           className="text-[11px] text-muted-foreground bg-transparent border-none outline-none w-20 font-mono"
           maxLength={7}
@@ -209,6 +234,15 @@ export default function Themes() {
   const [headingFont, setHeadingFont] = useState("Cormorant Garamond");
   const [bodyFont, setBodyFont] = useState("Inter");
 
+  // Sync colors when site/theme changes (e.g. user switches sites)
+  useEffect(() => {
+    const preset = PRESETS.find((p) => p.id === currentTheme);
+    if (preset) {
+      setColors({ ...preset.colors });
+      setActivePreset(preset.id);
+    }
+  }, [currentTheme]);
+
   // ── UI state ──
   const [applying, setApplying] = useState(false);
   const [showPresets, setShowPresets] = useState(true);
@@ -275,16 +309,19 @@ export default function Themes() {
   }
 </style>`;
 
-    // Inject after <head> (base tag must come first so relative URLs resolve)
-    if (siteHtml.includes("<head>")) {
-      return siteHtml.replace("<head>", "<head>\n" + overrideBlock);
+    // Remove any existing <base> tag to avoid conflicts
+    let html = siteHtml.replace(/<base[^>]*>/gi, "");
+
+    // Inject after <head> (case-insensitive; base tag must come first so relative URLs resolve)
+    if (/<head>/i.test(html)) {
+      return html.replace(/<head>/i, "$&\n" + overrideBlock);
     }
     // Fallback: inject before </head>
-    if (siteHtml.includes("</head>")) {
-      return siteHtml.replace("</head>", overrideBlock + "\n</head>");
+    if (/<\/head>/i.test(html)) {
+      return html.replace(/<\/head>/i, overrideBlock + "\n$&");
     }
-    return overrideBlock + siteHtml;
-  }, [siteHtml, debouncedColors, debouncedHeading, debouncedBody]);
+    return overrideBlock + html;
+  }, [siteHtml, siteBaseUrl, debouncedColors, debouncedHeading, debouncedBody]);
 
   // ── Apply handler ──
   const handleApply = async () => {

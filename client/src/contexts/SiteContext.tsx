@@ -646,11 +646,28 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     ): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       try {
-        // 1. Save colors to all pages via save-theme
+        // Helper: normalize hex to 6-digit
+        const normHex = (h: string) => {
+          let hex = h.replace("#", "").toLowerCase();
+          if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+          if (hex.length !== 6 || !/^[0-9a-f]{6}$/.test(hex)) return "000000";
+          return hex;
+        };
+
+        // Compute derived colors (dim = 60% alpha text, border = card + 30 brightness)
+        const dimHex = normHex(colors.text);
+        const dim = `#${dimHex}99`;
+        const bHex = normHex(colors.card);
+        const br = Math.min(255, parseInt(bHex.slice(0, 2), 16) + 30);
+        const bg2 = Math.min(255, parseInt(bHex.slice(2, 4), 16) + 30);
+        const bb = Math.min(255, parseInt(bHex.slice(4, 6), 16) + 30);
+        const border = `#${br.toString(16).padStart(2, "0")}${bg2.toString(16).padStart(2, "0")}${bb.toString(16).padStart(2, "0")}`;
+
+        // 1. Save colors to all pages via save-theme (include dim + border for consistency)
         const colorRes = await authFetch("/api/dashboard/save-theme", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ themeId, colors }),
+          body: JSON.stringify({ themeId, colors: { ...colors, dim, border } }),
         });
         if (!colorRes.ok) {
           const data = await colorRes.json().catch(() => null);
@@ -659,19 +676,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
         // 2. If fonts provided, apply fonts + CSS vars to index.html via apply-theme
         if (fonts) {
-          // Compute dim and border derived colors
-          const dim = colors.text + "99";
-          const hexCard = colors.card.replace("#", "");
-          const r = Math.min(255, parseInt(hexCard.slice(0, 2), 16) + 30);
-          const g = Math.min(255, parseInt(hexCard.slice(2, 4), 16) + 30);
-          const b = Math.min(255, parseInt(hexCard.slice(4, 6), 16) + 30);
-          const border = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-
+          // Build just the font family query params (NOT full URL — backend prepends the prefix)
           const families = new Set([fonts.heading, fonts.body]);
-          const params = Array.from(families)
-            .map((f) => `family=${f.replace(/ /g, "+")}:wght@300;400;500;600;700;800;900`)
-            .join("&");
-          const googleFontsUrl = `https://fonts.googleapis.com/css2?${params}`;
+          const fontFamilyParams = Array.from(families)
+            .map((f) => `${f.replace(/ /g, "+")}:wght@300;400;500;600;700;800;900`)
+            .join("&family=");
 
           const fontRes = await authFetch("/api/dashboard/apply-theme", {
             method: "POST",
@@ -686,14 +695,15 @@ export function SiteProvider({ children }: { children: ReactNode }) {
                 "--border": border,
               },
               themeKey: themeId,
-              googleFonts: googleFontsUrl,
+              googleFonts: `https://fonts.googleapis.com/css2?family=${fontFamilyParams}&display=swap`,
               fonts: { heading: `'${fonts.heading}', serif`, body: `'${fonts.body}', sans-serif` },
             }),
           });
           if (!fontRes.ok) {
             const data = await fontRes.json().catch(() => null);
             console.warn("[Site] apply-theme (fonts) failed:", data?.error);
-            // Don't fail the whole operation — colors were already saved
+            // Colors saved to all pages; fonts failed on index only — warn user
+            return true; // partial success
           }
         }
 
