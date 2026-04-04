@@ -87,7 +87,7 @@ interface SiteContextValue {
   setupSite: (igHandle: string, country: string) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
   restoreFileFromHistory: (file: string, targetSha?: string) => Promise<{ ok: boolean; error?: string }>;
-  applyTheme: (themeId: string, colors: { bg: string; accent: string; text: string; card: string }) => Promise<boolean>;
+  applyTheme: (themeId: string, colors: { bg: string; accent: string; text: string; card: string }, fonts?: { heading: string; body: string }) => Promise<boolean>;
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -637,20 +637,66 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // ── Apply a theme (replaces CSS variables across all pages) ──
+  // ── Apply a theme (colors → all pages via save-theme, fonts → index.html via apply-theme) ──
   const applyTheme = useCallback(
-    async (themeId: string, colors: { bg: string; accent: string; text: string; card: string }): Promise<boolean> => {
+    async (
+      themeId: string,
+      colors: { bg: string; accent: string; text: string; card: string },
+      fonts?: { heading: string; body: string }
+    ): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       try {
-        const res = await authFetch("/api/dashboard/save-theme", {
+        // 1. Save colors to all pages via save-theme
+        const colorRes = await authFetch("/api/dashboard/save-theme", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ themeId, colors }),
         });
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          throw new Error(data?.error || `Theme save failed: ${res.status}`);
+        if (!colorRes.ok) {
+          const data = await colorRes.json().catch(() => null);
+          throw new Error(data?.error || `Theme save failed: ${colorRes.status}`);
         }
+
+        // 2. If fonts provided, apply fonts + CSS vars to index.html via apply-theme
+        if (fonts) {
+          // Compute dim and border derived colors
+          const dim = colors.text + "99";
+          const hexCard = colors.card.replace("#", "");
+          const r = Math.min(255, parseInt(hexCard.slice(0, 2), 16) + 30);
+          const g = Math.min(255, parseInt(hexCard.slice(2, 4), 16) + 30);
+          const b = Math.min(255, parseInt(hexCard.slice(4, 6), 16) + 30);
+          const border = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+
+          const families = new Set([fonts.heading, fonts.body]);
+          const params = Array.from(families)
+            .map((f) => `family=${f.replace(/ /g, "+")}:wght@300;400;500;600;700;800;900`)
+            .join("&");
+          const googleFontsUrl = `https://fonts.googleapis.com/css2?${params}`;
+
+          const fontRes = await authFetch("/api/dashboard/apply-theme", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              themeVars: {
+                "--black": colors.bg,
+                "--charcoal": colors.card,
+                "--gold": colors.accent,
+                "--white": colors.text,
+                "--dim": dim,
+                "--border": border,
+              },
+              themeKey: themeId,
+              googleFonts: googleFontsUrl,
+              fonts: { heading: `'${fonts.heading}', serif`, body: `'${fonts.body}', sans-serif` },
+            }),
+          });
+          if (!fontRes.ok) {
+            const data = await fontRes.json().catch(() => null);
+            console.warn("[Site] apply-theme (fonts) failed:", data?.error);
+            // Don't fail the whole operation — colors were already saved
+          }
+        }
+
         return true;
       } catch (err) {
         console.error("[Site] Apply theme failed:", err);
