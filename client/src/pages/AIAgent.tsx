@@ -1,25 +1,24 @@
 /*
-  DESIGN: Dark Forge — AI Agent Management
-  Clients configure their AI phone/WhatsApp agent, view call history and leads.
+  DESIGN: Dark Forge — AI Agent Page
+  Configure AI agent settings and view leads/call history.
+  Two tabs: Configuration and Leads & Calls.
 */
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import {
   Bot,
   Phone,
-  MessageCircle,
-  MessagesSquare,
-  CalendarDays,
-  RefreshCw,
+  MessageSquare,
+  Globe,
   Save,
+  Loader2,
   ChevronDown,
-  ChevronRight,
-  PhoneCall,
-  PhoneIncoming,
+  ChevronUp,
 } from "lucide-react";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
-/* ── Types ── */
+// ── Types ──
 
 interface AgentConfig {
   configured: boolean;
@@ -50,546 +49,517 @@ interface AgentLead {
   createdAt: number;
 }
 
-/* ── Tab Button ── */
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 text-xs font-semibold tracking-wide uppercase transition-colors rounded-md ${
-        active
-          ? "bg-gold/15 text-gold border border-gold/25"
-          : "text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
+type Tab = "config" | "leads";
+type ChannelFilter = "all" | "voice" | "whatsapp" | "chat";
 
-/* ── Phone Number Status ── */
-function PhoneStatus({ config }: { config: AgentConfig | null }) {
-  if (!config?.twilioPhoneNumber) {
-    return (
-      <div className="bg-[oklch(0.16_0.005_250)] border border-border rounded-lg p-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-muted/30 flex items-center justify-center">
-            <Phone className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">No phone number assigned</p>
-            <p className="text-xs text-muted-foreground/60">Contact support to get a dedicated AI phone number.</p>
-          </div>
-        </div>
-        <a
-          href="mailto:bayouwebstudio@gmail.com?subject=AI Agent Phone Number Request"
-          className="text-xs font-medium text-gold hover:text-gold/80 transition-colors"
-        >
-          Request a Number
-        </a>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-[oklch(0.16_0.005_250)] border border-gold/20 rounded-lg p-5 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-          <PhoneCall className="w-4 h-4 text-green-400" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">{config.twilioPhoneNumber}</p>
-          <div className="flex items-center gap-2 mt-1">
-            {config.voiceEnabled && (
-              <span className="text-[10px] font-medium text-green-400 bg-green-400/10 border border-green-400/20 px-1.5 py-0.5 rounded-full">
-                VOICE
-              </span>
-            )}
-            {config.whatsappEnabled && (
-              <span className="text-[10px] font-medium text-green-400 bg-green-400/10 border border-green-400/20 px-1.5 py-0.5 rounded-full">
-                WHATSAPP
-              </span>
-            )}
-            {config.chatEnabled && (
-              <span className="text-[10px] font-medium text-blue-400 bg-blue-400/10 border border-blue-400/20 px-1.5 py-0.5 rounded-full">
-                CHAT
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <span className="flex items-center gap-1.5 text-xs text-green-400">
-        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-        Active
-      </span>
-    </div>
-  );
-}
-
-/* ── Business Info Form ── */
-function ConfigForm({
-  config,
-  onSave,
-  saving,
-}: {
-  config: AgentConfig | null;
-  onSave: (data: Record<string, unknown>) => void;
-  saving: boolean;
-}) {
-  const [businessName, setBusinessName] = useState("");
-  const [businessType, setBusinessType] = useState("");
-  const [location, setLocation] = useState("");
-  const [phone, setPhone] = useState("");
-  const [hours, setHours] = useState("");
-  const [services, setServices] = useState("");
-  const [pricing, setPricing] = useState("");
-  const [customFaq, setCustomFaq] = useState("");
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
-  const [chatEnabled, setChatEnabled] = useState(false);
-  const [showPrompt, setShowPrompt] = useState(false);
-
-  useEffect(() => {
-    if (config?.configured) {
-      setBusinessName(config.businessName || "");
-      setBusinessType(config.businessType || "");
-      setLocation(config.location || "");
-      setPhone(config.phone || "");
-      setHours(config.hours || "");
-      setServices(config.services || "");
-      setPricing(config.pricing || "");
-      setCustomFaq(config.customFaq || "");
-      setVoiceEnabled(config.voiceEnabled ?? true);
-      setWhatsappEnabled(config.whatsappEnabled ?? false);
-      setChatEnabled(config.chatEnabled ?? false);
-    }
-  }, [config]);
-
-  const handleSubmit = () => {
-    if (!businessName.trim()) {
-      toast.error("Business name is required");
-      return;
-    }
-    onSave({
-      businessName: businessName.trim(),
-      businessType: businessType.trim(),
-      location: location.trim(),
-      phone: phone.trim(),
-      hours: hours.trim(),
-      services: services.trim(),
-      pricing: pricing.trim(),
-      customFaq: customFaq.trim() || undefined,
-      voiceEnabled,
-      whatsappEnabled,
-      chatEnabled,
-    });
-  };
-
-  const labelClass = "block text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5";
-  const inputClass =
-    "w-full bg-[oklch(0.13_0.005_250)] border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-gold focus:ring-1 focus:ring-gold/30 outline-none transition-colors";
-  const textareaClass = `${inputClass} resize-vertical min-h-[80px]`;
-
-  return (
-    <div className="bg-[oklch(0.16_0.005_250)] border border-border rounded-lg p-5 space-y-5">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Business Information</h3>
-        <button
-          onClick={handleSubmit}
-          disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-gold text-[oklch(0.13_0.005_250)] text-xs font-semibold hover:bg-gold/90 transition-colors disabled:opacity-50"
-        >
-          <Save className="w-3.5 h-3.5" />
-          {saving ? "Saving..." : "Save"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>Business Name *</label>
-          <input className={inputClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Tattoo Temple Houston" />
-        </div>
-        <div>
-          <label className={labelClass}>Business Type</label>
-          <input className={inputClass} value={businessType} onChange={(e) => setBusinessType(e.target.value)} placeholder="Tattoo Shop, Barbershop..." />
-        </div>
-        <div>
-          <label className={labelClass}>Location</label>
-          <input className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Houston, TX" />
-        </div>
-        <div>
-          <label className={labelClass}>Transfer Phone</label>
-          <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Number to transfer calls to" />
-        </div>
-      </div>
-
-      <div>
-        <label className={labelClass}>Operating Hours</label>
-        <textarea className={textareaClass} value={hours} onChange={(e) => setHours(e.target.value)} placeholder={"Mon-Fri: 10am - 7pm\nSat: 11am - 5pm\nSun: Closed"} />
-      </div>
-
-      <div>
-        <label className={labelClass}>Services</label>
-        <textarea className={textareaClass} value={services} onChange={(e) => setServices(e.target.value)} placeholder="Custom tattoos, cover-ups, piercings, consultations..." />
-      </div>
-
-      <div>
-        <label className={labelClass}>Pricing</label>
-        <textarea className={textareaClass} value={pricing} onChange={(e) => setPricing(e.target.value)} placeholder={"Minimum: $100\nHourly rate: $150/hr\nConsultations: Free"} />
-      </div>
-
-      <div>
-        <label className={labelClass}>Custom FAQ (Optional)</label>
-        <textarea
-          className={`${textareaClass} min-h-[100px]`}
-          value={customFaq}
-          onChange={(e) => setCustomFaq(e.target.value)}
-          placeholder={"Q: Do you do walk-ins?\nA: We accept walk-ins on weekdays, but appointments are recommended.\n\nQ: What's the minimum age?\nA: 18 with valid ID."}
-        />
-      </div>
-
-      {/* Channel toggles */}
-      <div className="space-y-3 pt-2">
-        <h4 className={labelClass}>Channels</h4>
-        <ToggleRow label="Voice Calls" description="AI answers phone calls" enabled={voiceEnabled} onChange={setVoiceEnabled} />
-        <ToggleRow label="WhatsApp" description="AI responds to WhatsApp messages" enabled={whatsappEnabled} onChange={setWhatsappEnabled} />
-        <ToggleRow label="Web Chat" description="AI chat widget on your site" enabled={chatEnabled} onChange={setChatEnabled} />
-      </div>
-
-      {/* System prompt preview */}
-      {config?.systemPrompt && (
-        <div className="pt-2 border-t border-border">
-          <button
-            onClick={() => setShowPrompt(!showPrompt)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showPrompt ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            System Prompt Preview
-          </button>
-          {showPrompt && (
-            <pre className="mt-3 p-3 bg-[oklch(0.11_0.005_250)] border border-border rounded-md text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto">
-              {config.systemPrompt}
-            </pre>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Toggle Row ── */
-function ToggleRow({
-  label,
-  description,
-  enabled,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  enabled: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between py-2 px-3 bg-[oklch(0.13_0.005_250)] border border-border rounded-md">
-      <div>
-        <p className="text-sm text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground/60">{description}</p>
-      </div>
-      <button
-        onClick={() => onChange(!enabled)}
-        className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? "bg-gold" : "bg-border"}`}
-      >
-        <span
-          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`}
-        />
-      </button>
-    </div>
-  );
-}
-
-/* ── Analytics Cards ── */
-function AnalyticsCards({ leads }: { leads: AgentLead[] }) {
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  const stats = useMemo(() => {
-    const voice = leads.filter((l) => l.channel === "voice").length;
-    const whatsapp = leads.filter((l) => l.channel === "whatsapp").length;
-    const chat = leads.filter((l) => l.channel === "chat").length;
-    const thisMonth = leads.filter((l) => {
-      const d = new Date(l.createdAt);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    }).length;
-    return { voice, whatsapp, chat, thisMonth };
-  }, [leads, currentMonth, currentYear]);
-
-  const cards = [
-    { label: "Voice Calls", value: stats.voice, icon: Phone, color: "text-gold" },
-    { label: "WhatsApp", value: stats.whatsapp, icon: MessageCircle, color: "text-green-400" },
-    { label: "Web Chat", value: stats.chat, icon: MessagesSquare, color: "text-blue-400" },
-    { label: "This Month", value: stats.thisMonth, icon: CalendarDays, color: "text-amber-400" },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {cards.map((c) => (
-        <div key={c.label} className="bg-[oklch(0.16_0.005_250)] border border-border rounded-lg p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <c.icon className={`w-4 h-4 ${c.color}`} />
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{c.label}</span>
-          </div>
-          <span className="text-2xl font-bold text-foreground">{c.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Lead Row ── */
-function LeadRow({ lead, expanded, onToggle }: { lead: AgentLead; expanded: boolean; onToggle: () => void }) {
-  const date = new Date(lead.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const time = new Date(lead.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-
-  const channelBadge = (() => {
-    switch (lead.channel) {
-      case "voice":
-        return <span className="text-[10px] font-medium text-gold bg-gold/10 border border-gold/20 px-1.5 py-0.5 rounded-full">VOICE</span>;
-      case "whatsapp":
-        return <span className="text-[10px] font-medium text-green-400 bg-green-400/10 border border-green-400/20 px-1.5 py-0.5 rounded-full">WHATSAPP</span>;
-      case "chat":
-        return <span className="text-[10px] font-medium text-blue-400 bg-blue-400/10 border border-blue-400/20 px-1.5 py-0.5 rounded-full">CHAT</span>;
-      default:
-        return <span className="text-[10px] font-medium text-muted-foreground bg-muted/30 border border-border px-1.5 py-0.5 rounded-full">{lead.channel.toUpperCase()}</span>;
-    }
-  })();
-
-  return (
-    <div className={`bg-[oklch(0.16_0.005_250)] border rounded-lg overflow-hidden ${expanded ? "border-gold/20" : "border-border"}`}>
-      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center gap-4 text-left hover:bg-[oklch(0.18_0.005_250)] transition-colors">
-        <span className="text-xs text-muted-foreground flex-shrink-0 w-16">
-          {date}<br /><span className="text-muted-foreground/60">{time}</span>
-        </span>
-        <span className="flex-shrink-0">{channelBadge}</span>
-        <span className="text-sm text-foreground flex-shrink-0 w-28 truncate">{lead.callerName || "Unknown"}</span>
-        {lead.callerPhone && (
-          <span className="text-xs text-muted-foreground flex-shrink-0 w-28 truncate">{lead.callerPhone}</span>
-        )}
-        <span className="text-xs text-muted-foreground truncate flex-1">{lead.summary}</span>
-        {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-      </button>
-      {expanded && lead.transcript && (
-        <div className="px-4 pb-4 border-t border-border">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mt-3 mb-2">Transcript</p>
-          <pre className="p-3 bg-[oklch(0.11_0.005_250)] border border-border rounded-md text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto">
-            {lead.transcript}
-          </pre>
-        </div>
-      )}
-      {expanded && !lead.transcript && (
-        <div className="px-4 pb-4 border-t border-border">
-          <p className="text-xs text-muted-foreground/60 mt-3">No transcript available for this interaction.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Main Page ── */
 export default function AIAgent() {
   const { getToken, convexHttpUrl } = useAuth();
-  const [config, setConfig] = useState<AgentConfig | null>(null);
-  const [leads, setLeads] = useState<AgentLead[]>([]);
+
+  const [tab, setTab] = useState<Tab>("config");
   const [configLoading, setConfigLoading] = useState(true);
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"config" | "leads">("config");
-  const [channelFilter, setChannelFilter] = useState("all");
-  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
+  const [config, setConfig] = useState<AgentConfig | null>(null);
+  const [leads, setLeads] = useState<AgentLead[]>([]);
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
+  const [expandedLead, setExpandedLead] = useState<string | null>(null);
+  const [promptOpen, setPromptOpen] = useState(false);
 
+  // Form state
+  const [form, setForm] = useState({
+    businessName: "",
+    businessType: "",
+    hours: "",
+    services: "",
+    pricing: "",
+    location: "",
+    phone: "",
+    voiceEnabled: true,
+    whatsappEnabled: false,
+    chatEnabled: false,
+    customFaq: "",
+  });
+
+  // ── Auth fetch helper ──
   const authFetch = useCallback(
-    async (path: string, options?: RequestInit) => {
+    async (path: string, options?: RequestInit): Promise<Response> => {
       const token = await getToken();
       const headers: Record<string, string> = {
-        ...(options?.headers as Record<string, string>),
+        ...(options?.headers as Record<string, string> || {}),
       };
       if (token) headers["Authorization"] = `Bearer ${token}`;
       return fetch(`${convexHttpUrl}${path}`, { ...options, headers });
     },
-    [getToken, convexHttpUrl]
+    [convexHttpUrl, getToken]
   );
 
-  const loadConfig = useCallback(async () => {
+  // ── Fetch config ──
+  const fetchConfig = useCallback(async () => {
     setConfigLoading(true);
     try {
       const res = await authFetch("/api/agent/config");
       if (res.ok) {
         const data = await res.json();
-        setConfig(data);
-      } else {
-        setConfig(null);
+        if (data.configured) {
+          setConfig(data);
+          setForm({
+            businessName: data.businessName || "",
+            businessType: data.businessType || "",
+            hours: data.hours || "",
+            services: data.services || "",
+            pricing: data.pricing || "",
+            location: data.location || "",
+            phone: data.phone || "",
+            voiceEnabled: data.voiceEnabled ?? true,
+            whatsappEnabled: data.whatsappEnabled ?? false,
+            chatEnabled: data.chatEnabled ?? false,
+            customFaq: data.customFaq || "",
+          });
+        } else {
+          setConfig(null);
+        }
       }
     } catch {
-      setConfig(null);
+      toast.error("Failed to load agent config");
     } finally {
       setConfigLoading(false);
     }
   }, [authFetch]);
 
-  const loadLeads = useCallback(
-    async (channel?: string) => {
-      setLeadsLoading(true);
-      try {
-        const params = new URLSearchParams({ limit: "100" });
-        if (channel && channel !== "all") params.set("channel", channel);
-        const res = await authFetch(`/api/agent/leads?${params}`);
-        if (res.ok) {
-          const data = await res.json();
-          setLeads(data.leads || []);
-        }
-      } catch {
-        toast.error("Failed to load leads");
-      } finally {
-        setLeadsLoading(false);
+  // ── Fetch leads ──
+  const fetchLeads = useCallback(async (channel?: ChannelFilter) => {
+    setLeadsLoading(true);
+    try {
+      const q = channel && channel !== "all" ? `?channel=${channel}` : "";
+      const res = await authFetch(`/api/agent/leads${q}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLeads(data.leads || []);
       }
-    },
-    [authFetch]
-  );
+    } catch {
+      toast.error("Failed to load leads");
+    } finally {
+      setLeadsLoading(false);
+    }
+  }, [authFetch]);
 
+  // ── Initial load ──
   useEffect(() => {
-    loadConfig();
-    loadLeads();
-  }, [loadConfig, loadLeads]);
+    fetchConfig();
+    fetchLeads();
+  }, [fetchConfig, fetchLeads]);
 
-  const handleFilterChange = (ch: string) => {
-    setChannelFilter(ch);
-    loadLeads(ch);
-  };
+  // ── Filter change ──
+  useEffect(() => {
+    fetchLeads(channelFilter);
+  }, [channelFilter, fetchLeads]);
 
-  const handleSaveConfig = async (data: Record<string, unknown>) => {
+  // ── Save config ──
+  const handleSave = async () => {
     setSaving(true);
     try {
       const res = await authFetch("/api/agent/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(form),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Save failed" }));
-        throw new Error(err.error || "Save failed");
+      if (res.ok) {
+        toast.success("Agent config saved");
+        fetchConfig();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || "Failed to save config");
       }
-      toast.success("Agent configuration saved");
-      await loadConfig();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to save configuration");
+    } catch {
+      toast.error("Failed to save config");
     } finally {
       setSaving(false);
     }
   };
 
-  const loading = configLoading || leadsLoading;
+  // ── Analytics (derived from leads) ──
+  const analytics = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    return {
+      totalVoice: leads.filter((l) => l.channel === "voice").length,
+      totalWhatsapp: leads.filter((l) => l.channel === "whatsapp").length,
+      totalChat: leads.filter((l) => l.channel === "chat").length,
+      thisMonth: leads.filter((l) => l.createdAt >= monthStart).length,
+    };
+  }, [leads]);
+
+  // ── Form field helper ──
+  const updateField = (key: string, value: string | boolean) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // ── Loading state ──
+  if (configLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center">
-            <Bot className="w-4.5 h-4.5 text-gold" />
-          </div>
-          <div>
-            <h2 className="text-base font-heading font-bold text-foreground">AI Agent</h2>
-            <p className="text-xs text-muted-foreground">
-              {config?.configured ? "Manage your AI phone assistant" : "Set up your AI phone assistant"}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => { loadConfig(); loadLeads(channelFilter); }}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-[oklch(0.16_0.005_250)] transition-colors"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
+      <div>
+        <h2 className="font-heading text-lg font-bold text-foreground">AI Agent</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Configure your AI phone agent and view call history
+        </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2">
-        <TabBtn active={activeTab === "config"} onClick={() => setActiveTab("config")}>
+      <div className="flex gap-1 bg-[oklch(0.15_0.005_250)] rounded-lg p-1 w-fit">
+        <button
+          onClick={() => setTab("config")}
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            tab === "config"
+              ? "bg-[oklch(0.22_0.005_250)] text-gold"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
           Configuration
-        </TabBtn>
-        <TabBtn active={activeTab === "leads"} onClick={() => setActiveTab("leads")}>
+        </button>
+        <button
+          onClick={() => setTab("leads")}
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            tab === "leads"
+              ? "bg-[oklch(0.22_0.005_250)] text-gold"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
           Leads & Calls
-          {leads.length > 0 && (
-            <span className="ml-1.5 text-[10px] bg-gold/10 text-gold border border-gold/20 px-1.5 py-0.5 rounded-full">
-              {leads.length}
-            </span>
-          )}
-        </TabBtn>
+        </button>
       </div>
 
-      {configLoading ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-          Loading agent configuration...
-        </div>
-      ) : activeTab === "config" ? (
-        <div className="space-y-4">
-          <PhoneStatus config={config} />
-          <ConfigForm config={config} onSave={handleSaveConfig} saving={saving} />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Analytics */}
-          <AnalyticsCards leads={leads} />
-
-          {/* Channel filter */}
-          <div className="flex items-center gap-2">
-            {["all", "voice", "whatsapp", "chat"].map((ch) => (
-              <button
-                key={ch}
-                onClick={() => handleFilterChange(ch)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  channelFilter === ch
-                    ? "bg-gold/15 text-gold border border-gold/25"
-                    : "text-muted-foreground hover:text-foreground border border-border hover:border-border"
-                }`}
-              >
-                {ch === "all" ? "All" : ch.charAt(0).toUpperCase() + ch.slice(1)}
-              </button>
-            ))}
+      {/* ── Tab: Configuration ── */}
+      {tab === "config" && (
+        <div className="space-y-6">
+          {/* Phone Number Status */}
+          <div className="bg-card border border-border rounded-lg p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[oklch(0.19_0.005_250)] flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-gold" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Phone Number</p>
+                  {config?.twilioPhoneNumber ? (
+                    <p className="text-sm text-gold font-mono">{config.twilioPhoneNumber}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No phone number assigned</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {config?.twilioPhoneNumber ? (
+                  <>
+                    {config.voiceEnabled && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <Phone className="w-3 h-3" /> Voice
+                      </span>
+                    )}
+                    {config.whatsappEnabled && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <MessageSquare className="w-3 h-3" /> WhatsApp
+                      </span>
+                    )}
+                    {config.chatEnabled && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <Globe className="w-3 h-3" /> Chat
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <a
+                    href="mailto:support@eternowebstudio.com?subject=Request%20AI%20Agent%20Phone%20Number"
+                    className="text-xs text-gold hover:text-gold/80 transition-colors underline"
+                  >
+                    Request a Number
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Leads list */}
-          {leadsLoading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-              Loading leads...
+          {/* Business Info Form */}
+          <div className="bg-card border border-border rounded-lg p-5 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-foreground">Business Information</h3>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold"
+                size="sm"
+              >
+                {saving ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Save
+              </Button>
             </div>
-          ) : leads.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-              <div className="w-12 h-12 rounded-full bg-[oklch(0.18_0.005_250)] flex items-center justify-center">
-                <PhoneIncoming className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium text-muted-foreground">No interactions yet</p>
-              <p className="text-xs text-muted-foreground/60">
-                When your AI agent handles a call or message, it will appear here.
-              </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Business Name" value={form.businessName} onChange={(v) => updateField("businessName", v)} />
+              <Field label="Business Type" value={form.businessType} onChange={(v) => updateField("businessType", v)} placeholder="e.g. Tattoo Studio, Barbershop" />
+              <Field label="Location" value={form.location} onChange={(v) => updateField("location", v)} placeholder="City, State" />
+              <Field label="Transfer Phone" value={form.phone} onChange={(v) => updateField("phone", v)} placeholder="Number to transfer calls to" />
             </div>
-          ) : (
-            <div className="space-y-2">
-              {leads.map((lead) => (
-                <LeadRow
-                  key={lead._id}
-                  lead={lead}
-                  expanded={expandedLeadId === lead._id}
-                  onToggle={() => setExpandedLeadId(expandedLeadId === lead._id ? null : lead._id)}
-                />
-              ))}
+
+            <TextareaField label="Business Hours" value={form.hours} onChange={(v) => updateField("hours", v)} placeholder="e.g. Mon-Fri 10am-7pm, Sat 11am-5pm" rows={2} />
+            <TextareaField label="Services" value={form.services} onChange={(v) => updateField("services", v)} placeholder="List your services, one per line" rows={3} />
+            <TextareaField label="Pricing" value={form.pricing} onChange={(v) => updateField("pricing", v)} placeholder="Pricing info the agent can share" rows={3} />
+            <TextareaField label="Custom FAQ" value={form.customFaq} onChange={(v) => updateField("customFaq", v)} placeholder="Common questions and answers" rows={4} />
+
+            {/* Channel toggles */}
+            <div className="space-y-3 pt-2 border-t border-border">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Channels</p>
+              <Toggle label="Voice Calls" checked={form.voiceEnabled} onChange={(v) => updateField("voiceEnabled", v)} />
+              <Toggle label="WhatsApp" checked={form.whatsappEnabled} onChange={(v) => updateField("whatsappEnabled", v)} />
+              <Toggle label="Website Chat" checked={form.chatEnabled} onChange={(v) => updateField("chatEnabled", v)} />
+            </div>
+          </div>
+
+          {/* System Prompt Preview */}
+          {config?.systemPrompt && (
+            <div className="bg-card border border-border rounded-lg">
+              <button
+                onClick={() => setPromptOpen(!promptOpen)}
+                className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                System Prompt Preview
+                {promptOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {promptOpen && (
+                <div className="px-5 pb-4">
+                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-[oklch(0.12_0.005_250)] rounded-md p-4 max-h-80 overflow-y-auto">
+                    {config.systemPrompt}
+                  </pre>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
+
+      {/* ── Tab: Leads & Calls ── */}
+      {tab === "leads" && (
+        <div className="space-y-6">
+          {/* Analytics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Voice Calls" value={analytics.totalVoice} icon={Phone} />
+            <StatCard label="WhatsApp" value={analytics.totalWhatsapp} icon={MessageSquare} />
+            <StatCard label="Chat" value={analytics.totalChat} icon={Globe} />
+            <StatCard label="This Month" value={analytics.thisMonth} icon={Bot} />
+          </div>
+
+          {/* Channel Filter */}
+          <div className="flex gap-1 bg-[oklch(0.15_0.005_250)] rounded-lg p-1 w-fit">
+            {(["all", "voice", "whatsapp", "chat"] as ChannelFilter[]).map((ch) => (
+              <button
+                key={ch}
+                onClick={() => setChannelFilter(ch)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
+                  channelFilter === ch
+                    ? "bg-[oklch(0.22_0.005_250)] text-gold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {ch}
+              </button>
+            ))}
+          </div>
+
+          {/* Leads Table */}
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
+            {leadsLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : leads.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 gap-3">
+                <Bot className="w-8 h-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">No leads yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Leads will appear here when your AI agent receives calls
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {/* Table header */}
+                <div className="grid grid-cols-[100px_80px_1fr_120px_1fr] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium bg-[oklch(0.14_0.005_250)]">
+                  <span>Date</span>
+                  <span>Channel</span>
+                  <span>Name</span>
+                  <span>Phone</span>
+                  <span>Summary</span>
+                </div>
+
+                {leads.map((lead) => (
+                  <div key={lead._id}>
+                    <button
+                      onClick={() => setExpandedLead(expandedLead === lead._id ? null : lead._id)}
+                      className="w-full grid grid-cols-[100px_80px_1fr_120px_1fr] gap-3 px-4 py-3 text-sm text-left hover:bg-[oklch(0.16_0.005_250)] transition-colors"
+                    >
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(lead.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                      <span>
+                        <ChannelBadge channel={lead.channel} />
+                      </span>
+                      <span className="text-foreground truncate">{lead.callerName || "Unknown"}</span>
+                      <span className="text-xs text-muted-foreground font-mono truncate">{lead.callerPhone || "—"}</span>
+                      <span className="text-xs text-muted-foreground truncate">{lead.summary}</span>
+                    </button>
+                    {expandedLead === lead._id && lead.transcript && (
+                      <div className="px-4 pb-4">
+                        <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-[oklch(0.12_0.005_250)] rounded-md p-4 max-h-60 overflow-y-auto">
+                          {lead.transcript}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// ── Sub-components ──
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+        {label}
+      </label>
+      <input
+        type="text"
+        className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function TextareaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 3,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+        {label}
+      </label>
+      <textarea
+        className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+      />
+    </div>
+  );
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between cursor-pointer">
+      <span className="text-sm text-foreground">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+          checked ? "bg-gold" : "bg-[oklch(0.25_0.005_250)]"
+        }`}
+      >
+        <span
+          className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-4.5" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+    </label>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+}) {
+  return (
+    <div className="bg-card border border-border rounded-lg p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className="w-4 h-4 text-muted-foreground" />
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          {label}
+        </span>
+      </div>
+      <p className="text-2xl font-bold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function ChannelBadge({ channel }: { channel: string }) {
+  const styles: Record<string, string> = {
+    voice: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    whatsapp: "bg-green-500/10 text-green-400 border-green-500/20",
+    chat: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  };
+  return (
+    <span
+      className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${
+        styles[channel] || "bg-gray-500/10 text-gray-400 border-gray-500/20"
+      }`}
+    >
+      {channel}
+    </span>
   );
 }
