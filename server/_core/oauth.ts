@@ -44,6 +44,7 @@ export function registerOAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
+      // Only allow redirect to same-origin paths
       res.redirect(302, "/");
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
