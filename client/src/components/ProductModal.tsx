@@ -2,7 +2,7 @@
   DESIGN: Dark Forge — Product Modal
   Create or edit a store product. Stripe Connect required.
 */
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +59,8 @@ export default function ProductModal({
   onCreateProduct, onUpdateProduct, onDeleteProduct, onUploadImage,
 }: ProductModalProps) {
   const [form, setForm] = useState(() => initForm(product));
+  const [priceText, setPriceText] = useState(product ? (product.amount / 100).toFixed(2) : "");
+  const [shippingText, setShippingText] = useState(product ? ((product.shippingCost || 0) / 100).toFixed(2) : "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -91,9 +93,22 @@ export default function ProductModal({
   if (productId !== prevId) {
     setPrevId(productId);
     setForm(initForm(product));
+    setPriceText(product ? (product.amount / 100).toFixed(2) : "");
+    setShippingText(product ? ((product.shippingCost || 0) / 100).toFixed(2) : "");
     setInventoryMode(product?.inventory != null ? "limited" : "unlimited");
     setShowDeleteConfirm(false);
   }
+
+  // Reset form for "create" mode when modal opens (Issue #19)
+  useEffect(() => {
+    if (open && !product) {
+      setForm({ name: "", description: "", price: 0, type: "one_time", inventory: 0, shippingCost: 0, imageUrl: "", active: true });
+      setPriceText("");
+      setShippingText("");
+      setInventoryMode("unlimited");
+      setShowDeleteConfirm(false);
+    }
+  }, [open, product]);
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Product name required"); return; }
@@ -200,8 +215,12 @@ export default function ProductModal({
                 <input
                   type="number"
                   className="w-full bg-input border border-border rounded-md pl-7 pr-3 py-2 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50"
-                  value={form.price.toFixed(2)}
-                  onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value || "0") }))}
+                  value={priceText}
+                  onChange={(e) => {
+                    setPriceText(e.target.value);
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val)) setForm((f) => ({ ...f, price: val }));
+                  }}
                   step="0.01"
                   min="0"
                   disabled={!isCreate}
@@ -267,8 +286,12 @@ export default function ProductModal({
               <input
                 type="number"
                 className="w-full bg-input border border-border rounded-md pl-7 pr-3 py-2 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
-                value={form.shippingCost.toFixed(2)}
-                onChange={(e) => setForm((f) => ({ ...f, shippingCost: parseFloat(e.target.value || "0") }))}
+                value={shippingText}
+                onChange={(e) => {
+                  setShippingText(e.target.value);
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) setForm((f) => ({ ...f, shippingCost: val }));
+                }}
                 step="0.01"
                 min="0"
                 placeholder="0.00"
