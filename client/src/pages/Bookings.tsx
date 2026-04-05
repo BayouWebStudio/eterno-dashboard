@@ -167,6 +167,10 @@ export default function Bookings() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  // Email notification preference
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [emailNotifLoading, setEmailNotifLoading] = useState(true);
+
   // Stripe Connect state
   const [stripeConnected, setStripeConnected] = useState(false);
   const [stripeOnboarded, setStripeOnboarded] = useState(false);
@@ -367,7 +371,33 @@ export default function Bookings() {
     }
   }, [authFetch]);
 
-  useEffect(() => { if (tab === "settings") loadSettings(); }, [tab, loadSettings]);
+  const loadEmailPreference = useCallback(async () => {
+    setEmailNotifLoading(true);
+    try {
+      const res = await authFetch("/api/dashboard/notification-preferences");
+      if (res.ok) {
+        const data = await res.json();
+        setEmailNotifications(data.emailNotifications ?? true);
+      }
+    } catch {} finally { setEmailNotifLoading(false); }
+  }, [authFetch]);
+
+  const saveEmailPreference = useCallback(async (enabled: boolean) => {
+    try {
+      const res = await authFetch("/api/dashboard/notification-preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailNotifications: enabled }),
+      });
+      if (res.ok) toast.success(enabled ? "Email notifications enabled" : "Email notifications disabled");
+      else throw new Error();
+    } catch {
+      toast.error("Failed to update notification preference");
+      setEmailNotifications(!enabled);
+    }
+  }, [authFetch]);
+
+  useEffect(() => { if (tab === "settings") { loadSettings(); loadEmailPreference(); } }, [tab, loadSettings, loadEmailPreference]);
 
   const handleSaveSettings = async () => {
     setSettingsSaving(true);
@@ -696,6 +726,26 @@ export default function Bookings() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Email Notifications */}
+              <div className="space-y-4 border-t border-border pt-6">
+                <h3 className="text-sm font-semibold text-foreground">Email Notifications</h3>
+                <p className="text-xs text-muted-foreground">Receive an email when a client submits a booking inquiry or testimonial review.</p>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <button
+                    onClick={() => {
+                      const newVal = !emailNotifications;
+                      setEmailNotifications(newVal);
+                      saveEmailPreference(newVal);
+                    }}
+                    disabled={emailNotifLoading}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${emailNotifications ? "bg-gold" : "bg-border"} disabled:opacity-50`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${emailNotifications ? "translate-x-5" : "translate-x-0.5"}`} />
+                  </button>
+                  <span className="text-sm text-muted-foreground">{emailNotifications ? "Enabled" : "Disabled"}</span>
+                </label>
               </div>
 
               {/* Form Builder */}
