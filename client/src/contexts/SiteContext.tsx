@@ -78,7 +78,7 @@ interface SiteContextValue {
   /* Actions */
   refreshInfo: () => Promise<void>;
   refreshHtml: (page?: string) => Promise<void>;
-  saveSiteField: (key: string, value: string) => Promise<boolean>;
+  saveSiteField: (key: string, value: string, page?: string) => Promise<boolean>;
   uploadSiteImage: (file: File, folder?: string) => Promise<string | null>;
   saveGalleryOrder: (filenames: string[], sectionId?: string) => Promise<boolean>;
   deleteGalleryImage: (filename: string, sectionId?: string) => Promise<boolean>;
@@ -231,12 +231,14 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   // ── Save a field via /api/dashboard/save-section ──
   const saveSiteField = useCallback(
-    async (key: string, value: string): Promise<boolean> => {
+    async (key: string, value: string, page?: string): Promise<boolean> => {
       if (!convexHttpUrl || !currentSite?.slug) return false;
       try {
         // Build payload — include page param for non-index pages on signature sites
         const payload: Record<string, string> = { sectionKey: key, newContent: value };
-        if (isSignatureSite && currentPageRef.current && currentPageRef.current !== "index.html") {
+        if (page) {
+          payload.page = page;
+        } else if (isSignatureSite && currentPageRef.current && currentPageRef.current !== "index.html") {
           payload.page = currentPageRef.current;
         }
 
