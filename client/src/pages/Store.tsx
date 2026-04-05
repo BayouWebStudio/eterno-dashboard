@@ -184,14 +184,25 @@ export default function Store() {
       body: JSON.stringify(createData),
     });
     if (!res.ok) throw new Error(await res.text());
-    const created = await res.json();
-    // If image was uploaded, update the product with the image URL
-    if (imageUrl && created.productId) {
-      await authFetch("/api/store/products/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: created.productId, imageUrl }),
-      });
+
+    if (imageUrl) {
+      // Reload products to get the Convex _id for the newly created product
+      const listRes = await authFetch("/api/store/products");
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const allProducts: StoreProduct[] = listData.products || [];
+        // Find the newest product with matching name (no image yet)
+        const newProduct = allProducts
+          .filter((p) => p.name === data.name && !p.imageUrl)
+          .sort((a, b) => b.createdAt - a.createdAt)[0];
+        if (newProduct) {
+          await authFetch("/api/store/products/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: newProduct._id, imageUrl }),
+          });
+        }
+      }
     }
     loadProducts();
   };
