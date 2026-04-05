@@ -162,6 +162,10 @@ export default function Bookings() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  // Stripe Connect state
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [stripeOnboarded, setStripeOnboarded] = useState(false);
+
   // ── Auth fetch helpers ─────────────────────────────────────────────
 
   const authFetch = useCallback(
@@ -192,6 +196,20 @@ export default function Bookings() {
   }, [authFetch, currentMonth]);
 
   useEffect(() => { loadCalendar(); }, [loadCalendar]);
+
+  // Load Stripe Connect status once
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authFetch("/api/dashboard/calendar/stripe-status");
+        if (res.ok) {
+          const data = await res.json();
+          setStripeConnected(data.connected);
+          setStripeOnboarded(data.onboardingComplete);
+        }
+      } catch { /* non-critical */ }
+    })();
+  }, [authFetch]);
 
   const handleMonthChange = (date: Date) => {
     setCurrentMonth(date);
@@ -683,8 +701,10 @@ export default function Bookings() {
         booking={editBooking}
         onSave={handleSaveBooking}
         onDelete={handleDeleteBooking}
-        onRequestDeposit={handleRequestDeposit}
+        onRequestDeposit={stripeOnboarded ? handleRequestDeposit : undefined}
         onMarkDeposit={handleMarkDeposit}
+        stripeConnected={stripeConnected}
+        stripeOnboarded={stripeOnboarded}
         defaultDepositAmount={settings.depositAmount}
       />
 
