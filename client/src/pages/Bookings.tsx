@@ -6,9 +6,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
-import { CalendarDays, Check, Archive, Trash2, Mail, Phone, RefreshCw, Eye, ExternalLink } from "lucide-react";
+import { CalendarDays, Check, Archive, Trash2, Mail, Phone, RefreshCw, Eye, ExternalLink, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import EmptyStateGuide from "@/components/EmptyStateGuide";
+import FormBuilder from "@/components/FormBuilder";
 
 interface Booking {
   _id: string;
@@ -123,6 +124,7 @@ export default function Bookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [tab, setTab] = useState<"inquiries" | "form">("inquiries");
 
   const authFetch = useCallback(
     async (path: string, options?: RequestInit) => {
@@ -202,22 +204,61 @@ export default function Bookings() {
             </p>
           </div>
         </div>
+        {tab === "inquiries" && (
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-[oklch(0.16_0.005_250)] transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-[oklch(0.15_0.005_250)] rounded-lg p-1 w-fit">
         <button
-          onClick={load}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md hover:bg-[oklch(0.16_0.005_250)] transition-colors"
+          onClick={() => setTab("inquiries")}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            tab === "inquiries"
+              ? "bg-[oklch(0.22_0.005_250)] text-gold"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          <CalendarDays className="w-3.5 h-3.5" />
+          Inquiries
+          {newBookings.length > 0 && (
+            <span className="text-[10px] font-semibold text-gold bg-gold/10 border border-gold/20 px-1.5 py-0.5 rounded-full">
+              {newBookings.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setTab("form")}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            tab === "form"
+              ? "bg-[oklch(0.22_0.005_250)] text-gold"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          Form Builder
         </button>
       </div>
 
-      {loading ? (
+      {tab === "form" && (
+        <div className="bg-card border border-border rounded-lg p-5">
+          <FormBuilder />
+        </div>
+      )}
+
+      {tab === "inquiries" && loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           <RefreshCw className="w-5 h-5 animate-spin mr-2" />
           Loading bookings...
         </div>
-      ) : bookings.length === 0 ? (
+      ) : tab === "inquiries" && bookings.length === 0 ? (
         <EmptyStateGuide
           icon={CalendarDays}
           title="No booking inquiries yet"
@@ -241,7 +282,7 @@ export default function Bookings() {
             ) : undefined
           }
         />
-      ) : (
+      ) : tab === "inquiries" ? (
         <div className="space-y-8">
           {/* New */}
           {newBookings.length > 0 && (
@@ -332,7 +373,7 @@ export default function Bookings() {
             </section>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
