@@ -253,7 +253,7 @@ export default function Overview() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <QuickAction
           title="Edit Sections"
           description="Update hero, about, booking, and more"
@@ -272,6 +272,14 @@ export default function Overview() {
           href="/themes"
           icon="🎨"
         />
+        <div
+          onClick={() => window.dispatchEvent(new CustomEvent("eterno:start-tour"))}
+          className="block bg-card border border-border rounded-lg p-4 hover:border-gold-dim transition-all duration-150 group cursor-pointer"
+        >
+          <div className="text-2xl mb-2">🗺️</div>
+          <div className="text-sm font-medium text-foreground group-hover:text-gold transition-colors">Take the Tour</div>
+          <p className="text-xs text-muted-foreground mt-1">Replay the dashboard walkthrough</p>
+        </div>
       </div>
     </div>
   );
