@@ -272,7 +272,7 @@ export default function Store() {
             <h2 className="text-base font-heading font-bold text-foreground">Store</h2>
             <p className="text-xs text-muted-foreground">
               {isConnected
-                ? `${activeProducts.length} products · $${(totalRevenue / 100).toFixed(2)} revenue`
+                ? `${activeProducts.length} products · $${(totalRevenue / 100).toFixed(2)} total sales (incl. shipping)`
                 : "Connect Stripe to start selling"
               }
             </p>
