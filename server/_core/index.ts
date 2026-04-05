@@ -36,6 +36,7 @@ async function startServer() {
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "1; mode=block");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.eternowebstudio.com https://*.clerk.accounts.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://curious-lemming-262.convex.site https://curious-lemming-262.convex.cloud https://clerk.eternowebstudio.com https://*.clerk.accounts.dev https://api.stripe.com https://fonts.googleapis.com; frame-src 'self' https://js.stripe.com https://eternowebstudio.com https://*.eternowebstudio.com blob:;");
     if (process.env.NODE_ENV === "production") {
       res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     }
