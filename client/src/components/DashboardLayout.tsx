@@ -3,7 +3,7 @@
   Left sidebar (collapsible) + header strip + main content area.
   Sidebar uses gold accent bar for active item.
 */
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useLocation, Redirect } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
@@ -28,6 +28,7 @@ import {
   ExternalLink,
   Menu,
 } from "lucide-react";
+import OnboardingTour from "@/components/OnboardingTour";
 
 interface NavItem {
   path: string;
@@ -51,6 +52,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const { userName, userImage, signOut } = useAuth();
   const { currentSite, loading, availablePages, onboardingStatus } = useSite();
+
+  // Onboarding tour
+  const [showTour, setShowTour] = useState(false);
+
+  useEffect(() => {
+    if (currentSite && !localStorage.getItem("eterno_tour_completed")) {
+      const timer = setTimeout(() => setShowTour(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentSite]);
+
+  useEffect(() => {
+    const handler = () => { localStorage.removeItem("eterno_tour_completed"); setShowTour(true); };
+    window.addEventListener("eterno:start-tour", handler);
+    return () => window.removeEventListener("eterno:start-tour", handler);
+  }, []);
 
   // Redirect new users (no site built) to onboarding on the overview page
   if (onboardingStatus === "none" && location !== "/") {
@@ -78,6 +95,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         return (
           <button
             key={item.path}
+            data-tour={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
             onClick={() => { setLocation(item.path); onNavigate?.(); }}
             className={`
               relative flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-left
@@ -276,6 +294,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+
+      {showTour && (
+        <OnboardingTour onComplete={() => { localStorage.setItem("eterno_tour_completed", "true"); setShowTour(false); }} />
+      )}
     </div>
   );
 }
