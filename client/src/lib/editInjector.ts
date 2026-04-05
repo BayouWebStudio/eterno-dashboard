@@ -71,28 +71,6 @@ body.edit-mode [data-section]:hover > .ve-section-controls { display: flex; }
 .ve-section-btn:hover { background: rgba(0,0,0,0.85); }
 .ve-section-btn.danger { color: #ff6b6b; }
 .ve-section-btn.danger:hover { background: rgba(180,0,0,0.7); color: #fff; }
-.ve-artist-delete {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 22px;
-  height: 22px;
-  background: rgba(180,0,0,0.8);
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-  font-family: system-ui, sans-serif;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-.ve-artist-delete:hover { background: rgba(220,0,0,0.95); }
-body.edit-mode .artist-radio-item { position: relative; }
-body.edit-mode .artist-radio-item:hover .ve-artist-delete { display: flex; }
 .ve-gallery-add-btn {
   display: none;
   position: absolute;
@@ -249,10 +227,8 @@ const EDIT_JS = `
   var originalGalleryOrder = [];
   var saveOrderBar = null;
 
-  // '*' is required for srcdoc iframes (origin is "null"). Safe because
-  // iframe content is fully controlled via srcdoc — we inject it ourselves.
   function post(msg) {
-    window.parent.postMessage(msg, '*');
+    window.parent.postMessage(msg, window.location.origin);
   }
 
   /**
@@ -271,32 +247,18 @@ const EDIT_JS = `
    */
   function extractSectionIdFromClass(cls) {
     if (!cls) return null;
-    // Gallery variants
     if (cls.indexOf('gallery-body') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
-    // Hero
     if (cls.indexOf('page-hero') >= 0) return 'hero';
-    // About variants (index: about-preview/about-grid, sub-pages: about-body/about-layout, bio-section, stats-section)
-    if (cls.indexOf('about-preview') >= 0 || cls.indexOf('about-grid') >= 0) return 'about';
-    if (cls.indexOf('about-body') >= 0 || cls.indexOf('about-layout') >= 0) return 'about';
-    if (cls.indexOf('stats-section') >= 0 || cls.indexOf('bio-section') >= 0) return 'about';
-    // Booking variants (index: booking-preview, sub-pages: booking-body/booking-layout/booking-info, tattoos: booking-cta-section)
-    if (cls.indexOf('booking-preview') >= 0 || cls.indexOf('booking-body') >= 0 || cls.indexOf('booking-layout') >= 0 || cls.indexOf('booking-info') >= 0) return 'booking';
-    if (cls.indexOf('booking-cta') >= 0) return 'booking';
-    // Testimonials variants (index: testimonials-preview, sub-pages: testimonials-body, share-section)
-    if (cls.indexOf('testimonials-preview') >= 0 || cls.indexOf('testimonials-body') >= 0) return 'testimonials';
-    if (cls.indexOf('share-section') >= 0 || cls.indexOf('placeholder-block') >= 0) return 'testimonials';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
 
-    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|body|info|layout)(?:\\s|$)/i);
+    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container)(?:\\s|$)/i);
     if (containerMatch) {
       var name = containerMatch[1];
-      // Skip generic layout names AND component-level names (cards, items, tags etc.)
-      if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0
-          && !/-(?:card|item|tag|btn|button|link|badge|icon|img|text|label|row|col)$/.test(name)) {
+      if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
         return name;
       }
     }
@@ -341,7 +303,7 @@ const EDIT_JS = `
     var cls = el.className || '';
 
     if (sectionId === 'hero' || sectionId === 'page-hero') {
-      if (cls.indexOf('hero-eyebrow') >= 0 || cls.indexOf('page-eyebrow') >= 0) return 'hero_eyebrow';
+      if (cls.indexOf('hero-eyebrow') >= 0) return 'hero_eyebrow';
       if (cls.indexOf('hero-title') >= 0 || cls.indexOf('hero-name') >= 0) return 'hero_title';
       if (cls.indexOf('hero-subtitle') >= 0 || cls.indexOf('hero-tagline') >= 0 || cls.indexOf('hero-sub') >= 0) return 'hero_subtitle';
       if (cls.indexOf('hero-cta') >= 0) return 'hero_cta_text';
@@ -357,17 +319,9 @@ const EDIT_JS = `
         var numIdx = getStatIndex(el, 'stat-num');
         if (numIdx >= 0) return 'about_stat_number_' + numIdx;
       }
-      if (cls.indexOf('stat-big') >= 0) {
-        var bigIdx = getStatIndex(el, 'stat-big');
-        if (bigIdx >= 0) return 'about_stat_number_' + bigIdx;
-      }
       if (cls.indexOf('stat-label') >= 0) {
         var lblIdx = getStatIndex(el, 'stat-label');
         if (lblIdx >= 0) return 'about_stat_label_' + lblIdx;
-      }
-      if (cls.indexOf('stat-small') >= 0) {
-        var smIdx = getStatIndex(el, 'stat-small');
-        if (smIdx >= 0) return 'about_stat_label_' + smIdx;
       }
       if (cls.indexOf('stat-number') >= 0) {
         var snIdx = getStatIndex(el, 'stat-number');
@@ -386,7 +340,7 @@ const EDIT_JS = `
     if (sectionId === 'booking' || sectionId === 'book') {
       if (tag === 'h2') return 'booking_title';
       if (tag === 'p') return 'booking_intro';
-      if (tag === 'a') return 'booking_cta_text';
+      if (tag === 'a') return 'booking';
       return 'booking_title';
     }
 
@@ -405,14 +359,8 @@ const EDIT_JS = `
     }
 
     if (sectionId === 'faq') {
-      if (cls.indexOf('faq-question') >= 0) {
-        var faqIdx = getCardIndex(el, 'faq-item');
-        return 'faq_question_' + (faqIdx >= 0 ? faqIdx : 0);
-      }
-      if (cls.indexOf('faq-answer') >= 0) {
-        var faqAnsIdx = getCardIndex(el, 'faq-item');
-        return 'faq_answer_' + (faqAnsIdx >= 0 ? faqAnsIdx : 0);
-      }
+      if (cls.indexOf('faq-question') >= 0) return 'faq_question';
+      if (cls.indexOf('faq-answer') >= 0) return 'faq_answer';
       if (tag === 'h2') return 'section_title__faq';
       return 'section_title__faq';
     }
@@ -441,7 +389,7 @@ const EDIT_JS = `
     if (sectionId === 'shop') {
       if (tag === 'h2') return 'section_title__shop';
       if (tag === 'p') return 'section_body__shop';
-      if (tag === 'a') return 'shop_link_text';
+      if (tag === 'a') return 'shop_link';
       return 'section_title__shop';
     }
 
@@ -451,7 +399,7 @@ const EDIT_JS = `
     if (sectionId && sectionId !== 'unknown') {
       if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'section_title__' + sectionId;
       if (tag === 'p' || tag === 'blockquote' || tag === 'li') return sectionId + '__content';
-      if (tag === 'a') return sectionId + '__link_text';
+      if (tag === 'a') return sectionId + '__link';
       return 'section_title__' + sectionId;
     }
 
@@ -459,9 +407,8 @@ const EDIT_JS = `
   }
 
   function getStatIndex(el, statClass) {
-    // Find all elements with the same stat class within the about/stats section
-    // Try <section> first, then fall back to common stat container classes
-    var section = el.closest ? (el.closest('section') || el.closest('.stats-section') || el.closest('.about-preview') || el.closest('.about-grid') || el.closest('.about-body') || el.closest('.about-layout')) : null;
+    // Find all elements with the same stat class within the about section
+    var section = el.closest ? el.closest('section') : null;
     if (!section) return -1;
     var all = section.querySelectorAll('.' + statClass);
     for (var i = 0; i < all.length; i++) {
@@ -478,21 +425,6 @@ const EDIT_JS = `
       if (siblings[i] === card) return i;
     }
     return -1;
-  }
-
-  // ── Check if an element is inside a repeating card/item (not individually saveable) ──
-  function isInsideCard(el) {
-    // Walk up looking for card/item containers, but stop at section level
-    var node = el.parentElement;
-    while (node && node !== document.body) {
-      if (node.tagName === 'SECTION') return false; // reached section, no card found
-      var cls = (node.className || '').toString();
-      if (/\b\w+[-_](?:card|item|slide|tile)\b/i.test(cls) && !/\b(?:grid|list|container|section|wrapper)\b/i.test(cls)) {
-        return true;
-      }
-      node = node.parentElement;
-    }
-    return false;
   }
 
   // ── Check if an element is inside a gallery container ──
@@ -516,10 +448,6 @@ const EDIT_JS = `
       if (el.tagName === 'A' && el.querySelector('img')) return;
       // Skip structural containers (span/div with child elements are layout wrappers, not text nodes)
       if ((el.tagName === 'SPAN' || el.tagName === 'DIV') && el.children.length > 0) return;
-      // Skip elements inside repeating card/item components — these can't be
-      // individually targeted by the save endpoint and would overwrite the
-      // section heading instead. Users should edit these via Source HTML.
-      if (isInsideCard(el)) return;
       el.setAttribute('data-editable', 'true');
 
       el.addEventListener('click', function(e) {
@@ -577,6 +505,7 @@ const EDIT_JS = `
         value: newText,
         originalValue: originalText.trim()
       });
+      showToast('Change saved');
     }
     activeEl = null;
     originalText = '';
@@ -928,40 +857,14 @@ const EDIT_JS = `
       var btn = document.createElement('button');
       btn.className = 've-img-btn';
       btn.textContent = 'Change Hero Image';
-      btn.style.cssText = 'position:absolute;top:16px;right:16px;z-index:200;';
+      btn.style.cssText = 'position:absolute;top:16px;left:16px;z-index:200;';
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg' });
+        post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg_image' });
       });
-      // Append to parent container if the bg element is position:absolute (e.g. .hero-bg inside .hero)
-      var computed = window.getComputedStyle(el);
-      var target = (computed.position === 'absolute' || computed.position === 'fixed') && el.parentElement ? el.parentElement : el;
-      target.style.position = 'relative';
-      target.appendChild(btn);
-    });
-  }
-
-  // ── Artist card delete buttons (booking page) ──
-  function setupArtistCards() {
-    var cards = document.querySelectorAll('.artist-radio-item');
-    cards.forEach(function(card) {
-      var nameEl = card.querySelector('.artist-radio-name');
-      if (!nameEl) return;
-      var artistName = nameEl.textContent || '';
-      var delBtn = document.createElement('button');
-      delBtn.className = 've-artist-delete';
-      delBtn.textContent = '×';
-      delBtn.title = 'Remove ' + artistName;
-      delBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (confirm('Remove "' + artistName + '" from booking options?')) {
-          card.remove();
-          post({ type: 'artist-delete', artistName: artistName });
-        }
-      });
-      card.appendChild(delBtn);
+      el.style.position = 'relative';
+      el.appendChild(btn);
     });
   }
 
@@ -973,7 +876,6 @@ const EDIT_JS = `
     setupGalleries();
     setupGalleryDragDrop();
     setupSections();
-    setupArtistCards();
     post({ type: 'editor-ready' });
   }
 
@@ -1004,16 +906,10 @@ export function injectEditor(html: string, baseUrl: string): string {
   if (baseUrl) {
     const base = baseUrl.replace(/\/$/, "");
     result = result.replace(
-      /(<[a-z][a-z0-9]*\b[^>]*?\s)src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
-      (match, tagPrefix, path) => {
-        // Only rewrite src for image-related tags (img, picture); skip script, source, video, audio, iframe, embed
-        const tagMatch = tagPrefix.match(/^<(\w+)/i);
-        const tag = tagMatch ? tagMatch[1].toLowerCase() : "";
-        if (["script", "source", "video", "audio", "iframe", "embed", "track"].includes(tag)) {
-          return match;
-        }
+      /src="(?!https?:\/\/)(?!\/\/)(?!data:)([^"]+)"/gi,
+      (match, path) => {
         const cleanPath = path.replace(/^\.\//, "");
-        return `${tagPrefix}src="${base}/${cleanPath}"`;
+        return `src="${base}/${cleanPath}"`;
       }
     );
     result = result.replace(
