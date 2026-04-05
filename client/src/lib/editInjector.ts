@@ -830,6 +830,9 @@ const EDIT_JS = `
 
   // ── Listen for parent messages ──
   window.addEventListener('message', function(e) {
+    // Validate origin: accept 'null' (srcdoc same-frame) and known dashboard origins
+    if (e.origin !== 'null' && !/eternowebstudio|vercel|localhost/.test(e.origin)) return;
+
     if (e.data && e.data.type === 'toggle-edit') {
       if (e.data.enabled) {
         document.body.classList.add('edit-mode');
