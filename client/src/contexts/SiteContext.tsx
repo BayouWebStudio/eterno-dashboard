@@ -160,7 +160,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       setCurrentSite({
         slug: data.siteSlug,
         name: data.siteSlug,
-        domain: data.domain || `${data.siteSlug}.eternowebstudio.com`,
+        domain: data.domain || `eternowebstudio.com/${data.siteSlug}`,
         plan: data.plan || "free",
         theme: data.theme,
         lang: data.lang,
