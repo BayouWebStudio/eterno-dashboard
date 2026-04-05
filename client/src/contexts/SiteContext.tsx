@@ -56,6 +56,8 @@ export interface SiteInfo {
   siteUrl?: string;
   siteBuilt?: boolean;
   hasAgent?: boolean;
+  newBookings?: number;
+  pendingTestimonials?: number;
 }
 
 type OnboardingStatus = "idle" | "none" | "building" | "connecting" | "ready";
@@ -166,6 +168,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         siteUrl: data.siteUrl,
         siteBuilt: data.siteBuilt,
         hasAgent: data.hasAgent,
+        newBookings: data.newBookings ?? 0,
+        pendingTestimonials: data.pendingTestimonials ?? 0,
       });
       setOnboardingStatus("ready");
     } catch (err) {
