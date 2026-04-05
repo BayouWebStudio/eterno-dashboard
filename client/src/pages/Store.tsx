@@ -102,7 +102,12 @@ export default function Store() {
       });
       if (!res.ok) throw new Error(await res.text());
       const { url } = await res.json();
-      window.open(url, "_blank");
+      // Validate URL points to Stripe before opening
+      try {
+        const parsed = new URL(url);
+        if (!parsed.hostname.endsWith("stripe.com")) throw new Error("Invalid redirect");
+      } catch { toast.error("Invalid Stripe URL received"); return; }
+      window.open(url, "_blank", "noopener,noreferrer");
       toast.success("Stripe onboarding opened in a new tab");
     } catch (e: any) {
       toast.error("Failed to start Stripe onboarding");
