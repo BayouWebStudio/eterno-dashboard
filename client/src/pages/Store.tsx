@@ -122,18 +122,13 @@ export default function Store() {
   const [storeActivated, setStoreActivated] = useState<boolean | null>(null);
   const [activating, setActivating] = useState(false);
 
-  // Check if shop.html exists (store is activated)
+  // Check if shop.html exists by looking for "Shop" nav link in site HTML
+  const { siteHtml } = useSite();
   useEffect(() => {
-    if (!currentSite?.slug) return;
-    (async () => {
-      try {
-        const res = await authFetch("/api/dashboard/site-html?page=shop.html");
-        setStoreActivated(res.ok);
-      } catch {
-        setStoreActivated(false);
-      }
-    })();
-  }, [currentSite?.slug, authFetch]);
+    if (!siteHtml) return;
+    const hasShopLink = siteHtml.includes('href="shop.html"') || siteHtml.includes('href="./shop.html"');
+    setStoreActivated(hasShopLink);
+  }, [siteHtml]);
 
   const handleActivateStore = async () => {
     setActivating(true);
