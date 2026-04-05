@@ -138,22 +138,18 @@ export default function VisualEditor() {
   const [addSectionContent, setAddSectionContent] = useState("");
   const [adding, setAdding] = useState(false);
 
-  // Build the base URL for resolving relative paths
+  // Build the base URL for resolving relative paths in the editor iframe.
+  // siteUrl from the API already includes the slug path (e.g. https://eternowebstudio.com/weschetattoo/)
+  // or the custom domain (e.g. https://tattoosbypaketh.com). Use it directly.
   const siteBaseUrl = useMemo(() => {
     if (!currentSite) return "";
-    // siteUrl is the root domain (e.g. https://eternowebstudio.com)
-    // slug is the site path (e.g. weschetattoo)
     const siteUrl = currentSite.siteUrl || "";
-    const slug = currentSite.slug || "";
-    if (siteUrl && slug) {
-      const base = siteUrl.replace(/\/$/, "");
-      return `${base}/${slug}`;
-    }
+    if (siteUrl) return siteUrl.replace(/\/$/, "");
     // Fallback: construct from domain
     const domain = currentSite.domain || "";
     if (!domain) return "";
     const base = domain.startsWith("http") ? domain : `https://${domain}`;
-    return base;
+    return base.replace(/\/$/, "");
   }, [currentSite]);
 
   // Build the srcdoc with injected editor
