@@ -30,7 +30,7 @@ interface Inquiry {
   phone?: string;
   service?: string;
   message: string;
-  status: "new" | "read" | "archived";
+  status: "new" | "read" | "archived" | "booked";
   createdAt: number;
 }
 
@@ -69,20 +69,23 @@ function InquiryCard({
   onMarkRead?: () => void;
   onArchive?: () => void;
   onDelete: () => void;
-  onAssign: () => void;
+  onAssign?: () => void;
   actionLoading: boolean;
 }) {
   const date = new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const time = new Date(b.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
   return (
-    <div className={`bg-[oklch(0.16_0.005_250)] border rounded-lg p-4 flex flex-col gap-3 ${b.status === "new" ? "border-gold/30" : "border-border"}`}>
+    <div className={`bg-[oklch(0.16_0.005_250)] border rounded-lg p-4 flex flex-col gap-3 ${b.status === "new" ? "border-gold/30" : b.status === "booked" ? "border-emerald-500/20" : "border-border"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground">{b.name}</span>
             {b.status === "new" && (
               <span className="text-[10px] font-medium text-gold bg-gold/10 border border-gold/20 px-1.5 py-0.5 rounded-full">NEW</span>
+            )}
+            {b.status === "booked" && (
+              <span className="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">BOOKED</span>
             )}
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -105,14 +108,16 @@ function InquiryCard({
       )}
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{b.message}</p>
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button
-          onClick={onAssign}
-          disabled={actionLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition-colors text-xs font-medium disabled:opacity-50"
-        >
-          <CalendarPlus className="w-3.5 h-3.5" />
-          Assign to Calendar
-        </button>
+        {onAssign && (
+          <button
+            onClick={onAssign}
+            disabled={actionLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition-colors text-xs font-medium disabled:opacity-50"
+          >
+            <CalendarPlus className="w-3.5 h-3.5" />
+            Assign to Calendar
+          </button>
+        )}
         {onMarkRead && (
           <button onClick={onMarkRead} disabled={actionLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors text-xs font-medium disabled:opacity-50">
@@ -329,20 +334,21 @@ export default function Bookings() {
     });
     if (!res.ok) throw new Error(await res.text());
 
-    // Archive the inquiry
-    await authFetch("/api/dashboard/bookings/archive", {
+    // Mark the inquiry as booked
+    await authFetch("/api/dashboard/bookings/booked", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: data.inquiryId }),
     });
 
     toast.success("Assigned to calendar");
-    setInquiries((prev) => prev.map((b) => (b._id === data.inquiryId ? { ...b, status: "archived" as const } : b)));
+    setInquiries((prev) => prev.map((b) => (b._id === data.inquiryId ? { ...b, status: "booked" as const } : b)));
     loadCalendar();
   };
 
   const newInquiries = useMemo(() => inquiries.filter((b) => b.status === "new"), [inquiries]);
   const readInquiries = useMemo(() => inquiries.filter((b) => b.status === "read"), [inquiries]);
+  const bookedInquiries = useMemo(() => inquiries.filter((b) => b.status === "booked"), [inquiries]);
   const archivedInquiries = useMemo(() => inquiries.filter((b) => b.status === "archived"), [inquiries]);
 
   // ── Settings data ──────────────────────────────────────────────────
@@ -547,6 +553,26 @@ export default function Bookings() {
                     onArchive={() => handleInquiryAction(b._id, "archive")}
                     onDelete={() => handleInquiryAction(b._id, "delete")}
                     onAssign={() => setAssignInquiry(b)}
+                    actionLoading={actionLoading === b._id}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+          {/* Booked */}
+          {bookedInquiries.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CalendarPlus className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-semibold text-foreground">
+                  Booked <span className="ml-2 text-xs font-normal text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">{bookedInquiries.length}</span>
+                </h3>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {bookedInquiries.map((b) => (
+                  <InquiryCard key={b._id} b={b}
+                    onArchive={() => handleInquiryAction(b._id, "archive")}
+                    onDelete={() => handleInquiryAction(b._id, "delete")}
                     actionLoading={actionLoading === b._id}
                   />
                 ))}
