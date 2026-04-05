@@ -33,6 +33,7 @@ interface NavItem {
   path: string;
   label: string;
   icon: React.ElementType;
+  badge?: number;
 }
 
 const BASE_NAV_ITEMS: NavItem[] = [
@@ -59,10 +60,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const hasBookingPage = availablePages.includes("booking.html");
   const hasTestimonialsPage = availablePages.includes("testimonials.html") || availablePages.includes("reviews.html");
   const hasAgent = currentSite?.hasAgent ?? false;
-  const NAV_ITEMS = [
+  const newBookings = currentSite?.newBookings ?? 0;
+  const pendingTestimonials = currentSite?.pendingTestimonials ?? 0;
+  const NAV_ITEMS: NavItem[] = [
     ...BASE_NAV_ITEMS,
-    ...(hasBookingPage ? [{ path: "/bookings", label: "Bookings", icon: CalendarDays }] : []),
-    ...(hasTestimonialsPage ? [{ path: "/testimonials", label: "Testimonials", icon: MessageSquare }] : []),
+    ...(hasBookingPage ? [{ path: "/bookings", label: "Bookings", icon: CalendarDays, badge: newBookings }] : []),
+    ...(hasTestimonialsPage ? [{ path: "/testimonials", label: "Testimonials", icon: MessageSquare, badge: pendingTestimonials }] : []),
     ...(hasAgent ? [{ path: "/ai-agent", label: "AI Agent", icon: Bot }] : []),
   ];
 
@@ -94,9 +97,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 ${isActive ? "bg-gold shadow-[0_0_8px_oklch(0.75_0.12_85/30%)]" : "bg-transparent"}
               `}
             />
-            <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${showLabels ? "ml-1" : ""}`} />
+            <div className="relative flex-shrink-0">
+              <Icon className={`w-4.5 h-4.5 ${showLabels ? "ml-1" : ""}`} />
+              {!showLabels && !!item.badge && item.badge > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gold text-[9px] font-bold text-[oklch(0.13_0.005_250)] flex items-center justify-center">
+                  {item.badge > 9 ? "9+" : item.badge}
+                </span>
+              )}
+            </div>
             {showLabels && (
-              <span className="text-sm font-medium truncate">{item.label}</span>
+              <span className="text-sm font-medium truncate flex-1">{item.label}</span>
+            )}
+            {showLabels && !!item.badge && item.badge > 0 && (
+              <span className="text-[10px] font-semibold text-gold bg-gold/10 border border-gold/20 px-1.5 py-0.5 rounded-full">
+                {item.badge}
+              </span>
             )}
           </button>
         );
