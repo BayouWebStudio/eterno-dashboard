@@ -2,11 +2,11 @@
   DESIGN: Dark Forge — Product Modal
   Create or edit a store product. Stripe Connect required.
 */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  X, Save, Loader2, Trash2, Package, DollarSign,
+  X, Save, Loader2, Trash2, Package, DollarSign, ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,6 +39,7 @@ interface ProductModalProps {
     type: string;
     inventory?: number;
     shippingCost?: number;
+    imageUrl?: string;
   }) => Promise<void>;
   onUpdateProduct: (data: {
     productId: string;
@@ -50,15 +51,18 @@ interface ProductModalProps {
     imageUrl?: string;
   }) => Promise<void>;
   onDeleteProduct: (productId: string) => Promise<void>;
+  onUploadImage?: (file: File) => Promise<string | null>;
 }
 
 export default function ProductModal({
   open, onClose, product, isCreate,
-  onCreateProduct, onUpdateProduct, onDeleteProduct,
+  onCreateProduct, onUpdateProduct, onDeleteProduct, onUploadImage,
 }: ProductModalProps) {
   const [form, setForm] = useState(() => initForm(product));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [inventoryMode, setInventoryMode] = useState<"unlimited" | "limited">(
     product?.inventory != null ? "limited" : "unlimited"
@@ -104,6 +108,7 @@ export default function ProductModal({
           type: form.type,
           inventory: inventoryMode === "limited" ? form.inventory : undefined,
           shippingCost: form.shippingCost > 0 ? Math.round(form.shippingCost * 100) : undefined,
+          imageUrl: form.imageUrl.trim() || undefined,
         });
         toast.success("Product created");
       } else if (product) {
@@ -272,19 +277,64 @@ export default function ProductModal({
             <p className="text-[10px] text-muted-foreground/60">$0 = free shipping</p>
           </div>
 
-          {/* Image URL (edit mode only) */}
-          {!isCreate && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Image URL</label>
-              <input
-                type="text"
-                className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
-                value={form.imageUrl}
-                onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="https://..."
-              />
-            </div>
-          )}
+          {/* Product Image */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Product Image</label>
+            {form.imageUrl && (
+              <div className="relative w-full h-40 rounded-lg overflow-hidden bg-[oklch(0.12_0.005_250)] border border-border">
+                <img src={form.imageUrl} alt="Product" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                  className="absolute top-2 right-2 p-1 bg-black/60 rounded-md text-white hover:bg-black/80"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !onUploadImage) return;
+                setUploading(true);
+                try {
+                  const url = await onUploadImage(file);
+                  if (url) setForm((f) => ({ ...f, imageUrl: url }));
+                  else toast.error("Upload failed");
+                } catch {
+                  toast.error("Upload failed");
+                } finally {
+                  setUploading(false);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }
+              }}
+            />
+            {!form.imageUrl && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || !onUploadImage}
+                className="w-full flex items-center justify-center gap-2 py-6 border border-dashed border-border rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-gold/30 transition-colors disabled:opacity-50"
+              >
+                {uploading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</>
+                ) : (
+                  <><ImagePlus className="w-4 h-4" />Upload Image</>
+                )}
+              </button>
+            )}
+            {form.imageUrl && !uploading && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!onUploadImage}
+                className="text-xs text-muted-foreground hover:text-gold transition-colors"
+              >
+                Change image
+              </button>
+            )}
+          </div>
 
           {/* Active toggle (edit mode only) */}
           {!isCreate && (
