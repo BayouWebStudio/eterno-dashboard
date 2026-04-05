@@ -122,13 +122,21 @@ export default function Store() {
   const [storeActivated, setStoreActivated] = useState<boolean | null>(null);
   const [activating, setActivating] = useState(false);
 
-  // Check if shop.html exists by looking for "Shop" nav link in site HTML
-  const { siteHtml } = useSite();
+  // Check if shop.html exists via GitHub API
   useEffect(() => {
-    if (!siteHtml) return;
-    const hasShopLink = siteHtml.includes('href="shop.html"') || siteHtml.includes('href="./shop.html"');
-    setStoreActivated(hasShopLink);
-  }, [siteHtml]);
+    if (!currentSite?.slug || !isConnected) return;
+    (async () => {
+      try {
+        const res = await fetch(
+          `https://api.github.com/repos/BayouWebStudio/${currentSite.slug}/contents/shop.html`,
+          { headers: { Accept: "application/vnd.github.v3+json" } }
+        );
+        setStoreActivated(res.ok);
+      } catch {
+        setStoreActivated(false);
+      }
+    })();
+  }, [currentSite?.slug, isConnected]);
 
   const handleActivateStore = async () => {
     setActivating(true);
