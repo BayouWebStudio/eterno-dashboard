@@ -378,7 +378,7 @@ export default function Store() {
         </div>
       )}
 
-      {/* Store activated — show link to live shop */}
+      {/* Store activated — show link to live shop + regenerate */}
       {isConnected && storeActivated === true && currentSite?.slug && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -391,6 +391,20 @@ export default function Store() {
           >
             View Shop <ExternalLink className="w-3 h-3" />
           </a>
+          <button
+            onClick={async () => {
+              try {
+                toast.info("Regenerating shop page...");
+                const res = await authFetch("/api/dashboard/activate-store", { method: "POST" });
+                if (!res.ok) throw new Error(await res.text());
+                toast.success("Shop page regenerated! Allow a few minutes to update.");
+              } catch { toast.error("Failed to regenerate shop page"); }
+            }}
+            className="flex items-center gap-1 text-muted-foreground hover:text-gold transition-colors ml-2"
+            title="Regenerate shop page with latest template"
+          >
+            <RefreshCw className="w-3 h-3" /> Update
+          </button>
         </div>
       )}
 
