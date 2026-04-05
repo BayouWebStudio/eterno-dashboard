@@ -38,7 +38,7 @@ interface Order {
 
 export default function Store() {
   const { getToken, convexHttpUrl } = useAuth();
-  const { currentSite } = useSite();
+  const { currentSite, uploadSiteImage } = useSite();
 
   // Stripe Connect state
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
@@ -175,14 +175,24 @@ export default function Store() {
 
   const handleCreateProduct = async (data: {
     name: string; description?: string; price: number;
-    type: string; inventory?: number; shippingCost?: number;
+    type: string; inventory?: number; shippingCost?: number; imageUrl?: string;
   }) => {
+    const { imageUrl, ...createData } = data;
     const res = await authFetch("/api/stripe/connect/create-product", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(createData),
     });
     if (!res.ok) throw new Error(await res.text());
+    const created = await res.json();
+    // If image was uploaded, update the product with the image URL
+    if (imageUrl && created.productId) {
+      await authFetch("/api/store/products/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: created.productId, imageUrl }),
+      });
+    }
     loadProducts();
   };
 
@@ -574,6 +584,7 @@ export default function Store() {
         onCreateProduct={handleCreateProduct}
         onUpdateProduct={handleUpdateProduct}
         onDeleteProduct={handleDeleteProduct}
+        onUploadImage={(file) => uploadSiteImage(file, "store")}
       />
 
       <ProductModal
@@ -584,6 +595,7 @@ export default function Store() {
         onCreateProduct={handleCreateProduct}
         onUpdateProduct={handleUpdateProduct}
         onDeleteProduct={handleDeleteProduct}
+        onUploadImage={(file) => uploadSiteImage(file, "store")}
       />
     </div>
   );
