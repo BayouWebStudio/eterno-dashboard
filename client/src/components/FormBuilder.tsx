@@ -91,7 +91,7 @@ export default function FormBuilder({ initialFields, submitText: initSubmitText 
     setSaving(true);
     try {
       const payload = JSON.stringify({ fields, submitText });
-      const ok = await saveSiteField("booking_fields", payload);
+      const ok = await saveSiteField("booking_fields", payload, "booking.html");
       if (ok) {
         toast.success("Booking form updated");
         refreshHtml("booking.html");
