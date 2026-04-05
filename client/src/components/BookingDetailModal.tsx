@@ -55,12 +55,15 @@ interface BookingDetailModalProps {
   onDelete?: (id: string) => Promise<void>;
   onRequestDeposit?: (id: string, amount: number) => Promise<{ url?: string }>;
   onMarkDeposit?: (id: string) => Promise<void>;
+  stripeConnected?: boolean;
+  stripeOnboarded?: boolean;
   defaultDepositAmount?: number;
 }
 
 export default function BookingDetailModal({
   open, onClose, booking, isCreate, initialDate,
   onSave, onDelete, onRequestDeposit, onMarkDeposit,
+  stripeConnected, stripeOnboarded,
   defaultDepositAmount = 5000,
 }: BookingDetailModalProps) {
   const [form, setForm] = useState(() => initForm(booking, initialDate, defaultDepositAmount));
@@ -404,6 +407,12 @@ export default function BookingDetailModal({
                     {actionLoading === "deposit" ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5 mr-1.5" />}
                     Request Deposit
                   </Button>
+                )}
+                {(form.status === "pending" || form.status === "confirmed") && !onRequestDeposit && stripeConnected === false && (
+                  <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/5 border border-amber-500/15 rounded-md px-3 py-2">
+                    <DollarSign className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Connect Stripe in the <strong>Store</strong> tab to request deposits</span>
+                  </div>
                 )}
                 {(form.status === "deposit_requested" || form.status === "confirmed") && onMarkDeposit && (
                   <Button
