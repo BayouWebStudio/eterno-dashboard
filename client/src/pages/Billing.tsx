@@ -48,6 +48,11 @@ export default function Billing() {
         }
         return;
       }
+      // Validate URL points to Stripe before opening
+      try {
+        const parsed = new URL(data.url);
+        if (!parsed.hostname.endsWith("stripe.com")) throw new Error("Invalid redirect");
+      } catch { toast.error("Invalid billing URL received"); return; }
       window.open(data.url, "_blank", "noopener,noreferrer");
     } catch {
       toast.error("Failed to open billing portal");
