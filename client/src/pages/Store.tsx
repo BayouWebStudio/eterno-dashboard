@@ -122,21 +122,23 @@ export default function Store() {
   const [storeActivated, setStoreActivated] = useState<boolean | null>(null);
   const [activating, setActivating] = useState(false);
 
-  // Check if shop.html exists via GitHub API
+  // Check if shop.html exists via authenticated GitHub API
   useEffect(() => {
-    if (!currentSite?.slug || !isConnected) return;
+    if (!currentSite?.slug) return;
     (async () => {
       try {
-        const res = await fetch(
-          `https://api.github.com/repos/BayouWebStudio/${currentSite.slug}/contents/shop.html`,
-          { headers: { Accept: "application/vnd.github.v3+json" } }
-        );
-        setStoreActivated(res.ok);
+        const res = await authFetch(`/api/dashboard/check-page?page=shop.html`);
+        if (res.ok) {
+          const data = await res.json();
+          setStoreActivated(data.exists);
+        } else {
+          setStoreActivated(false);
+        }
       } catch {
         setStoreActivated(false);
       }
     })();
-  }, [currentSite?.slug, isConnected]);
+  }, [currentSite?.slug, authFetch]);
 
   const handleActivateStore = async () => {
     setActivating(true);
