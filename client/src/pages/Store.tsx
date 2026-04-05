@@ -118,6 +118,37 @@ export default function Store() {
 
   const isConnected = stripeStatus?.onboardingComplete === true;
 
+  // Store activation state
+  const [storeActivated, setStoreActivated] = useState<boolean | null>(null);
+  const [activating, setActivating] = useState(false);
+
+  // Check if shop.html exists (store is activated)
+  useEffect(() => {
+    if (!currentSite?.slug) return;
+    (async () => {
+      try {
+        const res = await authFetch("/api/dashboard/site-html?page=shop.html");
+        setStoreActivated(res.ok);
+      } catch {
+        setStoreActivated(false);
+      }
+    })();
+  }, [currentSite?.slug, authFetch]);
+
+  const handleActivateStore = async () => {
+    setActivating(true);
+    try {
+      const res = await authFetch("/api/dashboard/activate-store", { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      setStoreActivated(true);
+      toast.success("Store activated! Shop page is live.");
+    } catch {
+      toast.error("Failed to activate store");
+    } finally {
+      setActivating(false);
+    }
+  };
+
   // ── Products ───────────────────────────────────────────────────────
 
   const loadProducts = useCallback(async () => {
@@ -290,6 +321,50 @@ export default function Store() {
               <span className="text-[10px] text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded">Payouts Enabled</span>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Activate Store (when Stripe connected but no shop.html yet) */}
+      {isConnected && storeActivated === false && (
+        <div className="bg-[oklch(0.16_0.005_250)] border border-gold/20 rounded-lg p-6 space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
+              <ShoppingBag className="w-5 h-5 text-gold" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-heading font-bold text-foreground">Activate Your Store</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Create a shop page on your live site. This adds a "Shop" link to your navigation
+                and a featured products preview on your home page. Products you add here will appear automatically.
+              </p>
+            </div>
+          </div>
+          <div className="pl-14">
+            <button
+              onClick={handleActivateStore}
+              disabled={activating}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-md bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 transition-colors disabled:opacity-50"
+            >
+              {activating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
+              {activating ? "Creating shop page..." : "Activate Store"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Store activated — show link to live shop */}
+      {isConnected && storeActivated === true && currentSite?.slug && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Shop page is live</span>
+          <a
+            href={currentSite.domain ? `https://${currentSite.domain}/shop.html` : `https://eternowebstudio.com/${currentSite.slug}/shop.html`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-gold hover:underline ml-1"
+          >
+            View Shop <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       )}
 
