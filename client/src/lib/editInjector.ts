@@ -315,6 +315,11 @@ const EDIT_JS = `
   function findFieldKey(el) {
     if (el.dataset && el.dataset.field) return el.dataset.field;
 
+    // Special case: nav logo and footer logo — these are outside sections
+    var cls0 = el.className || '';
+    if (cls0.indexOf('nav-logo') >= 0) return 'nav_logo';
+    if (cls0.indexOf('footer-logo') >= 0) return 'footer_name';
+
     var tag = el.tagName.toLowerCase();
     var sectionId = findSectionId(el);
     var cls = el.className || '';
@@ -461,7 +466,9 @@ const EDIT_JS = `
     var els = document.querySelectorAll(selectors);
     els.forEach(function(el) {
       if (!el.textContent.trim()) return;
-      if (el.closest('script') || el.closest('style') || el.closest('nav') || el.closest('.ve-section-controls')) return;
+      if (el.closest('script') || el.closest('style') || el.closest('.ve-section-controls')) return;
+      // Skip nav elements EXCEPT the logo (which should be editable)
+      if (el.closest('nav') && !el.classList.contains('nav-logo') && !el.classList.contains('footer-logo')) return;
       if (el.tagName === 'A' && el.querySelector('img')) return;
       // Skip structural containers (span/div with child elements are layout wrappers, not text nodes)
       if ((el.tagName === 'SPAN' || el.tagName === 'DIV') && el.children.length > 0) return;
