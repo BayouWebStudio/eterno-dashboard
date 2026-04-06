@@ -111,6 +111,7 @@ export default function VisualEditor() {
     saveSiteField,
     uploadSiteImage,
     deleteSiteSection,
+    deleteArtist,
     addSiteSection,
     deleteGalleryImage,
     saveGalleryOrder,
@@ -205,6 +206,10 @@ export default function VisualEditor() {
 
         case "section-delete":
           handleSectionDelete(data);
+          break;
+
+        case "artist-delete":
+          handleArtistDelete(data);
           break;
 
         case "request-refresh":
@@ -370,6 +375,24 @@ export default function VisualEditor() {
       }
     },
     [deleteSiteSection, refreshHtml]
+  );
+
+  // ── Artist delete handler ──
+  const handleArtistDelete = useCallback(
+    async (data: { artistName: string }) => {
+      try {
+        const ok = await deleteArtist(data.artistName);
+        if (ok) {
+          toast.success("Artist removed. Allow 3–5 min for live site.");
+          refreshHtml();
+        } else {
+          toast.error("Failed to remove artist.");
+        }
+      } catch {
+        toast.error("Failed to remove artist.");
+      }
+    },
+    [deleteArtist, refreshHtml]
   );
 
   // ── Page switch handler ──
