@@ -517,7 +517,9 @@ const EDIT_JS = `
       var key = findFieldKey(el);
       var sectionId = findSectionId(el);
 
-      if (sectionId === 'unknown') {
+      // Allow nav_logo and footer_name even without a section — they're global elements
+      var globalKeys = ['nav_logo', 'footer_name'];
+      if (sectionId === 'unknown' && globalKeys.indexOf(key) < 0) {
         showToast('Could not identify section \\u2014 edit not saved');
         return;
       }
