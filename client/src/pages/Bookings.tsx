@@ -107,6 +107,15 @@ function InquiryCard({
         <div className="text-xs"><span className="text-muted-foreground">Service: </span><span className="text-foreground">{b.service}</span></div>
       )}
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{b.message}</p>
+      {b.referencePhotos && b.referencePhotos.length > 0 && (
+        <div className="flex gap-2 flex-wrap mt-2">
+          {b.referencePhotos.map((photo: string, i: number) => (
+            <a key={i} href={photo} target="_blank" rel="noopener noreferrer" className="block w-16 h-16 rounded-md overflow-hidden border border-border hover:border-gold transition-colors flex-shrink-0">
+              <img src={photo} alt={`Reference ${i + 1}`} className="w-full h-full object-cover" />
+            </a>
+          ))}
+        </div>
+      )}
       <div className="flex items-center justify-end gap-2 pt-1">
         {onAssign && (
           <button
