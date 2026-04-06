@@ -805,6 +805,21 @@ const EDIT_JS = `
       if (!id && sec.className) {
         id = extractSectionIdFromClass(sec.className) || '';
       }
+      // Fallback: derive ID from heading text (same as findSectionId)
+      if (!id && sec.tagName === 'SECTION') {
+        var heading = sec.querySelector('h1, h2, h3');
+        if (heading) {
+          var ht = (heading.textContent || '').trim().toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 30);
+          if (ht.length > 2) id = ht;
+        }
+        if (!id) {
+          var allSec = document.querySelectorAll('section');
+          for (var si = 0; si < allSec.length; si++) {
+            if (allSec[si] === sec) { id = 'section-' + si; break; }
+          }
+        }
+      }
       if (!id) return;
       if (processed.has(id)) return;
       processed.add(id);
@@ -881,9 +896,14 @@ const EDIT_JS = `
         e.stopPropagation();
         post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg_image' });
       });
-      // Don't override position on absolute/fixed elements — append to parent instead
+      // Don't override position on absolute/fixed elements — find a visible container
       var computed = window.getComputedStyle(el);
-      var target = (computed.position === 'absolute' || computed.position === 'fixed') && el.parentElement ? el.parentElement : el;
+      var target = el;
+      if (computed.position === 'absolute' || computed.position === 'fixed') {
+        // Try hero-content first (has z-index above overlays), then parent section
+        var heroContent = el.parentElement && el.parentElement.querySelector('.hero-content');
+        target = heroContent || el.parentElement || el;
+      }
       if (window.getComputedStyle(target).position === 'static') {
         target.style.position = 'relative';
       }
