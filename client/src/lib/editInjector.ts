@@ -264,6 +264,13 @@ const EDIT_JS = `
         return name;
       }
     }
+
+    // Bare well-known section class names (e.g. class="hero", class="about", class="gallery")
+    var knownSections = ['hero', 'about', 'gallery', 'booking', 'contact', 'faq', 'testimonials', 'services', 'portfolio', 'reviews', 'pricing'];
+    var classes = cls.split(/\\s+/);
+    for (var ki = 0; ki < knownSections.length; ki++) {
+      if (classes.indexOf(knownSections[ki]) >= 0) return knownSections[ki];
+    }
     return null;
   }
 
