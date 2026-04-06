@@ -171,8 +171,8 @@ export default function VisualEditor() {
   // ── Handle messages from iframe ──
   useEffect(() => {
     function handleMessage(e: MessageEvent) {
-      // Only accept messages from same origin (iframe)
-      if (e.origin !== window.location.origin) return;
+      // Accept messages from same origin OR srcdoc iframes (origin "null")
+      if (e.origin !== window.location.origin && e.origin !== "null") return;
       const data = e.data;
       if (!data || !data.type) return;
 
