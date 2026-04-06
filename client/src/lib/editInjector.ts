@@ -286,6 +286,21 @@ const EDIT_JS = `
           var extracted = extractSectionIdFromClass(cls);
           if (extracted) return extracted;
         }
+        // Fallback for generic class="section" or unnamed sections:
+        // Derive ID from the section's first heading text or use positional index
+        if (node.tagName === 'SECTION') {
+          var heading = node.querySelector('h1, h2, h3');
+          if (heading) {
+            var headingText = (heading.textContent || '').trim().toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 30);
+            if (headingText.length > 2) return headingText;
+          }
+          // Last resort: use section index
+          var allSections = document.querySelectorAll('section');
+          for (var si = 0; si < allSections.length; si++) {
+            if (allSections[si] === node) return 'section-' + si;
+          }
+        }
       }
       node = node.parentElement;
     }
@@ -860,14 +875,19 @@ const EDIT_JS = `
       var btn = document.createElement('button');
       btn.className = 've-img-btn';
       btn.textContent = 'Change Hero Image';
-      btn.style.cssText = 'position:absolute;top:16px;left:16px;z-index:200;';
+      btn.style.cssText = 'position:absolute;top:16px;right:16px;z-index:9999;white-space:nowrap;pointer-events:auto;';
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
         post({ type: 'image-swap', sectionId: findSectionId(el), currentSrc: bgImg, key: 'hero_bg_image' });
       });
-      el.style.position = 'relative';
-      el.appendChild(btn);
+      // Don't override position on absolute/fixed elements — append to parent instead
+      var computed = window.getComputedStyle(el);
+      var target = (computed.position === 'absolute' || computed.position === 'fixed') && el.parentElement ? el.parentElement : el;
+      if (window.getComputedStyle(target).position === 'static') {
+        target.style.position = 'relative';
+      }
+      target.appendChild(btn);
     });
   }
 
