@@ -228,7 +228,9 @@ const EDIT_JS = `
   var saveOrderBar = null;
 
   function post(msg) {
-    window.parent.postMessage(msg, window.location.origin);
+    // srcdoc iframes have origin "null" and can't know the parent's origin,
+    // so we must use '*'. The parent validates via its own origin check.
+    window.parent.postMessage(msg, '*');
   }
 
   /**
