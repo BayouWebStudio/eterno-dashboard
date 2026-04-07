@@ -224,9 +224,12 @@ export default function VisualEditor() {
 
   // ── Text edit handler ──
   const handleTextEdit = useCallback(
-    async (data: { sectionId: string; key: string; value: string }) => {
+    async (data: { sectionId: string; key: string; value: string; originalValue?: string }) => {
       try {
-        const ok = await saveSiteField(data.key, data.value);
+        // Pass originalValue as the value with a separator so the backend can do targeted replacement
+        // Format: "newValue|||originalValue" — backend splits on ||| to find the exact element to replace
+        const payload = data.originalValue ? `${data.value}|||${data.originalValue}` : data.value;
+        const ok = await saveSiteField(data.key, payload);
         if (ok) {
           toast.success("Text updated. Allow 3\u20135 min for live site.");
         } else {
