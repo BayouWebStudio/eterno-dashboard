@@ -252,14 +252,16 @@ const EDIT_JS = `
     if (cls.indexOf('gallery-body') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
+    if (cls.indexOf('gallery-grid') >= 0) return 'gallery';
     if (cls.indexOf('page-hero') >= 0) return 'hero';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
 
-    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container|preview)(?:\\s|$)/i);
+    // Match container patterns but handle BEM double-dash (e.g. gallery-grid--preview → gallery-grid)
+    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container|preview|grid)(?:--[a-z]+)?(?:\\s|$)/i);
     if (containerMatch) {
-      var name = containerMatch[1];
+      var name = containerMatch[1].replace(/-+$/, '');
       if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
         return name;
       }
