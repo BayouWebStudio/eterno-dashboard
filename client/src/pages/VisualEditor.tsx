@@ -233,10 +233,11 @@ export default function VisualEditor() {
         if (ok) {
           toast.success("Text updated. Allow 3\u20135 min for live site.");
         } else {
-          toast.error("Failed to save text change.");
+          toast.error(`Save failed for key "${data.key}" in section "${data.sectionId}". Try refreshing the page.`);
         }
-      } catch {
-        toast.error("Failed to save text change.");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        toast.error(`Save error: ${msg}`);
       }
     },
     [saveSiteField]

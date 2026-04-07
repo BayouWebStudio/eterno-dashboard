@@ -242,6 +242,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           payload.page = currentPageRef.current;
         }
 
+        console.log(`[Site] Saving field "${key}" payload:`, JSON.stringify(payload).substring(0, 200));
         const res = await authFetch("/api/dashboard/save-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -249,8 +250,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          throw new Error(data?.error || `Save failed: ${res.status}`);
+          const errMsg = data?.error || `Save failed: ${res.status}`;
+          console.error(`[Site] Save field "${key}" HTTP ${res.status}:`, errMsg);
+          throw new Error(errMsg);
         }
+        console.log(`[Site] Save field "${key}" succeeded`);
         return true;
       } catch (err) {
         console.error(`[Site] Save field "${key}" failed:`, err);
