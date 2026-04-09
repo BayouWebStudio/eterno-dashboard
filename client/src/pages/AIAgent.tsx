@@ -1,6 +1,6 @@
 /*
-  DESIGN: Dark Forge — AI Agent Page
-  Configure AI agent settings and view leads/call history.
+  DESIGN: Dark Forge — AI Assistant Page
+  Configure AI assistant settings and view leads/call history.
   Two tabs: Configuration and Leads & Calls.
 */
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -15,6 +15,9 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  PhoneOff,
+  Clock,
+  PhoneIncoming,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -46,7 +49,21 @@ interface AgentLead {
   callerPhone?: string;
   summary: string;
   transcript?: string;
+  callDuration?: number;
+  callStatus?: string;
+  callSid?: string;
   createdAt: number;
+}
+
+interface AgentStats {
+  totalCalls: number;
+  answered: number;
+  missed: number;
+  failed: number;
+  avgDuration: number;
+  callsThisMonth: number;
+  callsThisWeek: number;
+  byChannel: Record<string, number>;
 }
 
 type Tab = "config" | "leads";
@@ -64,6 +81,7 @@ export default function AIAgent() {
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
   const [expandedLead, setExpandedLead] = useState<string | null>(null);
   const [promptOpen, setPromptOpen] = useState(false);
+  const [stats, setStats] = useState<AgentStats | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -143,11 +161,23 @@ export default function AIAgent() {
     }
   }, [authFetch]);
 
+  // ── Fetch stats ──
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await authFetch("/api/agent/stats");
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch {}
+  }, [authFetch]);
+
   // ── Initial load ──
   useEffect(() => {
     fetchConfig();
     fetchLeads();
-  }, [fetchConfig, fetchLeads]);
+    fetchStats();
+  }, [fetchConfig, fetchLeads, fetchStats]);
 
   // ── Filter change ──
   useEffect(() => {
@@ -207,9 +237,9 @@ export default function AIAgent() {
     <div className="max-w-4xl space-y-6">
       {/* Header */}
       <div>
-        <h2 className="font-heading text-lg font-bold text-foreground">AI Agent</h2>
+        <h2 className="font-heading text-lg font-bold text-foreground">AI Assistant</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Configure your AI phone agent and view call history
+          Configure your AI assistant and view call history
         </p>
       </div>
 
@@ -354,10 +384,14 @@ export default function AIAgent() {
         <div className="space-y-6">
           {/* Analytics Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Voice Calls" value={analytics.totalVoice} icon={Phone} />
-            <StatCard label="WhatsApp" value={analytics.totalWhatsapp} icon={MessageSquare} />
-            <StatCard label="Chat" value={analytics.totalChat} icon={Globe} />
-            <StatCard label="This Month" value={analytics.thisMonth} icon={Bot} />
+            <StatCard label="This Month" value={stats?.callsThisMonth ?? analytics.thisMonth} icon={PhoneIncoming} />
+            <StatCard label="Answered" value={stats?.answered ?? analytics.totalVoice} icon={Phone} />
+            <StatCard label="Missed" value={stats?.missed ?? 0} icon={PhoneOff} />
+            <StatCard
+              label="Avg Duration"
+              value={stats?.avgDuration ? `${Math.floor(stats.avgDuration / 60)}:${String(stats.avgDuration % 60).padStart(2, "0")}` : "—"}
+              icon={Clock}
+            />
           </div>
 
           {/* Channel Filter */}
@@ -388,17 +422,18 @@ export default function AIAgent() {
                 <Bot className="w-8 h-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">No leads yet</p>
                 <p className="text-xs text-muted-foreground">
-                  Leads will appear here when your AI agent receives calls
+                  Leads will appear here when your AI assistant receives calls
                 </p>
               </div>
             ) : (
               <div className="divide-y divide-border">
                 {/* Table header */}
-                <div className="grid grid-cols-[100px_80px_1fr_120px_1fr] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium bg-[oklch(0.14_0.005_250)]">
+                <div className="grid grid-cols-[90px_70px_1fr_110px_60px_1fr] gap-3 px-4 py-2.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium bg-[oklch(0.14_0.005_250)]">
                   <span>Date</span>
                   <span>Channel</span>
                   <span>Name</span>
                   <span>Phone</span>
+                  <span>Duration</span>
                   <span>Summary</span>
                 </div>
 
@@ -406,7 +441,7 @@ export default function AIAgent() {
                   <div key={lead._id}>
                     <button
                       onClick={() => setExpandedLead(expandedLead === lead._id ? null : lead._id)}
-                      className="w-full grid grid-cols-[100px_80px_1fr_120px_1fr] gap-3 px-4 py-3 text-sm text-left hover:bg-[oklch(0.16_0.005_250)] transition-colors"
+                      className="w-full grid grid-cols-[90px_70px_1fr_110px_60px_1fr] gap-3 px-4 py-3 text-sm text-left hover:bg-[oklch(0.16_0.005_250)] transition-colors"
                     >
                       <span className="text-xs text-muted-foreground">
                         {new Date(lead.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -414,8 +449,16 @@ export default function AIAgent() {
                       <span>
                         <ChannelBadge channel={lead.channel} />
                       </span>
-                      <span className="text-foreground truncate">{lead.callerName || "Unknown"}</span>
+                      <span className="text-foreground truncate flex items-center gap-1.5">
+                        {lead.callStatus === "missed" && <PhoneOff className="w-3 h-3 text-red-400 flex-shrink-0" />}
+                        {lead.callerName || "Unknown"}
+                      </span>
                       <span className="text-xs text-muted-foreground font-mono truncate">{lead.callerPhone || "—"}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {lead.callDuration && lead.callDuration > 0
+                          ? `${Math.floor(lead.callDuration / 60)}:${String(lead.callDuration % 60).padStart(2, "0")}`
+                          : "—"}
+                      </span>
                       <span className="text-xs text-muted-foreground truncate">{lead.summary}</span>
                     </button>
                     {expandedLead === lead._id && lead.transcript && (
@@ -531,7 +574,7 @@ function StatCard({
   icon: Icon,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   icon: React.ElementType;
 }) {
   return (

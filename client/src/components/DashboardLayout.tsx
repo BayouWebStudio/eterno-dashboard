@@ -23,6 +23,7 @@ import {
   CalendarDays,
   MessageSquare,
   Users,
+  FileText,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -86,6 +87,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     ...(hasTestimonialsPage ? [{ path: "/testimonials", label: "Testimonials", icon: MessageSquare, badge: pendingTestimonials }] : []),
     ...(hasAgent ? [{ path: "/ai-agent", label: "AI Assistant", icon: Bot }] : []),
     ...(currentSite?.siteBuilt ? [{ path: "/clients", label: "Clients", icon: Users }] : []),
+    ...(currentSite?.siteBuilt ? [{ path: "/invoices", label: "Invoices", icon: FileText }] : []),
   ];
 
   /** Renders nav items — shared between desktop sidebar and mobile sheet */
