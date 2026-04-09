@@ -22,6 +22,7 @@ import {
   Bot,
   CalendarDays,
   MessageSquare,
+  Users,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -83,7 +84,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     ...BASE_NAV_ITEMS,
     ...(hasBookingPage ? [{ path: "/bookings", label: "Bookings", icon: CalendarDays, badge: newBookings }] : []),
     ...(hasTestimonialsPage ? [{ path: "/testimonials", label: "Testimonials", icon: MessageSquare, badge: pendingTestimonials }] : []),
-    ...(hasAgent ? [{ path: "/ai-agent", label: "AI Agent", icon: Bot }] : []),
+    ...(hasAgent ? [{ path: "/ai-agent", label: "AI Assistant", icon: Bot }] : []),
+    ...(currentSite?.siteBuilt ? [{ path: "/clients", label: "Clients", icon: Users }] : []),
   ];
 
   /** Renders nav items — shared between desktop sidebar and mobile sheet */

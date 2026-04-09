@@ -16,6 +16,7 @@ import Testimonials from "./pages/Testimonials";
 import Billing from "./pages/Billing";
 import Bookings from "./pages/Bookings";
 import AIAgent from "./pages/AIAgent";
+import Clients from "./pages/Clients";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/bookings" component={Bookings} />
       <Route path="/billing" component={Billing} />
       <Route path="/ai-agent" component={AIAgent} />
+      <Route path="/clients" component={Clients} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
