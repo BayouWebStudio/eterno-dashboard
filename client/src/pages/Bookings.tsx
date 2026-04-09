@@ -41,6 +41,8 @@ interface BookingSettings {
   workingHoursStart: string;
   workingHoursEnd: string;
   workingDays: string;
+  defaultDuration: number;
+  timezone: string;
 }
 
 const DEFAULT_SETTINGS: BookingSettings = {
@@ -49,7 +51,49 @@ const DEFAULT_SETTINGS: BookingSettings = {
   workingHoursStart: "09:00",
   workingHoursEnd: "17:00",
   workingDays: "1,2,3,4,5",
+  defaultDuration: 60,
+  timezone: "America/Chicago",
 };
+
+const DURATION_OPTIONS = [
+  { value: 30, label: "30 min" },
+  { value: 45, label: "45 min" },
+  { value: 60, label: "1 hour" },
+  { value: 90, label: "1.5 hours" },
+  { value: 120, label: "2 hours" },
+  { value: 180, label: "3 hours" },
+  { value: 240, label: "4 hours" },
+];
+
+const TIMEZONE_OPTIONS = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Phoenix",
+  "America/Mexico_City",
+  "America/Bogota",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Europe/Rome",
+  "Europe/Moscow",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Bangkok",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Asia/Seoul",
+  "Asia/Shanghai",
+  "Australia/Sydney",
+  "Australia/Melbourne",
+  "Pacific/Auckland",
+];
 
 const DAY_LABELS = [
   { value: "0", label: "Sun" },
@@ -109,9 +153,9 @@ function InquiryCard({
       )}
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{b.message}</p>
       {b.referencePhotos && b.referencePhotos.length > 0 && (
-        <div className="flex gap-2 flex-wrap mt-2">
+        <div className="flex gap-3 flex-wrap mt-2">
           {b.referencePhotos.map((photo: string, i: number) => (
-            <a key={i} href={photo} target="_blank" rel="noopener noreferrer" className="block w-16 h-16 rounded-md overflow-hidden border border-border hover:border-gold transition-colors flex-shrink-0">
+            <a key={i} href={photo} target="_blank" rel="noopener noreferrer" className="block w-32 h-32 rounded-lg overflow-hidden border border-border hover:border-gold transition-colors flex-shrink-0">
               <img src={photo} alt={`Reference ${i + 1}`} className="w-full h-full object-cover" />
             </a>
           ))}
@@ -189,6 +233,7 @@ export default function Bookings() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // ── Auth fetch helpers ─────────────────────────────────────────────
 
@@ -394,7 +439,7 @@ export default function Bookings() {
         const data = await res.json();
         setEmailNotifications(data.emailNotifications ?? true);
       }
-    } catch {} finally { setEmailNotifLoading(false); }
+    } catch (e) { console.error("Failed to load email preferences", e); } finally { setEmailNotifLoading(false); }
   }, [authFetch]);
 
   const saveEmailPreference = useCallback(async (enabled: boolean) => {
@@ -422,7 +467,7 @@ export default function Bookings() {
         setGoogleConnected(data.connected);
         setGoogleEmail(data.email || null);
       }
-    } catch {}
+    } catch (e) { console.error("Failed to check Google Calendar status", e); }
   }, [authFetch]);
 
   const handleGoogleConnect = useCallback(async () => {
@@ -450,6 +495,29 @@ export default function Bookings() {
       toast.error("Failed to disconnect Google Calendar");
     } finally {
       setGoogleLoading(false);
+    }
+  }, [authFetch]);
+
+  const handleGoogleSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const res = await authFetch("/api/dashboard/google/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monthsBack: 6, monthsForward: 3 }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.error) {
+        toast.error(`Sync failed: ${data.error}`);
+      } else {
+        toast.success(`Imported ${data.imported} events (${data.skipped} skipped)`);
+        loadCalendar();
+      }
+    } catch {
+      toast.error("Failed to sync Google Calendar");
+    } finally {
+      setSyncing(false);
     }
   }, [authFetch]);
 
@@ -800,6 +868,36 @@ export default function Bookings() {
                 </div>
               </div>
 
+              {/* Default Booking Duration */}
+              <div className="space-y-4 border-t border-border pt-6">
+                <h3 className="text-sm font-semibold text-foreground">Default Booking Duration</h3>
+                <p className="text-xs text-muted-foreground">How long is a typical appointment? Clients will see busy slots based on this duration.</p>
+                <select
+                  className="bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-gold"
+                  value={settings.defaultDuration}
+                  onChange={(e) => setSettings((s) => ({ ...s, defaultDuration: Number(e.target.value) }))}
+                >
+                  {DURATION_OPTIONS.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Timezone */}
+              <div className="space-y-4 border-t border-border pt-6">
+                <h3 className="text-sm font-semibold text-foreground">Timezone</h3>
+                <p className="text-xs text-muted-foreground">Used for availability display and Google Calendar sync.</p>
+                <select
+                  className="bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-gold"
+                  value={settings.timezone}
+                  onChange={(e) => setSettings((s) => ({ ...s, timezone: e.target.value }))}
+                >
+                  {TIMEZONE_OPTIONS.map((tz) => (
+                    <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Email Notifications */}
               <div className="space-y-4 border-t border-border pt-6">
                 <h3 className="text-sm font-semibold text-foreground">Email Notifications</h3>
@@ -839,13 +937,23 @@ export default function Bookings() {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={handleGoogleDisconnect}
-                      disabled={googleLoading}
-                      className="px-3 py-1.5 text-xs text-red-400/80 hover:text-red-400 border border-red-400/20 hover:border-red-400/40 rounded-md transition-colors disabled:opacity-50"
-                    >
-                      {googleLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Disconnect"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleGoogleSync}
+                        disabled={syncing}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/20 hover:bg-gold/10 rounded-md transition-colors disabled:opacity-50"
+                      >
+                        {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                        {syncing ? "Syncing..." : "Import Events"}
+                      </button>
+                      <button
+                        onClick={handleGoogleDisconnect}
+                        disabled={googleLoading}
+                        className="px-3 py-1.5 text-xs text-red-400/80 hover:text-red-400 border border-red-400/20 hover:border-red-400/40 rounded-md transition-colors disabled:opacity-50"
+                      >
+                        {googleLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Disconnect"}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button
