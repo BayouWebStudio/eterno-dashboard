@@ -38,6 +38,7 @@ interface AgentConfig {
   voiceEnabled: boolean;
   chatEnabled: boolean;
   customFaq?: string;
+  greeting?: string;
   systemPrompt: string;
   createdAt: number;
 }
@@ -96,6 +97,7 @@ export default function AIAgent() {
     whatsappEnabled: false,
     chatEnabled: false,
     customFaq: "",
+    greeting: "",
   });
 
   // ── Auth fetch helper ──
@@ -132,6 +134,7 @@ export default function AIAgent() {
             whatsappEnabled: data.whatsappEnabled ?? false,
             chatEnabled: data.chatEnabled ?? false,
             customFaq: data.customFaq || "",
+            greeting: data.greeting || "",
           });
         } else {
           setConfig(null);
@@ -346,6 +349,7 @@ export default function AIAgent() {
             <TextareaField label="Business Hours" value={form.hours} onChange={(v) => updateField("hours", v)} placeholder="e.g. Mon-Fri 10am-7pm, Sat 11am-5pm" rows={2} />
             <TextareaField label="Services" value={form.services} onChange={(v) => updateField("services", v)} placeholder="List your services, one per line" rows={3} />
             <TextareaField label="Pricing" value={form.pricing} onChange={(v) => updateField("pricing", v)} placeholder="Pricing info the agent can share" rows={3} />
+            <Field label="Pickup Line" value={form.greeting} onChange={(v) => updateField("greeting", v)} placeholder="Hey! Thanks for calling Ink Masters, one moment..." />
             <TextareaField label="Custom FAQ" value={form.customFaq} onChange={(v) => updateField("customFaq", v)} placeholder="Common questions and answers" rows={4} />
 
             {/* Channel toggles */}
