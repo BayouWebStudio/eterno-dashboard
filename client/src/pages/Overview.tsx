@@ -15,6 +15,7 @@ import {
 import BuildStatusIndicator from "@/components/BuildStatusIndicator";
 import AnalyticsCard from "@/components/AnalyticsCard";
 import SeoScoreCard from "@/components/SeoScoreCard";
+import InstagramSync from "@/components/InstagramSync";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -167,6 +168,9 @@ export default function Overview() {
         <AnalyticsCard />
         <SeoScoreCard />
       </div>
+
+      {/* Instagram Auto-Sync */}
+      <InstagramSync />
 
       {/* Live Preview */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">

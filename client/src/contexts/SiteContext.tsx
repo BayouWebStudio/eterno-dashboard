@@ -58,6 +58,8 @@ export interface SiteInfo {
   hasAgent?: boolean;
   newBookings?: number;
   pendingTestimonials?: number;
+  autoGallery?: boolean;
+  autoGalleryLastRun?: number | null;
 }
 
 type OnboardingStatus = "idle" | "none" | "building" | "connecting" | "ready";
@@ -170,6 +172,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         hasAgent: data.hasAgent,
         newBookings: data.newBookings ?? 0,
         pendingTestimonials: data.pendingTestimonials ?? 0,
+        autoGallery: data.autoGallery ?? false,
+        autoGalleryLastRun: data.autoGalleryLastRun ?? null,
       });
       setOnboardingStatus("ready");
     } catch (err) {
@@ -242,7 +246,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           payload.page = currentPageRef.current;
         }
 
-        console.log(`[Site] Saving field "${key}" payload:`, JSON.stringify(payload).substring(0, 200));
         const res = await authFetch("/api/dashboard/save-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -254,7 +257,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           console.error(`[Site] Save field "${key}" HTTP ${res.status}:`, errMsg);
           throw new Error(errMsg);
         }
-        console.log(`[Site] Save field "${key}" succeeded`);
         return true;
       } catch (err) {
         console.error(`[Site] Save field "${key}" failed:`, err);
@@ -327,7 +329,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         console.error("[Site] saveGalleryOrder: convexHttpUrl is empty!");
         throw new Error("Backend URL not configured");
       }
-      console.log(`[Site] saveGalleryOrder: sending ${filenames.length} filenames, sectionId=${sectionId}, page=${currentPageRef.current}, url=${convexHttpUrl}`);
       try {
         const res = await authFetch("/api/dashboard/save-gallery-order", {
           method: "POST",
