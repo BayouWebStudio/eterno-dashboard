@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
-import { Star, Check, Trash2, MessageSquare, Clock, RefreshCw, Link2 } from "lucide-react";
+import { Star, Check, Trash2, MessageSquare, Clock, RefreshCw, Link2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import EmptyStateGuide from "@/components/EmptyStateGuide";
 
@@ -18,7 +18,11 @@ interface Testimonial {
   status: "pending" | "approved" | "rejected";
   createdAt: number;
   photoBase64?: string;
+  featured?: boolean;
+  featuredOrder?: number;
 }
+
+const MAX_FEATURED = 4;
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -37,12 +41,16 @@ function TestimonialCard({
   t,
   onApprove,
   onDelete,
+  onToggleFeatured,
   actionLoading,
+  featuredCount,
 }: {
   t: Testimonial;
   onApprove?: () => void;
   onDelete: () => void;
+  onToggleFeatured?: () => void;
   actionLoading: boolean;
+  featuredCount?: number;
 }) {
   const date = new Date(t.createdAt).toLocaleDateString("en-US", {
     month: "short",
@@ -50,8 +58,10 @@ function TestimonialCard({
     year: "numeric",
   });
 
+  const canFeature = t.featured || (featuredCount ?? 0) < MAX_FEATURED;
+
   return (
-    <div className="bg-[oklch(0.16_0.005_250)] border border-border rounded-lg p-4 flex flex-col gap-3">
+    <div className={`bg-[oklch(0.16_0.005_250)] border rounded-lg p-4 flex flex-col gap-3 transition-colors ${t.featured ? "border-gold/40" : "border-border"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           {t.photoBase64 && (
@@ -66,7 +76,14 @@ function TestimonialCard({
             <StarRating rating={t.rating} />
           </div>
         </div>
-        <span className="text-xs text-muted-foreground flex-shrink-0 mt-0.5">{date}</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {t.featured && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gold/10 text-gold border border-gold/20">
+              Featured
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground mt-0.5">{date}</span>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">
@@ -82,6 +99,21 @@ function TestimonialCard({
           >
             <Check className="w-3.5 h-3.5" />
             Approve
+          </button>
+        )}
+        {onToggleFeatured && (
+          <button
+            onClick={onToggleFeatured}
+            disabled={actionLoading || (!t.featured && !canFeature)}
+            title={t.featured ? "Remove from home page" : (canFeature ? "Feature on home page" : `Max ${MAX_FEATURED} featured`)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
+              t.featured
+                ? "bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20"
+                : "bg-[oklch(0.20_0.005_250)] text-muted-foreground border border-border hover:text-foreground hover:border-gold/30"
+            }`}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${t.featured ? "fill-gold" : ""}`} />
+            {t.featured ? "Featured" : "Feature"}
           </button>
         )}
         <button
@@ -170,8 +202,37 @@ export default function Testimonials() {
     }
   };
 
+  const handleToggleFeatured = async (id: string, currentlyFeatured: boolean) => {
+    setActionLoading(id);
+    try {
+      const res = await authFetch("/api/dashboard/testimonials/featured", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, featured: !currentlyFeatured }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed to update featured status");
+        return;
+      }
+      toast.success(currentlyFeatured ? "Removed from home page" : "Featured on home page");
+      setTestimonials((prev) =>
+        prev.map((t) =>
+          t._id === id
+            ? { ...t, featured: data.featured, featuredOrder: data.featuredOrder }
+            : t
+        )
+      );
+    } catch {
+      toast.error("Failed to update featured status");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const pending = testimonials.filter((t) => t.status === "pending");
   const approved = testimonials.filter((t) => t.status === "approved");
+  const featuredCount = approved.filter((t) => t.featured).length;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -245,22 +306,35 @@ export default function Testimonials() {
           {/* Approved */}
           {approved.length > 0 && (
             <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Approved
-                  <span className="ml-2 text-xs font-normal text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">
-                    {approved.length}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Approved
+                    <span className="ml-2 text-xs font-normal text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">
+                      {approved.length}
+                    </span>
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-gold" />
+                  <span className="text-xs text-muted-foreground">
+                    Featured on home page: <span className="text-gold font-semibold">{featuredCount}/{MAX_FEATURED}</span>
                   </span>
-                </h3>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground/70 pl-6 -mt-1">
+                Click "Feature" to show a testimonial on your site's home page. Up to {MAX_FEATURED} can be featured.
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {approved.map((t) => (
                   <TestimonialCard
                     key={t._id}
                     t={t}
                     onDelete={() => handleDelete(t._id)}
+                    onToggleFeatured={() => handleToggleFeatured(t._id, !!t.featured)}
                     actionLoading={actionLoading === t._id}
+                    featuredCount={featuredCount}
                   />
                 ))}
               </div>
