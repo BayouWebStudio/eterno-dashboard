@@ -134,31 +134,38 @@ export default function InstagramSync() {
         Automatically pulls your latest Instagram posts and adds them to your site gallery. Runs weekly on Sundays.
       </p>
 
-      {/* IG Handle input */}
+      {/* IG Handle — locked once set */}
       <div className="mb-4">
         <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">
           Instagram Handle
         </label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
-            <input
-              type="text"
-              value={igHandleInput}
-              onChange={(e) => setIgHandleInput(e.target.value.replace(/^@/, ""))}
-              placeholder="yourhandle"
-              className="w-full pl-7 pr-3 py-2 text-sm bg-[oklch(0.14_0.005_250)] border border-border rounded-md text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-gold/40 transition-colors"
-            />
+        {hasHandle ? (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 text-sm bg-[oklch(0.14_0.005_250)] border border-border rounded-md">
+            <span className="text-foreground">@{currentSite?.igHandle}</span>
+            <span className="text-[10px] text-muted-foreground">Locked to registered handle</span>
           </div>
-          <button
-            onClick={saveIgHandle}
-            disabled={savingHandle || !igHandleInput.trim() || igHandleInput.trim() === currentSite?.igHandle}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border border-border hover:border-gold/30 hover:bg-[oklch(0.16_0.005_250)] text-foreground transition-colors disabled:opacity-50"
-          >
-            {savingHandle ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Save
-          </button>
-        </div>
+        ) : (
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+              <input
+                type="text"
+                value={igHandleInput}
+                onChange={(e) => setIgHandleInput(e.target.value.replace(/^@/, ""))}
+                placeholder="yourhandle"
+                className="w-full pl-7 pr-3 py-2 text-sm bg-[oklch(0.14_0.005_250)] border border-border rounded-md text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-gold/40 transition-colors"
+              />
+            </div>
+            <button
+              onClick={saveIgHandle}
+              disabled={savingHandle || !igHandleInput.trim()}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border border-border hover:border-gold/30 hover:bg-[oklch(0.16_0.005_250)] text-foreground transition-colors disabled:opacity-50"
+            >
+              {savingHandle ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Save
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Toggle + Sync Now */}
