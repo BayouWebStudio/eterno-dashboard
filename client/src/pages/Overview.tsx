@@ -104,9 +104,10 @@ export default function Overview() {
 
   // ── Site loaded: show overview ──
   // For custom domains use the domain directly; for default sites use path format
+  // Trailing slash is required for GitHub Pages subdirectory URLs to resolve to index.html
   const liveUrl = currentSite.domain
-    ? `https://${currentSite.domain}`
-    : `https://eternowebstudio.com/${currentSite.slug}`;
+    ? `https://${currentSite.domain}/`
+    : `https://eternowebstudio.com/${currentSite.slug}/`;
   const displayDomain = currentSite.domain || `eternowebstudio.com/${currentSite.slug}`;
 
   return (
