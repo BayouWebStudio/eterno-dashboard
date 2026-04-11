@@ -11,6 +11,7 @@
 */
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "./AuthContext";
+import { setSentryUser } from "@/lib/sentry";
 
 /* ── Page name mapping ── */
 const PAGE_NAMES: Record<string, string> = {
@@ -175,6 +176,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         autoGallery: data.autoGallery ?? false,
         autoGalleryLastRun: data.autoGalleryLastRun ?? null,
       });
+      // Tag all subsequent Sentry errors with this client's slug + email
+      setSentryUser(data.siteSlug, data.email || null);
       setOnboardingStatus("ready");
     } catch (err) {
       console.error("[SiteContext] refreshInfo failed:", err);

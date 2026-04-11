@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { initSentry, Sentry } from "@/lib/sentry";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
@@ -7,6 +8,9 @@ import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
+
+// Initialize error tracking as early as possible
+initSentry();
 
 const queryClient = new QueryClient();
 
@@ -26,6 +30,7 @@ queryClient.getQueryCache().subscribe(event => {
     const error = event.query.state.error;
     redirectToLoginIfUnauthorized(error);
     console.error("[API Query Error]", error);
+    if (error instanceof Error) Sentry.captureException(error, { tags: { source: "query" } });
   }
 });
 
@@ -34,6 +39,7 @@ queryClient.getMutationCache().subscribe(event => {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
     console.error("[API Mutation Error]", error);
+    if (error instanceof Error) Sentry.captureException(error, { tags: { source: "mutation" } });
   }
 });
 
