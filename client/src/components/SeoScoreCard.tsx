@@ -4,7 +4,8 @@
 */
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, RefreshCw, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, RefreshCw, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface PsiData {
   performance: number;
@@ -33,6 +34,8 @@ export default function SeoScoreCard() {
   const [running, setRunning] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [improving, setImproving] = useState(false);
+  const [allDone, setAllDone] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +66,41 @@ export default function SeoScoreCard() {
     setRunning(true);
     await load();
     setRunning(false);
+  };
+
+  const improveSeo = async () => {
+    setImproving(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${convexHttpUrl}/api/seo/improve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || "Failed to improve SEO");
+        return;
+      }
+      if (result.allDone && !result.success) {
+        toast.success("All SEO improvements already applied");
+        setAllDone(true);
+        return;
+      }
+      if (result.success) {
+        const gained = result.scoreNow - result.scoreWas;
+        toast.success(`${result.tierLabel} applied — score ${result.scoreWas} → ${result.scoreNow} (+${gained})`);
+        if (result.allDone) setAllDone(true);
+        // Refresh score card with the new data
+        await load();
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to improve SEO");
+    } finally {
+      setImproving(false);
+    }
   };
 
   if (loading) {
@@ -179,6 +217,24 @@ export default function SeoScoreCard() {
         <div className="flex items-center gap-1.5 text-xs text-emerald-400">
           <CheckCircle2 className="w-3 h-3" />
           <span>No SEO issues detected</span>
+        </div>
+      )}
+
+      {/* Improve SEO button */}
+      {!allDone && data.score < 100 && (
+        <button
+          onClick={improveSeo}
+          disabled={improving}
+          className="mt-4 w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition-colors disabled:opacity-50"
+        >
+          {improving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+          {improving ? "Improving..." : "Improve SEO"}
+        </button>
+      )}
+      {allDone && (
+        <div className="mt-4 flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 rounded-md">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          All SEO improvements applied
         </div>
       )}
 
