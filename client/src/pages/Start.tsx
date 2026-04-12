@@ -35,8 +35,11 @@ export default function Start() {
   // Hand-off: persist wizard input + redirect to auth wall.
   // Returning true tells BuildWizard its draft was consumed (it clears the draft).
   const handleSubmit = async (input: SetupSiteInput): Promise<boolean> => {
+    // Capture referral code from ?ref= URL param
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    const payload = ref ? { ...input, referralCode: ref } : input;
     try {
-      localStorage.setItem(PENDING_BUILD_KEY, JSON.stringify(input));
+      localStorage.setItem(PENDING_BUILD_KEY, JSON.stringify(payload));
     } catch {
       /* quota exceeded — proceed anyway */
     }

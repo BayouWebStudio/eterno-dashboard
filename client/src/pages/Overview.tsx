@@ -18,6 +18,7 @@ import SeoScoreCard from "@/components/SeoScoreCard";
 import InstagramSync from "@/components/InstagramSync";
 import BuildWizard from "@/components/onboarding/BuildWizard";
 import UpgradeBanner from "@/components/UpgradeBanner";
+import ReferralBox from "@/components/ReferralBox";
 import { PENDING_BUILD_KEY } from "@/pages/Start";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -203,6 +204,9 @@ export default function Overview() {
 
       {/* Upgrade banner (free plan only) */}
       {currentSite.plan === "free" && !upgradePolling && <UpgradeBanner />}
+
+      {/* Referral Program */}
+      <ReferralBox />
 
       {/* Site Info Card */}
       <div className="bg-card border border-border rounded-lg p-6">

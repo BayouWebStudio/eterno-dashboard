@@ -53,6 +53,7 @@ export type SetupSiteInput = {
   email?: string;
   themeKey?: string;  // "geometric" | "neo_traditional" | ... (undefined = auto)
   layout?: string;    // "monolith" | "split" | ... (undefined = random)
+  referralCode?: string; // referral program code from ?ref= param
 };
 
 export interface SiteInfo {
@@ -555,6 +556,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         if (input.email) body.email = input.email;
         if (input.themeKey) body.theme = input.themeKey;
         if (input.layout) body.layout = input.layout;
+        if (input.referralCode) body.referralCode = input.referralCode;
 
         const res = await authFetch("/api/signature/create", {
           method: "POST",
