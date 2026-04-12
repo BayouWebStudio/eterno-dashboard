@@ -98,13 +98,18 @@ export default function ReferralBox() {
       </div>
 
       {/* Stats */}
-      <div className="flex items-center gap-4 text-xs">
+      <div className="flex items-center gap-4 text-xs flex-wrap">
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="w-3 h-3 text-gold/60" />
           <span>
-            <span className="text-foreground font-medium">{info.referralCount}</span> referral{info.referralCount !== 1 ? "s" : ""}
+            <span className="text-foreground font-medium">{info.referralCount}</span> paid referral{info.referralCount !== 1 ? "s" : ""}
           </span>
         </div>
+        {info.pendingCount > 0 && (
+          <div className="text-muted-foreground/60">
+            {info.pendingCount} signed up (waiting to upgrade)
+          </div>
+        )}
         {info.creditsEarned > 0 && (
           <div className="text-muted-foreground">
             <span className="text-gold font-medium">${info.creditsEarned * 25}</span> earned
@@ -112,7 +117,7 @@ export default function ReferralBox() {
         )}
         {pendingCredits > 0 && (
           <div className="text-muted-foreground/60">
-            ${pendingCredits * 25} pending
+            ${pendingCredits * 25} credit not yet applied
           </div>
         )}
       </div>
