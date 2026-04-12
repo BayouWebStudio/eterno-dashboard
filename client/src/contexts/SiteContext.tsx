@@ -46,6 +46,15 @@ export function getPageLabel(page: string): string {
     .join(" ");
 }
 
+export type SetupSiteInput = {
+  igHandle: string;
+  country: string;
+  artistName?: string;
+  email?: string;
+  themeKey?: string;  // "geometric" | "neo_traditional" | ... (undefined = auto)
+  layout?: string;    // "monolith" | "split" | ... (undefined = random)
+};
+
 export interface SiteInfo {
   slug: string;
   name: string;
@@ -89,7 +98,7 @@ interface SiteContextValue {
   deleteArtist: (artistName: string) => Promise<boolean>;
   addSiteSection: (sectionType: string, title: string, content: string) => Promise<boolean>;
   reorderSections: (sectionOrder: string[]) => Promise<boolean>;
-  setupSite: (igHandle: string, country: string) => Promise<boolean>;
+  setupSite: (input: SetupSiteInput) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
   restoreFileFromHistory: (file: string, targetSha?: string) => Promise<{ ok: boolean; error?: string }>;
   applyTheme: (themeId: string, colors: { bg: string; accent: string; text: string; card: string }, fonts?: { heading: string; body: string }) => Promise<boolean>;
@@ -520,7 +529,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const setupTimersRef = useRef<{ stepTimer: ReturnType<typeof setInterval> | null; pollTimer: ReturnType<typeof setInterval> | null }>({ stepTimer: null, pollTimer: null });
 
   const setupSite = useCallback(
-    async (igHandle: string, country: string): Promise<boolean> => {
+    async (input: SetupSiteInput): Promise<boolean> => {
       if (!convexHttpUrl) return false;
 
       // Abort any previous setup and clear timers synchronously
@@ -536,10 +545,21 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       setOnboardingStatus("building");
       setBuildProgress("Starting build...");
       try {
+        // Build request body — map themeKey to `theme` for the backend arg name.
+        // Undefined fields are dropped by JSON.stringify so the backend sees them as absent.
+        const body: Record<string, string> = {
+          igHandle: input.igHandle,
+          country: input.country,
+        };
+        if (input.artistName) body.artistName = input.artistName;
+        if (input.email) body.email = input.email;
+        if (input.themeKey) body.theme = input.themeKey;
+        if (input.layout) body.layout = input.layout;
+
         const res = await authFetch("/api/signature/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ igHandle, country }),
+          body: JSON.stringify(body),
           signal: abortController.signal,
         });
         const data = await res.json();

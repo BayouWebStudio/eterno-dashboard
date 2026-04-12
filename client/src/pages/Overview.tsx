@@ -5,17 +5,19 @@
     1. "I already have a site" → connect by Instagram handle
     2. "Build a new site" → create from scratch
 */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { useSite } from "@/contexts/SiteContext";
+import { useSite, type SetupSiteInput } from "@/contexts/SiteContext";
 import {
   ExternalLink, RefreshCw, Globe, Calendar, Palette, Languages,
-  Loader2, Link2, Rocket, ArrowLeft, CheckCircle2, Monitor, Code2
+  Loader2, Link2, Rocket, ArrowLeft, CheckCircle2, Monitor, Code2, Sparkles
 } from "lucide-react";
 import BuildStatusIndicator from "@/components/BuildStatusIndicator";
 import AnalyticsCard from "@/components/AnalyticsCard";
 import SeoScoreCard from "@/components/SeoScoreCard";
 import InstagramSync from "@/components/InstagramSync";
+import BuildWizard from "@/components/onboarding/BuildWizard";
+import UpgradeBanner from "@/components/UpgradeBanner";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -37,6 +39,44 @@ export default function Overview() {
   // ── All hooks MUST be called before any early returns (React Rules of Hooks) ──
   const [previewMode, setPreviewMode] = useState<"live" | "source">("live");
   const [iframeKey, setIframeKey] = useState(0);
+
+  // Handle ?upgraded=1 from Stripe success_url — shown briefly while the webhook
+  // catches up. Polls refreshInfo() up to 10 times (every 1s) until plan flips to pro,
+  // then clears the query param so it doesn't re-trigger on next reload.
+  const [upgradePolling, setUpgradePolling] = useState(false);
+  const upgradePollCountRef = useRef(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgraded") !== "1") return;
+    setUpgradePolling(true);
+    upgradePollCountRef.current = 0;
+    const timer = setInterval(async () => {
+      upgradePollCountRef.current++;
+      await refreshInfo();
+      if (upgradePollCountRef.current >= 10) {
+        clearInterval(timer);
+        setUpgradePolling(false);
+        // Clear the query param regardless of outcome
+        const url = new URL(window.location.href);
+        url.searchParams.delete("upgraded");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [refreshInfo]);
+
+  // When the plan flips to pro during polling, stop polling immediately + show success
+  useEffect(() => {
+    if (!upgradePolling) return;
+    if (currentSite?.plan === "pro") {
+      setUpgradePolling(false);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("upgraded");
+      window.history.replaceState({}, "", url.toString());
+      toast.success("You're now on Pro! Custom domains and Pro features are unlocked.");
+    }
+  }, [upgradePolling, currentSite?.plan]);
 
   const handleRefreshPreview = useCallback(() => {
     if (previewMode === "live") {
@@ -113,6 +153,22 @@ export default function Overview() {
 
   return (
     <div className="space-y-6 max-w-5xl">
+      {/* Upgrade polling loader (Stripe webhook async race) */}
+      {upgradePolling && (
+        <div className="bg-gold/5 border border-gold/30 rounded-lg p-4 flex items-center gap-3">
+          <Loader2 className="w-4 h-4 text-gold animate-spin flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Activating Pro...</p>
+            <p className="text-xs text-muted-foreground">
+              Confirming your upgrade with Stripe. This usually takes just a few seconds.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade banner (free plan only) */}
+      {currentSite.plan === "free" && !upgradePolling && <UpgradeBanner />}
+
       {/* Site Info Card */}
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-start justify-between mb-6">
@@ -301,7 +357,7 @@ function OnboardingFlow({
   connectSite,
   error,
 }: {
-  setupSite: (handle: string, country: string) => Promise<boolean>;
+  setupSite: (input: SetupSiteInput) => Promise<boolean>;
   connectSite: (handle: string) => Promise<{ success: boolean; error?: string }>;
   error: string | null;
 }) {
@@ -312,7 +368,7 @@ function OnboardingFlow({
   }
 
   if (path === "build") {
-    return <BuildSiteForm setupSite={setupSite} error={error} onBack={() => setPath("choose")} />;
+    return <BuildWizard setupSite={setupSite} error={error} onBack={() => setPath("choose")} />;
   }
 
   // ── Choose path ──
@@ -475,180 +531,9 @@ function ConnectSiteForm({
   );
 }
 
-/* ── Build New Site Form ── */
-function BuildSiteForm({
-  setupSite,
-  error,
-  onBack,
-}: {
-  setupSite: (handle: string, country: string) => Promise<boolean>;
-  error: string | null;
-  onBack: () => void;
-}) {
-  const [handle, setHandle] = useState("");
-  const [country, setCountry] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    const cleaned = handle.trim().replace(/^@/, "");
-    if (!cleaned) {
-      toast.error("Enter your Instagram handle");
-      return;
-    }
-    if (!country) {
-      toast.error("Select your country");
-      return;
-    }
-    setSubmitting(true);
-    const ok = await setupSite(cleaned, country);
-    if (!ok) {
-      setSubmitting(false);
-      if (error) toast.error(error);
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="max-w-md w-full text-center px-6">
-        {/* Back button */}
-        <button
-          onClick={onBack}
-          disabled={submitting}
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-gold transition-colors mb-8 disabled:opacity-50"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back
-        </button>
-
-        <div className="w-14 h-14 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-5">
-          <Rocket className="w-6 h-6 text-gold" />
-        </div>
-
-        <h2 className="font-heading text-2xl font-bold text-foreground mb-2">
-          Build Your Website
-        </h2>
-        <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-          Enter your Instagram handle and country. We'll scrape your posts,
-          classify your photos, and build a custom website in under 5 minutes.
-        </p>
-
-        <div className="flex flex-col gap-3 max-w-sm mx-auto mb-6">
-          {/* Instagram handle */}
-          <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-              @
-            </span>
-            <input
-              type="text"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              placeholder="yourhandle"
-              disabled={submitting}
-              className="w-full bg-input border border-border rounded-lg pl-8 pr-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50"
-            />
-          </div>
-
-          {/* Country selector */}
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            disabled={submitting}
-            className="w-full bg-input border border-border rounded-lg px-3 py-3 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors disabled:opacity-50 appearance-none cursor-pointer"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "right 12px center",
-            }}
-          >
-            <option value="" disabled>Select your country</option>
-            {COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name} ({c.code})
-              </option>
-            ))}
-          </select>
-
-          {/* Submit button */}
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting || !handle.trim() || !country}
-            className="w-full bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-bold px-6 py-3 disabled:opacity-40"
-          >
-            {submitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <Rocket className="w-4 h-4 mr-2" />
-                Build My Site
-              </>
-            )}
-          </Button>
-        </div>
-
-        {error && (
-          <p className="text-sm text-destructive mb-4">{error}</p>
-        )}
-
-        <p className="text-xs text-muted-foreground/60">
-          Once your site is live, you can edit everything from this dashboard — no coding required.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 /* ═══════════════════════════════════════════════════════════════
    SHARED COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
-
-const COUNTRIES = [
-  { code: "US", name: "United States" },
-  { code: "MX", name: "Mexico" },
-  { code: "CA", name: "Canada" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "ES", name: "Spain" },
-  { code: "FR", name: "France" },
-  { code: "DE", name: "Germany" },
-  { code: "IT", name: "Italy" },
-  { code: "BR", name: "Brazil" },
-  { code: "AR", name: "Argentina" },
-  { code: "CO", name: "Colombia" },
-  { code: "CL", name: "Chile" },
-  { code: "PE", name: "Peru" },
-  { code: "AU", name: "Australia" },
-  { code: "JP", name: "Japan" },
-  { code: "KR", name: "South Korea" },
-  { code: "IN", name: "India" },
-  { code: "PH", name: "Philippines" },
-  { code: "TH", name: "Thailand" },
-  { code: "NL", name: "Netherlands" },
-  { code: "PT", name: "Portugal" },
-  { code: "SE", name: "Sweden" },
-  { code: "NO", name: "Norway" },
-  { code: "DK", name: "Denmark" },
-  { code: "PL", name: "Poland" },
-  { code: "PR", name: "Puerto Rico" },
-  { code: "CR", name: "Costa Rica" },
-  { code: "DO", name: "Dominican Republic" },
-  { code: "GT", name: "Guatemala" },
-  { code: "HN", name: "Honduras" },
-  { code: "SV", name: "El Salvador" },
-  { code: "NI", name: "Nicaragua" },
-  { code: "PA", name: "Panama" },
-  { code: "EC", name: "Ecuador" },
-  { code: "VE", name: "Venezuela" },
-  { code: "UY", name: "Uruguay" },
-  { code: "PY", name: "Paraguay" },
-  { code: "BO", name: "Bolivia" },
-  { code: "CU", name: "Cuba" },
-  { code: "ZA", name: "South Africa" },
-  { code: "NZ", name: "New Zealand" },
-  { code: "IE", name: "Ireland" },
-  { code: "CH", name: "Switzerland" },
-  { code: "AT", name: "Austria" },
-  { code: "BE", name: "Belgium" },
-];
 
 function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
