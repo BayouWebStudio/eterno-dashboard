@@ -513,6 +513,15 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           return { success: false, error: errMsg };
         }
 
+        // refreshInfo has its own try/catch — it won't throw, but if it fails
+        // internally it sets onboardingStatus to "none" instead of "ready".
+        // Retry once before giving up so a transient network blip doesn't
+        // leave the user stuck on the choose screen after a successful connect.
+        await refreshInfo();
+        // If refreshInfo failed (status went to "none"), retry once after a short delay
+        // We can't read onboardingStatus directly (stale closure), so just retry
+        // unconditionally — refreshInfo is idempotent and cheap.
+        await new Promise((r) => setTimeout(r, 1500));
         await refreshInfo();
         return { success: true };
       } catch (err) {

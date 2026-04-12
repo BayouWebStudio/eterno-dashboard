@@ -175,8 +175,8 @@ function CreateInvoiceModal({ open, onClose, onSave, saving }: CreateModalProps)
                     type="number"
                     min={0}
                     step={0.01}
-                    value={li.unitPrice / 100 || ""}
-                    onChange={(e) => updateLine(i, "unitPrice", Math.round(parseFloat(e.target.value || "0") * 100))}
+                    value={li.unitPrice / 100}
+                    onChange={(e) => updateLine(i, "unitPrice", Math.round((parseFloat(e.target.value) || 0) * 100))}
                     className="w-24 pl-5 pr-2 py-2 text-sm bg-[oklch(0.14_0.005_250)] border border-border rounded-md text-foreground focus:outline-none focus:border-gold/40"
                     placeholder="0.00"
                   />
@@ -430,7 +430,7 @@ export default function Invoices() {
     a.href = url;
     a.download = `${inv.invoiceNumber}.pdf`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const totalRevenue = invoices
