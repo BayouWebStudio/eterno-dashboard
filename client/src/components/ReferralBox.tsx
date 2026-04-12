@@ -80,7 +80,7 @@ export default function ReferralBox() {
       </div>
 
       <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-        Share your link — earn 1 free month ($25) for every friend who builds a site.
+        Share your link — earn 1 free month ($25) for every friend who upgrades to Pro.
       </p>
 
       {/* Referral link + copy */}
