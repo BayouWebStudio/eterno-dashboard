@@ -28,11 +28,13 @@ interface BuildWizardProps {
   setupSite: (input: SetupSiteInput) => Promise<boolean>;
   error: string | null;
   onBack: () => void;
+  /** Override the step-4 CTA label (default: "Build My Site") */
+  submitLabel?: string;
 }
 
 const DRAFT_PREFIX = "eterno:wizard-draft:";
 
-export default function BuildWizard({ setupSite, error, onBack }: BuildWizardProps) {
+export default function BuildWizard({ setupSite, error, onBack, submitLabel }: BuildWizardProps) {
   const { userName } = useAuth();
   // Draft key is tied to userName/email so multi-account devices don't collide.
   // We don't have the raw Clerk id in this context — userName is close enough
@@ -112,7 +114,7 @@ export default function BuildWizard({ setupSite, error, onBack }: BuildWizardPro
 
   const onBackClick = state.step === 1 ? onBack : prev;
   const onContinueClick = state.step === 4 ? submit : next;
-  const continueLabel = state.step === 4 ? "Build My Site" : "Continue";
+  const continueLabel = state.step === 4 ? (submitLabel || "Build My Site") : "Continue";
 
   return (
     <div className="min-h-[60vh] flex flex-col max-w-4xl mx-auto w-full px-4 py-8">

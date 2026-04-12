@@ -87,7 +87,12 @@ export default function Start() {
       </header>
 
       <main className="flex-1 flex items-stretch">
-        <BuildWizard setupSite={handleSubmit} error={null} onBack={handleBack} />
+        <BuildWizard
+          setupSite={handleSubmit}
+          error={null}
+          onBack={handleBack}
+          submitLabel="Sign up & build"
+        />
       </main>
     </div>
   );
