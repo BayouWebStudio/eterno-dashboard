@@ -82,22 +82,6 @@ export default function StepIdentity({ state, onChange }: StepIdentityProps) {
           />
         </div>
 
-        {/* Contact email (optional) */}
-        <div>
-          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">
-            Contact Email <span className="text-muted-foreground/60 normal-case">(optional)</span>
-          </label>
-          <input
-            type="email"
-            value={state.email}
-            onChange={(e) => onChange({ email: e.target.value })}
-            placeholder="booking@yourdomain.com"
-            className="w-full bg-input border border-border rounded-lg px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
-          />
-          <p className="text-[10px] text-muted-foreground/60 mt-1.5">
-            Shown in your site footer so clients can reach you directly.
-          </p>
-        </div>
       </div>
     </div>
   );

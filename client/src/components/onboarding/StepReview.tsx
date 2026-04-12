@@ -40,9 +40,6 @@ export default function StepReview({ state, onJumpTo }: StepReviewProps) {
     ...(state.artistName.trim()
       ? [{ label: "Display name", value: state.artistName.trim(), step: 1 as const }]
       : []),
-    ...(state.email.trim()
-      ? [{ label: "Contact email", value: state.email.trim(), step: 1 as const }]
-      : []),
     { label: "Theme", value: THEME_LABELS[state.themeKey] || state.themeKey, step: 2 },
     { label: "Layout", value: LAYOUT_LABELS[state.layout] || state.layout, step: 3 },
   ];
