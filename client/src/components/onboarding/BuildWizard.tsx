@@ -89,7 +89,6 @@ export default function BuildWizard({ setupSite, error, onBack, submitLabel }: B
       igHandle: state.igHandle.trim(),
       country: state.country,
       artistName: state.artistName.trim() || undefined,
-      email: state.email.trim() || undefined,
       themeKey: state.themeKey === "auto" ? undefined : state.themeKey,
       layout: state.layout === "auto" ? undefined : state.layout,
     };

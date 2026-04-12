@@ -103,8 +103,14 @@ export default function Overview() {
       return;
     }
     pendingBuildTriggeredRef.current = true;
-    try { localStorage.removeItem(PENDING_BUILD_KEY); } catch {}
-    setupSite(input);
+    // Don't clear localStorage until setupSite succeeds — if the build
+    // fails (network, timeout, etc.) the user can refresh to retry
+    // instead of redoing the entire wizard.
+    setupSite(input).then((ok) => {
+      if (ok) {
+        try { localStorage.removeItem(PENDING_BUILD_KEY); } catch {}
+      }
+    });
   }, [onboardingStatus, setupSite]);
 
   const handleRefreshPreview = useCallback(() => {

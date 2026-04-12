@@ -16,7 +16,6 @@ export type WizardState = {
   igHandle: string;
   artistName: string;
   country: string;
-  email: string;
   themeKey: ThemeKey;
   layout: LayoutKey;
 };
@@ -26,7 +25,6 @@ export const INITIAL_WIZARD_STATE: WizardState = {
   igHandle: "",
   artistName: "",
   country: "",
-  email: "",
   themeKey: "auto",
   layout: "auto",
 };

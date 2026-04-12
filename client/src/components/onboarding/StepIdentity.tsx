@@ -1,7 +1,7 @@
 /*
   DESIGN: Dark Forge — Build Wizard / Step 1: Identity
   Collects the minimum required to seed a build — IG handle + country.
-  Plus optional name / email overrides.
+  Plus optional display name override.
 */
 import { COUNTRIES } from "./countries";
 import type { WizardState } from "./types";
