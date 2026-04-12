@@ -955,9 +955,18 @@ const EDIT_JS = `
  * Also rewrites relative image paths to absolute URLs.
  */
 export function injectEditor(html: string, baseUrl: string): string {
+  // ── Security: strip original scripts + inline event handlers ──
+  // The editor iframe uses allow-same-origin so we can access contentDocument
+  // for click-to-edit. This means any <script> in the client's site HTML
+  // runs at the dashboard's origin and could steal auth tokens.
+  // Strip them — the editor only needs the visual DOM + our injected script.
+  let result = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
+
   // Inject CSS before </head>
   const cssTag = `<style id="ve-edit-css">${EDIT_CSS}</style>`;
-  let result = html;
 
   if (result.includes("</head>")) {
     result = result.replace("</head>", `${cssTag}\n</head>`);

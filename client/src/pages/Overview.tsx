@@ -318,7 +318,7 @@ export default function Overview() {
               src={`${liveUrl}?_cb=${iframeKey}`}
               title="Live Site Preview"
               className="w-full h-[500px] border-0"
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
             />
           ) : siteHtml ? (
             <iframe
