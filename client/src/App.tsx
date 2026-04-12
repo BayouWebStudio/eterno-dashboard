@@ -18,6 +18,7 @@ import Bookings from "./pages/Bookings";
 import AIAgent from "./pages/AIAgent";
 import Clients from "./pages/Clients";
 import Invoices from "./pages/Invoices";
+import Start from "./pages/Start";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -55,13 +56,20 @@ function App() {
             }}
           />
           <AuthProvider>
-            <RequireAuth>
-              <SiteProvider>
-                <DashboardLayout>
-                  <Router />
-                </DashboardLayout>
-              </SiteProvider>
-            </RequireAuth>
+            <Switch>
+              {/* Public onboarding wizard — no auth wall. Users commit to
+                  building a site first, then sign up at the end (Wix/Squarespace). */}
+              <Route path="/start" component={Start} />
+              <Route>
+                <RequireAuth>
+                  <SiteProvider>
+                    <DashboardLayout>
+                      <Router />
+                    </DashboardLayout>
+                  </SiteProvider>
+                </RequireAuth>
+              </Route>
+            </Switch>
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>

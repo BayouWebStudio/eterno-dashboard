@@ -18,6 +18,7 @@ import SeoScoreCard from "@/components/SeoScoreCard";
 import InstagramSync from "@/components/InstagramSync";
 import BuildWizard from "@/components/onboarding/BuildWizard";
 import UpgradeBanner from "@/components/UpgradeBanner";
+import { PENDING_BUILD_KEY } from "@/pages/Start";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -77,6 +78,34 @@ export default function Overview() {
       toast.success("You're now on Pro! Custom domains and Pro features are unlocked.");
     }
   }, [upgradePolling, currentSite?.plan]);
+
+  // Pending build handoff from public /start wizard.
+  // When a new user completes the wizard on /start, their input is stashed
+  // in localStorage under PENDING_BUILD_KEY. After they sign up and land here,
+  // we auto-submit that input and kick off the build.
+  const pendingBuildTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (pendingBuildTriggeredRef.current) return;
+    if (onboardingStatus !== "none") return;
+    if (typeof window === "undefined") return;
+    let raw: string | null = null;
+    try { raw = localStorage.getItem(PENDING_BUILD_KEY); } catch { return; }
+    if (!raw) return;
+    let input: SetupSiteInput;
+    try {
+      input = JSON.parse(raw) as SetupSiteInput;
+    } catch {
+      try { localStorage.removeItem(PENDING_BUILD_KEY); } catch {}
+      return;
+    }
+    if (!input?.igHandle || !input?.country) {
+      try { localStorage.removeItem(PENDING_BUILD_KEY); } catch {}
+      return;
+    }
+    pendingBuildTriggeredRef.current = true;
+    try { localStorage.removeItem(PENDING_BUILD_KEY); } catch {}
+    setupSite(input);
+  }, [onboardingStatus, setupSite]);
 
   const handleRefreshPreview = useCallback(() => {
     if (previewMode === "live") {
