@@ -107,11 +107,15 @@ export default function Overview() {
     // Don't clear localStorage until setupSite succeeds — if the build
     // fails (network, timeout, etc.) the user can refresh to retry
     // instead of redoing the entire wizard.
-    setupSite(input).then((ok) => {
-      if (ok) {
-        try { localStorage.removeItem(PENDING_BUILD_KEY); } catch {}
-      }
-    });
+    setupSite(input)
+      .then((ok) => {
+        if (ok) {
+          try { localStorage.removeItem(PENDING_BUILD_KEY); } catch {}
+        }
+      })
+      .catch(() => {
+        pendingBuildTriggeredRef.current = false;
+      });
   }, [onboardingStatus, setupSite]);
 
   const handleRefreshPreview = useCallback(() => {

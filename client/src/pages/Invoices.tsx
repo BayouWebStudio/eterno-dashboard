@@ -81,11 +81,16 @@ interface CreateModalProps {
   saving: boolean;
 }
 
+type DraftLineItem = InvoiceLineItem & { _key: string };
+
+let lineKeyCounter = 0;
+const makeLineKey = () => `line-${++lineKeyCounter}`;
+
 function CreateInvoiceModal({ open, onClose, onSave, saving }: CreateModalProps) {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
-  const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([
-    { description: "", quantity: 1, unitPrice: 0 },
+  const [lineItems, setLineItems] = useState<DraftLineItem[]>(() => [
+    { _key: makeLineKey(), description: "", quantity: 1, unitPrice: 0 },
   ]);
   const [taxPercent, setTaxPercent] = useState(0);
   const [notes, setNotes] = useState("");
@@ -95,7 +100,7 @@ function CreateInvoiceModal({ open, onClose, onSave, saving }: CreateModalProps)
   const tax = Math.round(subtotal * (taxPercent / 100));
   const total = subtotal + tax;
 
-  const addLine = () => setLineItems([...lineItems, { description: "", quantity: 1, unitPrice: 0 }]);
+  const addLine = () => setLineItems([...lineItems, { _key: makeLineKey(), description: "", quantity: 1, unitPrice: 0 }]);
   const removeLine = (i: number) => setLineItems(lineItems.filter((_, idx) => idx !== i));
   const updateLine = (i: number, field: keyof InvoiceLineItem, value: string | number) => {
     setLineItems(lineItems.map((li, idx) => idx === i ? { ...li, [field]: value } : li));
@@ -107,7 +112,9 @@ function CreateInvoiceModal({ open, onClose, onSave, saving }: CreateModalProps)
     onSave({
       clientName: clientName.trim(),
       clientEmail: clientEmail.trim() || undefined,
-      lineItems: lineItems.filter((li) => li.description.trim()),
+      lineItems: lineItems
+        .filter((li) => li.description.trim())
+        .map(({ _key, ...rest }) => rest),
       taxPercent,
       notes: notes.trim() || undefined,
       dueDate: dueDate || undefined,
@@ -154,7 +161,7 @@ function CreateInvoiceModal({ open, onClose, onSave, saving }: CreateModalProps)
           <label className="text-xs text-muted-foreground mb-2 block">Line Items</label>
           <div className="space-y-2">
             {lineItems.map((li, i) => (
-              <div key={i} className="flex gap-2 items-center">
+              <div key={li._key} className="flex gap-2 items-center">
                 <input
                   value={li.description}
                   onChange={(e) => updateLine(i, "description", e.target.value)}
