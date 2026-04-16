@@ -8,6 +8,12 @@
 /** CSS injected into the iframe */
 const EDIT_CSS = `
 body.edit-mode { cursor: default; }
+/* Force scroll-reveal elements visible — the JS that triggers them is stripped for security */
+.fade-up, .reveal, .scroll-reveal, .animate-on-scroll, [data-aos] {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
 body.edit-mode [data-editable]:hover {
   outline: 2px solid oklch(0.75 0.12 85 / 50%);
   outline-offset: 2px;
