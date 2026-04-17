@@ -129,7 +129,7 @@ export default function VisualEditor() {
 
   const [editMode, setEditMode] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
-  const [pendingImageSwap, setPendingImageSwap] = useState<{ sectionId: string; key: string } | null>(null);
+  const [pendingImageSwap, setPendingImageSwap] = useState<{ sectionId: string; key: string; currentSrc?: string } | null>(null);
   const [pendingGalleryUpload, setPendingGalleryUpload] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -201,7 +201,7 @@ export default function VisualEditor() {
           break;
 
         case "image-swap":
-          setPendingImageSwap({ sectionId: data.sectionId, key: data.key });
+          setPendingImageSwap({ sectionId: data.sectionId, key: data.key, currentSrc: data.currentSrc });
           fileInputRef.current?.click();
           break;
 
@@ -298,7 +298,9 @@ export default function VisualEditor() {
         const folder = pendingImageSwap.key.includes("hero") ? "hero" : "img";
         const url = await uploadSiteImage(result.file, folder);
         if (url) {
-          await saveSiteField(pendingImageSwap.key, url);
+          // Pass oldSrc so backend can find the exact image to replace
+          const payload = pendingImageSwap.currentSrc ? `${url}|||${pendingImageSwap.currentSrc}` : url;
+          await saveSiteField(pendingImageSwap.key, payload);
           toast.success("Image updated. Allow 3\u20135 min for live site.");
           refreshHtml();
         } else {
