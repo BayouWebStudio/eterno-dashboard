@@ -580,7 +580,7 @@ export default function VisualEditor() {
       {editMode && (
         <div className="px-4 py-1.5 bg-[oklch(0.75_0.12_85/8%)] border-b border-gold-dim/25 flex-shrink-0">
           <p className="text-xs text-gold-dim">
-            <strong className="text-gold">Edit Mode</strong> — Click any text to edit it, then click <strong className="text-gold">Save</strong> when done. Hover images to swap them.
+            <strong className="text-gold">Edit Mode</strong> — Click any text to edit. Make all your changes, then click <strong className="text-gold">Save</strong> when you're done.
           </p>
         </div>
       )}

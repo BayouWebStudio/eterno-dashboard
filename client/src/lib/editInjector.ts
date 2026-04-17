@@ -26,6 +26,11 @@ body.edit-mode [data-editable].editing {
   background: oklch(0.75 0.12 85 / 8%);
   border-radius: 3px;
 }
+body.edit-mode [data-ve-pending] {
+  outline: 2px dashed oklch(0.75 0.12 85 / 60%);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 .ve-img-overlay {
   position: absolute;
   inset: 0;
@@ -228,7 +233,6 @@ const EDIT_JS = `
   'use strict';
 
   var activeEl = null;
-  var originalText = '';
   var galleryOrderChanged = false;
   var originalGalleryOrder = [];
   var saveOrderBar = null;
@@ -495,27 +499,28 @@ const EDIT_JS = `
         e.preventDefault();
         e.stopPropagation();
 
-        if (activeEl && activeEl !== el) {
-          // Cancel previous unsaved edit — revert text
-          activeEl.textContent = originalText;
-          activeEl.contentEditable = 'false';
-          activeEl.classList.remove('editing');
-        }
-
-        if (activeEl !== el) {
-          originalText = el.textContent;
-        }
         activeEl = el;
+        // Store original text on first edit — don't overwrite if re-editing
+        if (!el.dataset.veOriginal) {
+          el.dataset.veOriginal = el.textContent;
+        }
         el.contentEditable = 'true';
         el.classList.add('editing');
         el.focus();
       });
 
       el.addEventListener('blur', function() {
-        // Just remove editing visuals — don't save or revert.
-        // User must click Save to commit or Escape to cancel.
         el.contentEditable = 'false';
         el.classList.remove('editing');
+        // Mark as pending if text changed from original
+        var orig = el.dataset.veOriginal;
+        if (orig !== undefined && el.textContent.trim() !== orig.trim()) {
+          el.dataset.vePending = 'true';
+        } else if (orig !== undefined) {
+          // Text was reverted to original — remove pending marker
+          delete el.dataset.vePending;
+        }
+        if (activeEl === el) activeEl = null;
       });
 
       el.addEventListener('keydown', function(e) {
@@ -523,44 +528,79 @@ const EDIT_JS = `
           e.preventDefault();
         }
         if (e.key === 'Escape') {
-          el.textContent = originalText;
+          // Revert this element only
+          if (el.dataset.veOriginal) {
+            el.textContent = el.dataset.veOriginal;
+            delete el.dataset.veOriginal;
+            delete el.dataset.vePending;
+          }
           el.contentEditable = 'false';
           el.classList.remove('editing');
-          activeEl = null;
-          originalText = '';
+          if (activeEl === el) activeEl = null;
         }
       });
     });
   }
 
-  function finishEdit(el) {
-    el.contentEditable = 'false';
-    el.classList.remove('editing');
-    var newText = el.textContent.trim();
-    if (newText !== originalText.trim()) {
+  /** Save all pending edits and the active edit (called by Save button). */
+  function saveAllPending() {
+    // Close the active edit first so it gets marked as pending
+    if (activeEl) {
+      activeEl.contentEditable = 'false';
+      activeEl.classList.remove('editing');
+      var orig = activeEl.dataset.veOriginal;
+      if (orig !== undefined && activeEl.textContent.trim() !== orig.trim()) {
+        activeEl.dataset.vePending = 'true';
+      }
+      activeEl = null;
+    }
+
+    var pending = document.querySelectorAll('[data-ve-pending]');
+    if (pending.length === 0) {
+      showToast('No changes to save');
+      return;
+    }
+
+    var count = 0;
+    for (var i = 0; i < pending.length; i++) {
+      var el = pending[i];
+      var origText = el.dataset.veOriginal || '';
+      var newText = el.textContent.trim();
+      if (newText === origText.trim()) continue;
+
       var key = findFieldKey(el);
       var sectionId = findSectionId(el);
-
-      // Allow nav_logo and footer_name even without a section — they're global elements
       var globalKeys = ['nav_logo', 'footer_name'];
-      if (sectionId === 'unknown' && globalKeys.indexOf(key) < 0) {
-        showToast('Could not identify section — edit not saved');
-        return;
-      }
+      if (sectionId === 'unknown' && globalKeys.indexOf(key) < 0) continue;
 
       post({
         type: 'text-edit',
         sectionId: sectionId,
         key: key,
         value: newText,
-        originalValue: originalText.trim()
+        originalValue: origText.trim()
       });
-      showToast('Saving...');
-    } else {
-      showToast('No changes to save');
+      count++;
+      // Clean up — this is now the new baseline
+      delete el.dataset.veOriginal;
+      delete el.dataset.vePending;
+    }
+
+    showToast(count + ' change' + (count !== 1 ? 's' : '') + ' saved');
+  }
+
+  /** Revert all pending edits (called when switching to Preview). */
+  function revertAllPending() {
+    var pending = document.querySelectorAll('[data-ve-original]');
+    for (var i = 0; i < pending.length; i++) {
+      var el = pending[i];
+      el.textContent = el.dataset.veOriginal;
+      delete el.dataset.veOriginal;
+      delete el.dataset.vePending;
+      el.contentEditable = 'false';
+      el.classList.remove('editing');
     }
     activeEl = null;
-    originalText = '';
   }
 
   // ── Wrap images with swap overlay ──
@@ -905,19 +945,11 @@ const EDIT_JS = `
         document.body.classList.add('edit-mode');
       } else {
         document.body.classList.remove('edit-mode');
-        if (activeEl) {
-          activeEl.textContent = originalText;
-          activeEl.contentEditable = 'false';
-          activeEl.classList.remove('editing');
-          activeEl = null;
-          originalText = '';
-        }
+        revertAllPending();
       }
     }
     if (e.data && e.data.type === 'trigger-save') {
-      if (activeEl) {
-        finishEdit(activeEl);
-      }
+      saveAllPending();
     }
     if (e.data && e.data.type === 'refresh-gallery') {
       post({ type: 'request-refresh' });
