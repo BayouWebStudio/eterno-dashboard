@@ -3,6 +3,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@keyframes fadeOut {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /*
   DESIGN SYSTEM: "Dark Forge" — Industrial Craft Aesthetic
   - Near-black layered surfaces with warm gold (#C9A84C) accent

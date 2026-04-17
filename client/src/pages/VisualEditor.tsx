@@ -546,17 +546,23 @@ export default function VisualEditor() {
             </button>
           </div>
 
-          {/* Save button — visible in edit mode */}
+          {/* Save button — visible in edit mode, with attention bubble */}
           {editMode && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={triggerSave}
-              className="border-gold/40 text-gold hover:bg-gold hover:text-black transition-all"
-            >
-              <Save className="w-3.5 h-3.5 mr-1.5" />
-              Save
-            </Button>
+            <div className="relative">
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gold text-black text-xs font-semibold px-2.5 py-1 rounded-md shadow-lg animate-[fadeOut_4s_ease-in-out_forwards] pointer-events-none">
+                Click here to save!
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gold" />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={triggerSave}
+                className="border-gold/40 text-gold hover:bg-gold hover:text-black transition-all"
+              >
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+                Save
+              </Button>
+            </div>
           )}
         </div>
 
