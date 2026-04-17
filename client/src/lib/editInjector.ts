@@ -85,21 +85,22 @@ body.edit-mode [data-section]:hover > .ve-section-controls { display: flex; }
 .ve-gallery-add-btn {
   display: none;
   position: absolute;
-  bottom: 12px;
+  top: 48px;
   right: 12px;
   background: oklch(0.75 0.12 85);
   color: #000;
   border: none;
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   font-family: system-ui, sans-serif;
   z-index: 1001;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
-body.edit-mode .ve-gallery-section:hover .ve-gallery-add-btn { display: block; }
+.ve-gallery-add-btn:hover { background: oklch(0.80 0.14 85); transform: scale(1.04); }
+body.edit-mode .ve-gallery-add-btn { display: block; }
 .ve-gallery-del {
   position: absolute;
   top: 4px;
