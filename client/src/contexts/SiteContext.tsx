@@ -695,7 +695,6 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return () => {
       // Abort in-flight fetch requests immediately
-      // Abort in-flight fetch requests immediately
       setupAbortRef.current?.abort();
       // Clear timers synchronously so no callbacks fire after unmount
       if (setupTimersRef.current.stepTimer) clearInterval(setupTimersRef.current.stepTimer);
@@ -808,7 +807,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     if (currentSite?.slug) {
       refreshHtml("index.html");
     }
-  }, [currentSite?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentSite?.slug, refreshHtml]);
 
   return (
     <SiteContext.Provider

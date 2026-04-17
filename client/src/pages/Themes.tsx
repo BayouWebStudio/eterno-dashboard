@@ -69,6 +69,11 @@ const BODY_FONTS = [
 ];
 
 /* ── Helpers ── */
+/** Escape single quotes / backslashes in a string for safe CSS interpolation. */
+function escapeCssString(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 /** Normalize any hex string to 6-digit lowercase (handles 3-digit shorthand). */
 function normalizeHex(hex: string): string {
   let h = hex.replace("#", "").toLowerCase();
@@ -306,12 +311,12 @@ export default function Themes() {
   .hero-title, .section-title,
   .style-card h3, .service-card h3,
   .testimonial-placeholder p {
-    font-family: '${debouncedHeading}', serif !important;
+    font-family: '${escapeCssString(debouncedHeading)}', serif !important;
   }
   body, p, a, span, li, td, input, textarea, select, button,
   .book-float, .section-label, .hero-eyebrow, .hero-sub, .hero-cta,
   .btn-gold, .btn-outline {
-    font-family: '${debouncedBody}', sans-serif !important;
+    font-family: '${escapeCssString(debouncedBody)}', sans-serif !important;
   }
 </style>`;
 

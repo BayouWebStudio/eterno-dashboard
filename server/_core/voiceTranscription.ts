@@ -65,8 +65,55 @@ export type TranscriptionError = {
 };
 
 /**
+ * Validate an audio URL to prevent SSRF attacks.
+ * Rejects non-HTTPS, private/reserved IPs, and localhost.
+ */
+function validateAudioUrl(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "Invalid URL format";
+  }
+
+  if (parsed.protocol !== "https:") {
+    return "Only HTTPS URLs are allowed";
+  }
+
+  const hostname = parsed.hostname;
+
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+    return "Internal addresses are not allowed";
+  }
+
+  // Reject private IPv4 ranges
+  const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const a = Number(ipv4Match[1]);
+    const b = Number(ipv4Match[2]);
+    if (
+      a === 10 ||                              // 10.0.0.0/8
+      (a === 172 && b >= 16 && b <= 31) ||     // 172.16.0.0/12
+      (a === 192 && b === 168) ||              // 192.168.0.0/16
+      (a === 169 && b === 254) ||              // 169.254.0.0/16 (link-local / AWS metadata)
+      a === 0 ||                               // 0.0.0.0/8
+      a === 127                                // 127.0.0.0/8
+    ) {
+      return "Internal addresses are not allowed";
+    }
+  }
+
+  // Reject raw IPv6 addresses
+  if (hostname.startsWith("[") || hostname.includes(":")) {
+    return "IPv6 addresses are not allowed";
+  }
+
+  return null;
+}
+
+/**
  * Transcribe audio to text using the internal Speech-to-Text service
- * 
+ *
  * @param options - Audio data and metadata
  * @returns Transcription result or error
  */
@@ -90,7 +137,17 @@ export async function transcribeAudio(
       };
     }
 
-    // Step 2: Download audio from URL
+    // Step 2: Validate URL to prevent SSRF
+    const urlError = validateAudioUrl(options.audioUrl);
+    if (urlError) {
+      return {
+        error: urlError,
+        code: "INVALID_FORMAT" as const,
+        details: `URL validation failed: ${urlError}`,
+      };
+    }
+
+    // Step 3: Download audio from URL
     let audioBuffer: Buffer;
     let mimeType: string;
     try {

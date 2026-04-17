@@ -1,13 +1,21 @@
 /*
   Unsaved Changes Warning
   ───────────────────────
-  Shows a browser "beforeunload" prompt when there are dirty fields,
-  preventing accidental data loss from closing the tab or navigating away.
+  Guards against data loss on both browser navigation (tab close / hard nav)
+  and client-side SPA route changes (wouter sidebar links).
 */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useNavigationGuard } from "@/contexts/NavigationGuardContext";
 
 export function useUnsavedWarning(isDirty: boolean) {
+  const dirtyRef = useRef(isDirty);
+
+  useEffect(() => {
+    dirtyRef.current = isDirty;
+  }, [isDirty]);
+
+  // Browser-level guard (tab close, hard navigation)
   useEffect(() => {
     if (!isDirty) return;
 
@@ -21,4 +29,17 @@ export function useUnsavedWarning(isDirty: boolean) {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
+
+  // Client-side navigation guard (wouter route changes via sidebar)
+  const { registerGuard } = useNavigationGuard();
+
+  useEffect(() => {
+    const unregister = registerGuard(() => {
+      if (!dirtyRef.current) return true;
+      return window.confirm(
+        "You have unsaved changes. Are you sure you want to leave?"
+      );
+    });
+    return unregister;
+  }, [registerGuard]);
 }

@@ -9,6 +9,7 @@
 */
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useSite } from "@/contexts/SiteContext";
+import { GITHUB_RAW_BASE_URL } from "@/const";
 import { parseGalleryImages } from "@/lib/parseHtml";
 import { compressImages, formatBytes, type CompressionResult } from "@/lib/compressImage";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
       const slug = currentSite?.slug || "";
       if (siteUrl && slug) return `${siteUrl}/${slug}/${src}`;
       if (siteUrl) return `${siteUrl}/${src}`;
-      if (slug) return `https://raw.githubusercontent.com/BayouWebStudio/${slug}/main/${src}`;
+      if (slug) return `${GITHUB_RAW_BASE_URL}/${slug}/main/${src}`;
       return src;
     },
     [currentSite]
@@ -72,6 +73,14 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [hasOrderChanges, setHasOrderChanges] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up pending refresh timer on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, []);
 
   // Parse gallery images from HTML whenever it changes
   useEffect(() => {
@@ -143,7 +152,7 @@ export default function GalleryEditor({ sectionId }: GalleryEditorProps) {
         }
 
         // Refresh HTML after a brief delay to pick up new images
-        setTimeout(() => refreshHtml(), 3000);
+        refreshTimerRef.current = setTimeout(() => refreshHtml(), 3000);
       } else {
         toast.error("Upload failed — please try again");
       }

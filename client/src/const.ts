@@ -1,4 +1,8 @@
-export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+export { COOKIE_NAME, SESSION_MAX_AGE_MS, ONE_YEAR_MS } from "@shared/const";
+
+export const GITHUB_RAW_BASE_URL =
+  import.meta.env.VITE_GITHUB_RAW_BASE_URL ||
+  "https://raw.githubusercontent.com/BayouWebStudio";
 
 // Generate login URL at runtime so redirect URI reflects the current origin.
 export const getLoginUrl = () => {

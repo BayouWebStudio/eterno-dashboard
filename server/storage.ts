@@ -5,6 +5,27 @@ import { ENV } from './_core/env';
 
 type StorageConfig = { baseUrl: string; apiKey: string };
 
+const ALLOWED_MIME_PREFIXES = [
+  "image/",
+  "audio/",
+  "video/",
+  "application/pdf",
+  "text/html",
+  "text/css",
+  "text/plain",
+  "application/json",
+  "font/",
+];
+
+function isAllowedContentType(contentType: string): boolean {
+  const normalized = contentType.toLowerCase().split(";")[0].trim();
+  return ALLOWED_MIME_PREFIXES.some((prefix) =>
+    prefix.endsWith("/")
+      ? normalized.startsWith(prefix)
+      : normalized === prefix
+  );
+}
+
 function getStorageConfig(): StorageConfig {
   const baseUrl = ENV.forgeApiUrl;
   const apiKey = ENV.forgeApiKey;
@@ -38,6 +59,12 @@ async function buildDownloadUrl(
     method: "GET",
     headers: buildAuthHeaders(apiKey),
   });
+  if (!response.ok) {
+    const message = await response.text().catch(() => response.statusText);
+    throw new Error(
+      `Storage download URL failed (${response.status} ${response.statusText}): ${message}`
+    );
+  }
   return (await response.json()).url;
 }
 
@@ -72,6 +99,12 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream"
 ): Promise<{ key: string; url: string }> {
+  if (!isAllowedContentType(contentType)) {
+    throw new Error(
+      `Upload rejected: content type "${contentType}" is not allowed. ` +
+      `Allowed prefixes: ${ALLOWED_MIME_PREFIXES.join(", ")}`
+    );
+  }
   const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
   const uploadUrl = buildUploadUrl(baseUrl, key);

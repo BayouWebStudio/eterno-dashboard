@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, RequireAuth } from "./contexts/AuthContext";
 import { SiteProvider } from "./contexts/SiteContext";
+import { NavigationGuardProvider } from "./contexts/NavigationGuardContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Overview from "./pages/Overview";
 import VisualEditor from "./pages/VisualEditor";
@@ -63,9 +64,11 @@ function App() {
               <Route>
                 <RequireAuth>
                   <SiteProvider>
-                    <DashboardLayout>
-                      <Router />
-                    </DashboardLayout>
+                    <NavigationGuardProvider>
+                      <DashboardLayout>
+                        <Router />
+                      </DashboardLayout>
+                    </NavigationGuardProvider>
                   </SiteProvider>
                 </RequireAuth>
               </Route>

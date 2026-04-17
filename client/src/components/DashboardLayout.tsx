@@ -7,6 +7,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { useLocation, Redirect } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
+import { useNavigationGuard } from "@/contexts/NavigationGuardContext";
 import {
   Sheet,
   SheetContent,
@@ -54,6 +55,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const { userName, userImage, signOut } = useAuth();
   const { currentSite, loading, availablePages, onboardingStatus } = useSite();
+  const { checkNavigation } = useNavigationGuard();
 
   // Onboarding tour
   const [showTour, setShowTour] = useState(false);
@@ -100,7 +102,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <button
             key={item.path}
             data-tour={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-            onClick={() => { setLocation(item.path); onNavigate?.(); }}
+            onClick={() => { if (!checkNavigation()) return; setLocation(item.path); onNavigate?.(); }}
             className={`
               relative flex items-center gap-3 px-3 py-2.5 rounded-md w-full text-left
               transition-all duration-150 ease-out group
@@ -161,7 +163,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {showLabels && (
           <div className="flex items-center gap-2 mb-3 px-1">
             {userImage ? (
-              <img src={userImage} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
+              <img src={userImage} alt="Profile photo" className="w-7 h-7 rounded-full flex-shrink-0" />
             ) : (
               <div className="w-7 h-7 rounded-full bg-[oklch(0.22_0.005_250)] flex-shrink-0" />
             )}
