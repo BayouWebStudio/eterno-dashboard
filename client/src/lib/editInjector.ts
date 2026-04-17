@@ -264,12 +264,13 @@ const EDIT_JS = `
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
     if (cls.indexOf('gallery-grid') >= 0) return 'gallery';
     if (cls.indexOf('page-hero') >= 0) return 'page-hero';
+    if (cls.indexOf('booking-cta') >= 0) return 'booking-cta';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
 
     // Match container patterns but handle BEM double-dash (e.g. gallery-grid--preview → gallery-grid)
-    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container|preview|grid)(?:--[a-z]+)?(?:\\s|$)/i);
+    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container|preview|grid|body)(?:--[a-z]+)?(?:\\s|$)/i);
     if (containerMatch) {
       var name = containerMatch[1].replace(/-+$/, '');
       if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
@@ -439,6 +440,8 @@ const EDIT_JS = `
     if (sectionId === 'instagram') return 'ig_handle';
 
     if (sectionId && sectionId !== 'unknown') {
+      // Check section-label class before tag-based fallback
+      if (cls.indexOf('section-label') >= 0) return 'section_label__' + sectionId;
       if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'section_title__' + sectionId;
       if (tag === 'p' || tag === 'blockquote' || tag === 'li') return sectionId + '__content';
       if (tag === 'a') return sectionId + '__link';
@@ -631,27 +634,30 @@ const EDIT_JS = `
       img.parentNode.insertBefore(wrapper, img);
       wrapper.appendChild(img);
 
-      var overlay = document.createElement('div');
-      overlay.className = 've-img-overlay';
+      // Gallery images use delete + upload, not individual swap
+      if (!inGallery) {
+        var overlay = document.createElement('div');
+        overlay.className = 've-img-overlay';
 
-      var btn = document.createElement('button');
-      btn.className = 've-img-btn';
-      btn.textContent = 'Change Image';
-      btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var sectionId = findSectionId(img);
-        var imgKey = img.dataset.field || buildImageKey(img, sectionId);
-        post({
-          type: 'image-swap',
-          sectionId: sectionId,
-          currentSrc: img.src,
-          key: imgKey
+        var btn = document.createElement('button');
+        btn.className = 've-img-btn';
+        btn.textContent = 'Change Image';
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var sectionId = findSectionId(img);
+          var imgKey = img.dataset.field || buildImageKey(img, sectionId);
+          post({
+            type: 'image-swap',
+            sectionId: sectionId,
+            currentSrc: img.src,
+            key: imgKey
+          });
         });
-      });
 
-      overlay.appendChild(btn);
-      wrapper.appendChild(overlay);
+        overlay.appendChild(btn);
+        wrapper.appendChild(overlay);
+      }
 
       // Gallery delete button — add to ALL gallery images
       if (inGallery) {
