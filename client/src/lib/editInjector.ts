@@ -259,7 +259,7 @@ const EDIT_JS = `
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
     if (cls.indexOf('gallery-grid') >= 0) return 'gallery';
-    if (cls.indexOf('page-hero') >= 0) return 'hero';
+    if (cls.indexOf('page-hero') >= 0) return 'page-hero';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
