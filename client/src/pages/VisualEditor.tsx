@@ -236,6 +236,7 @@ export default function VisualEditor() {
         const ok = await saveSiteField(data.key, payload);
         if (ok) {
           toast.success("Text updated. Allow 3\u20135 min for live site.");
+          refreshHtml();
         } else {
           toast.error(`Save failed for key "${data.key}" in section "${data.sectionId}". Try refreshing the page.`);
         }
@@ -244,7 +245,7 @@ export default function VisualEditor() {
         toast.error(`Save error: ${msg}`);
       }
     },
-    [saveSiteField]
+    [saveSiteField, refreshHtml]
   );
 
   // ── Image swap handler ──

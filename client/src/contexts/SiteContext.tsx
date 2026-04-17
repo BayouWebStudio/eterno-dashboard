@@ -279,6 +279,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           console.error(`[Site] Save field "${key}" HTTP ${res.status}:`, errMsg);
           throw new Error(errMsg);
         }
+        console.log(`[Site] Save field "${key}" succeeded (HTTP ${res.status})`);
         return true;
       } catch (err) {
         console.error(`[Site] Save field "${key}" failed:`, err);
