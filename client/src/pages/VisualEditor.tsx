@@ -170,6 +170,10 @@ export default function VisualEditor() {
   }, [editMode]);
 
   // ── Handle messages from iframe ──
+  // Use a ref to always call the latest handler versions, avoiding stale closures
+  // from the initial render (when currentSite is still null/loading).
+  const handlersRef = useRef<Record<string, Function>>({});
+
   useEffect(() => {
     function handleMessage(e: MessageEvent) {
       // Accept messages from same origin OR srcdoc iframes (origin "null")
@@ -183,7 +187,7 @@ export default function VisualEditor() {
           break;
 
         case "text-edit":
-          handleTextEdit(data);
+          handlersRef.current.handleTextEdit?.(data);
           break;
 
         case "image-swap":
@@ -197,23 +201,23 @@ export default function VisualEditor() {
           break;
 
         case "gallery-delete":
-          handleGalleryDelete(data);
+          handlersRef.current.handleGalleryDelete?.(data);
           break;
 
         case "gallery-reorder":
-          handleGalleryReorder(data);
+          handlersRef.current.handleGalleryReorder?.(data);
           break;
 
         case "section-delete":
-          handleSectionDelete(data);
+          handlersRef.current.handleSectionDelete?.(data);
           break;
 
         case "artist-delete":
-          handleArtistDelete(data);
+          handlersRef.current.handleArtistDelete?.(data);
           break;
 
         case "request-refresh":
-          refreshHtml();
+          handlersRef.current.refreshHtml?.();
           break;
       }
     }
@@ -398,6 +402,9 @@ export default function VisualEditor() {
     },
     [deleteArtist, refreshHtml]
   );
+
+  // Keep handlersRef in sync so the message listener always calls the latest versions
+  handlersRef.current = { handleTextEdit, handleGalleryDelete, handleGalleryReorder, handleSectionDelete, handleArtistDelete, refreshHtml };
 
   // ── Page switch handler ──
   const handlePageSwitch = useCallback(
