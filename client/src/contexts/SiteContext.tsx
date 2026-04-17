@@ -251,9 +251,18 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     async (key: string, value: string, page?: string): Promise<boolean> => {
       if (!convexHttpUrl || !currentSite?.slug) return false;
       try {
-        // Build payload — include page param for non-index pages on signature sites
+        // Build payload — include page param for non-index pages on signature sites.
+        // Hero/nav/footer keys always target index.html regardless of currentPage,
+        // since those elements only exist on the home page.
+        const indexOnlyKeys = ["hero_title", "hero_subtitle", "hero_sub", "hero_eyebrow",
+          "hero_cta_text", "hero_bg_image", "hero_bg", "hero_typed_phrases",
+          "nav_logo", "footer_name", "footer_tagline", "instagram", "ig_handle",
+          "booking", "booking_cta_text", "contact_email"];
+        const forceIndex = indexOnlyKeys.includes(key);
         const payload: Record<string, string> = { sectionKey: key, newContent: value };
-        if (page) {
+        if (forceIndex) {
+          // Don't send page param — backend defaults to index.html
+        } else if (page) {
           payload.page = page;
         } else if (isSignatureSite && currentPageRef.current && currentPageRef.current !== "index.html") {
           payload.page = currentPageRef.current;
