@@ -496,30 +496,38 @@ const EDIT_JS = `
         e.stopPropagation();
 
         if (activeEl && activeEl !== el) {
-          finishEdit(activeEl);
+          // Cancel previous unsaved edit — revert text
+          activeEl.textContent = originalText;
+          activeEl.contentEditable = 'false';
+          activeEl.classList.remove('editing');
         }
 
+        if (activeEl !== el) {
+          originalText = el.textContent;
+        }
         activeEl = el;
-        originalText = el.textContent;
         el.contentEditable = 'true';
         el.classList.add('editing');
         el.focus();
       });
 
       el.addEventListener('blur', function() {
-        if (activeEl === el) {
-          finishEdit(el);
-        }
+        // Just remove editing visuals — don't save or revert.
+        // User must click Save to commit or Escape to cancel.
+        el.contentEditable = 'false';
+        el.classList.remove('editing');
       });
 
       el.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          el.blur();
         }
         if (e.key === 'Escape') {
           el.textContent = originalText;
-          el.blur();
+          el.contentEditable = 'false';
+          el.classList.remove('editing');
+          activeEl = null;
+          originalText = '';
         }
       });
     });
@@ -536,7 +544,7 @@ const EDIT_JS = `
       // Allow nav_logo and footer_name even without a section — they're global elements
       var globalKeys = ['nav_logo', 'footer_name'];
       if (sectionId === 'unknown' && globalKeys.indexOf(key) < 0) {
-        showToast('Could not identify section \\u2014 edit not saved');
+        showToast('Could not identify section — edit not saved');
         return;
       }
 
@@ -547,7 +555,9 @@ const EDIT_JS = `
         value: newText,
         originalValue: originalText.trim()
       });
-      showToast('Change saved');
+      showToast('Saving...');
+    } else {
+      showToast('No changes to save');
     }
     activeEl = null;
     originalText = '';
@@ -896,9 +906,11 @@ const EDIT_JS = `
       } else {
         document.body.classList.remove('edit-mode');
         if (activeEl) {
+          activeEl.textContent = originalText;
           activeEl.contentEditable = 'false';
           activeEl.classList.remove('editing');
           activeEl = null;
+          originalText = '';
         }
       }
     }
