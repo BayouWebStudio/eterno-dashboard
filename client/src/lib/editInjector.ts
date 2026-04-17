@@ -561,7 +561,9 @@ const EDIT_JS = `
       return;
     }
 
-    var count = 0;
+    // Collect all edits into a single batch message so the parent
+    // can save them sequentially (avoids GitHub SHA conflicts).
+    var edits = [];
     for (var i = 0; i < pending.length; i++) {
       var el = pending[i];
       var origText = el.dataset.veOriginal || '';
@@ -573,20 +575,24 @@ const EDIT_JS = `
       var globalKeys = ['nav_logo', 'footer_name'];
       if (sectionId === 'unknown' && globalKeys.indexOf(key) < 0) continue;
 
-      post({
-        type: 'text-edit',
+      edits.push({
         sectionId: sectionId,
         key: key,
         value: newText,
         originalValue: origText.trim()
       });
-      count++;
       // Clean up — this is now the new baseline
       delete el.dataset.veOriginal;
       delete el.dataset.vePending;
     }
 
-    showToast(count + ' change' + (count !== 1 ? 's' : '') + ' saved');
+    if (edits.length === 0) {
+      showToast('No changes to save');
+      return;
+    }
+
+    post({ type: 'batch-text-edit', edits: edits });
+    showToast(edits.length + ' change' + (edits.length !== 1 ? 's' : '') + ' saving...');
   }
 
   /** Revert all pending edits (called when switching to Preview). */

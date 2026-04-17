@@ -196,6 +196,10 @@ export default function VisualEditor() {
           handlersRef.current.handleTextEdit?.(data);
           break;
 
+        case "batch-text-edit":
+          handlersRef.current.handleBatchTextEdit?.(data.edits);
+          break;
+
         case "image-swap":
           setPendingImageSwap({ sectionId: data.sectionId, key: data.key });
           fileInputRef.current?.click();
@@ -250,6 +254,34 @@ export default function VisualEditor() {
         const msg = err instanceof Error ? err.message : "Unknown error";
         toast.error(`Save error: ${msg}`);
       }
+    },
+    [saveSiteField, refreshHtml]
+  );
+
+  // ── Batch text edit handler — saves edits sequentially to avoid SHA conflicts ──
+  const handleBatchTextEdit = useCallback(
+    async (edits: Array<{ sectionId: string; key: string; value: string; originalValue?: string }>) => {
+      let succeeded = 0;
+      let failed = 0;
+      for (const edit of edits) {
+        try {
+          const payload = edit.originalValue ? `${edit.value}|||${edit.originalValue}` : edit.value;
+          const ok = await saveSiteField(edit.key, payload);
+          if (ok) {
+            succeeded++;
+          } else {
+            failed++;
+          }
+        } catch {
+          failed++;
+        }
+      }
+      if (failed === 0) {
+        toast.success(`${succeeded} change${succeeded !== 1 ? "s" : ""} saved. Allow 3\u20135 min for live site.`);
+      } else {
+        toast.error(`${succeeded} saved, ${failed} failed. Try refreshing and saving again.`);
+      }
+      refreshHtml();
     },
     [saveSiteField, refreshHtml]
   );
@@ -411,7 +443,7 @@ export default function VisualEditor() {
   );
 
   // Keep handlersRef in sync so the message listener always calls the latest versions
-  handlersRef.current = { handleTextEdit, handleGalleryDelete, handleGalleryReorder, handleSectionDelete, handleArtistDelete, refreshHtml };
+  handlersRef.current = { handleTextEdit, handleBatchTextEdit, handleGalleryDelete, handleGalleryReorder, handleSectionDelete, handleArtistDelete, refreshHtml };
 
   // ── Page switch handler ──
   const handlePageSwitch = useCallback(
