@@ -20,6 +20,7 @@ import {
   Check,
   Plus,
   RefreshCw,
+  Save,
   X,
   Maximize2,
   Minimize2,
@@ -168,6 +169,11 @@ export default function VisualEditor() {
       );
     }
   }, [editMode]);
+
+  // Trigger save on active edit in iframe
+  const triggerSave = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage({ type: "trigger-save" }, "*");
+  }, []);
 
   // ── Handle messages from iframe ──
   // Use a ref to always call the latest handler versions, avoiding stale closures
@@ -505,6 +511,19 @@ export default function VisualEditor() {
               Preview
             </button>
           </div>
+
+          {/* Save button — visible in edit mode */}
+          {editMode && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={triggerSave}
+              className="border-gold/40 text-gold hover:bg-gold hover:text-black transition-all"
+            >
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+              Save
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -561,7 +580,7 @@ export default function VisualEditor() {
       {editMode && (
         <div className="px-4 py-1.5 bg-[oklch(0.75_0.12_85/8%)] border-b border-gold-dim/25 flex-shrink-0">
           <p className="text-xs text-gold-dim">
-            <strong className="text-gold">Edit Mode</strong> — Click any text to edit it. Hover images to swap them. Hover sections for controls.
+            <strong className="text-gold">Edit Mode</strong> — Click any text to edit it, then click <strong className="text-gold">Save</strong> when done. Hover images to swap them.
           </p>
         </div>
       )}

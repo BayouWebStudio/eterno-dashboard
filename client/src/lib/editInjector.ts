@@ -902,6 +902,11 @@ const EDIT_JS = `
         }
       }
     }
+    if (e.data && e.data.type === 'trigger-save') {
+      if (activeEl) {
+        finishEdit(activeEl);
+      }
+    }
     if (e.data && e.data.type === 'refresh-gallery') {
       post({ type: 'request-refresh' });
     }
