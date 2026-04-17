@@ -697,6 +697,8 @@ const EDIT_JS = `
       '.gallery-grid, .masonry-grid, .gallery-body, [class*="gallery-section"]'
     );
     galleryEls.forEach(function(el) {
+      // Skip if this element or an ancestor already has the gallery button
+      if (el.querySelector('.ve-gallery-add-btn') || el.closest('.ve-gallery-section')) return;
       el.classList.add('ve-gallery-section');
       var addBtn = document.createElement('button');
       addBtn.className = 've-gallery-add-btn';
