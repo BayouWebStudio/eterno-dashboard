@@ -340,15 +340,16 @@ const EDIT_JS = `
     var cls = el.className || '';
 
     if (sectionId === 'hero' || sectionId === 'page-hero') {
+      if (cls.indexOf('section-label') >= 0) return 'section_label__' + sectionId;
       if (cls.indexOf('hero-eyebrow') >= 0) return 'hero_eyebrow';
       if (cls.indexOf('hero-title') >= 0 || cls.indexOf('hero-name') >= 0) return 'hero_title';
       if (cls.indexOf('hero-subtitle') >= 0 || cls.indexOf('hero-tagline') >= 0 || cls.indexOf('hero-sub') >= 0) return 'hero_subtitle';
       if (cls.indexOf('hero-cta') >= 0) return 'hero_cta_text';
-      if (tag === 'h1') return 'hero_title';
+      if (tag === 'h1') return sectionId === 'page-hero' ? 'section_title__' + sectionId : 'hero_title';
       if (tag === 'h2' || tag === 'h3') return 'hero_subtitle';
-      if (tag === 'p') return 'hero_subtitle';
+      if (tag === 'p') return sectionId === 'page-hero' ? 'section_label__' + sectionId : 'hero_subtitle';
       if (tag === 'a') return 'hero_cta_text';
-      return 'hero_title';
+      return sectionId === 'page-hero' ? 'section_title__' + sectionId : 'hero_title';
     }
 
     if (sectionId === 'about' || sectionId === 'nosotros') {
