@@ -138,6 +138,7 @@ export default function VisualEditor() {
     deleteSiteSection,
     deleteArtist,
     addSiteSection,
+    addParagraph,
     deletePage,
     restorePage,
     deleteGalleryImage,
@@ -166,6 +167,13 @@ export default function VisualEditor() {
   const [addSectionContent, setAddSectionContent] = useState("");
   const [addSectionPosition, setAddSectionPosition] = useState("bottom");
   const [adding, setAdding] = useState(false);
+
+  // ── Add Text (paragraph inside existing section) state ──
+  const [showAddText, setShowAddText] = useState(false);
+  const [addTextSectionId, setAddTextSectionId] = useState("");
+  const [addTextContent, setAddTextContent] = useState("");
+  const [addTextPosition, setAddTextPosition] = useState("bottom");
+  const [addingText, setAddingText] = useState(false);
 
   // ── Parse sections on the current page for position dropdown ──
   const pageSections = useMemo(() => {
@@ -585,6 +593,43 @@ export default function VisualEditor() {
     }
   }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, addSectionPosition, refreshHtml]);
 
+  // ── Add Text (paragraph to existing section) handler ──
+  const handleAddText = useCallback(async () => {
+    if (!addTextSectionId) {
+      toast.error("Pick which section to add text to");
+      return;
+    }
+    if (!addTextContent.trim()) {
+      toast.error("Text is required");
+      return;
+    }
+    setAddingText(true);
+    try {
+      const result = await addParagraph(addTextSectionId, addTextContent.trim(), addTextPosition);
+      if (result.ok) {
+        toast.success("Text added! Allow 3\u20135 min for live site.");
+        setShowAddText(false);
+        setAddTextSectionId("");
+        setAddTextContent("");
+        setAddTextPosition("bottom");
+        await refreshHtml();
+      } else {
+        toast.error(result.error || "Failed to add text.");
+      }
+    } catch {
+      toast.error("Failed to add text.");
+    } finally {
+      setAddingText(false);
+    }
+  }, [addParagraph, addTextSectionId, addTextContent, addTextPosition, refreshHtml]);
+
+  // Pre-select the first section when opening the Add Text modal
+  useEffect(() => {
+    if (showAddText && !addTextSectionId && pageSections.length > 0) {
+      setAddTextSectionId(pageSections[0].id);
+    }
+  }, [showAddText, addTextSectionId, pageSections]);
+
   // ── Loading states ──
   if (loading && !siteHtml) {
     return (
@@ -680,6 +725,19 @@ export default function VisualEditor() {
               Loading...
             </span>
           )}
+
+          {/* Add Text — adds a paragraph inside an existing section */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAddText(true)}
+            disabled={pageSections.length === 0}
+            className="border-gold/50 text-gold hover:bg-gold hover:text-black transition-all"
+            title={pageSections.length === 0 ? "No sections on this page" : "Add text to an existing section"}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Add Text
+          </Button>
 
           {/* Add Section — styled prominently so users notice it */}
           <div className="relative">
@@ -880,6 +938,102 @@ export default function VisualEditor() {
                   <Plus className="w-3.5 h-3.5 mr-1.5" />
                 )}
                 {adding ? "Adding..." : "Add Section"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Text modal — add paragraph inside an existing section */}
+      {showAddText && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="text-base font-semibold text-foreground">Add Text to a Section</h3>
+              <button
+                onClick={() => {
+                  setShowAddText(false);
+                  setAddTextSectionId("");
+                  setAddTextContent("");
+                  setAddTextPosition("bottom");
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Which section?
+                </label>
+                <select
+                  value={addTextSectionId}
+                  onChange={(e) => setAddTextSectionId(e.target.value)}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                >
+                  {pageSections.length === 0 && <option value="">No sections on this page</option>}
+                  {pageSections.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Text
+                </label>
+                <textarea
+                  value={addTextContent}
+                  onChange={(e) => setAddTextContent(e.target.value)}
+                  placeholder="Type your text. Leave a blank line between paragraphs."
+                  rows={5}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[100px]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Where in the section?
+                </label>
+                <select
+                  value={addTextPosition}
+                  onChange={(e) => setAddTextPosition(e.target.value)}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                >
+                  <option value="top">At the top of the section</option>
+                  <option value="bottom">At the bottom of the section</option>
+                </select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Adds a paragraph inside the existing section — not a new section.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowAddText(false);
+                  setAddTextSectionId("");
+                  setAddTextContent("");
+                  setAddTextPosition("bottom");
+                }}
+                disabled={addingText}
+                className="border-border text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddText}
+                disabled={addingText || pageSections.length === 0}
+                className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold"
+                size="sm"
+              >
+                {addingText ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {addingText ? "Adding..." : "Add Text"}
               </Button>
             </div>
           </div>

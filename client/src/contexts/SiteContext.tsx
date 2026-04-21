@@ -98,6 +98,7 @@ interface SiteContextValue {
   deleteSiteSection: (sectionKeyword: string) => Promise<boolean>;
   deleteArtist: (artistName: string) => Promise<boolean>;
   addSiteSection: (sectionType: string, title: string, content: string, position?: string) => Promise<boolean>;
+  addParagraph: (sectionId: string, text: string, position?: string) => Promise<{ ok: boolean; error?: string }>;
   deletePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
   restorePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
   reorderSections: (sectionOrder: string[]) => Promise<boolean>;
@@ -476,6 +477,36 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error(`[Site] Add section "${sectionType}" failed:`, err);
         return false;
+      }
+    },
+    [convexHttpUrl, authFetch, setSiteHtml]
+  );
+
+  // ── Add a paragraph inside an existing section via /api/dashboard/add-paragraph ──
+  const addParagraph = useCallback(
+    async (sectionId: string, text: string, position?: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!convexHttpUrl) return { ok: false, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/add-paragraph", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sectionId,
+            text,
+            page: currentPageRef.current || "index.html",
+            ...(position ? { position } : {}),
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false, error: data?.error || `Add text failed: ${res.status}` };
+        }
+        // Apply the updated HTML directly to avoid GitHub cache race
+        if (data?.html) setSiteHtml(data.html);
+        return { ok: true };
+      } catch (err: any) {
+        console.error(`[Site] Add paragraph to "${sectionId}" failed:`, err);
+        return { ok: false, error: err?.message || "Add text failed" };
       }
     },
     [convexHttpUrl, authFetch, setSiteHtml]
@@ -890,6 +921,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         deleteSiteSection,
         deleteArtist,
         addSiteSection,
+        addParagraph,
         deletePage,
         restorePage,
         reorderSections,
