@@ -161,7 +161,7 @@ export default function VisualEditor() {
 
   // ── Add Section state ──
   const [showAddSection, setShowAddSection] = useState(false);
-  const [addSectionType, setAddSectionType] = useState("services");
+  const [addSectionType, setAddSectionType] = useState("text-block");
   const [addSectionTitle, setAddSectionTitle] = useState("");
   const [addSectionContent, setAddSectionContent] = useState("");
   const [adding, setAdding] = useState(false);
@@ -545,7 +545,7 @@ export default function VisualEditor() {
       if (ok) {
         toast.success("Section added! Allow 3\u20135 min for live site.");
         setShowAddSection(false);
-        setAddSectionType("services");
+        setAddSectionType("text-block");
         setAddSectionTitle("");
         setAddSectionContent("");
         await refreshHtml();
@@ -744,7 +744,7 @@ export default function VisualEditor() {
               <button
                 onClick={() => {
                   setShowAddSection(false);
-                  setAddSectionType("services");
+                  setAddSectionType("text-block");
                   setAddSectionTitle("");
                   setAddSectionContent("");
                 }}
@@ -763,13 +763,14 @@ export default function VisualEditor() {
                   onChange={(e) => setAddSectionType(e.target.value)}
                   className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
                 >
-                  <option value="photo-gallery">Photo Gallery</option>
-                  <option value="services">Services / Pricing</option>
-                  <option value="faq">FAQ</option>
-                  <option value="testimonials">Testimonials</option>
-                  <option value="hours">Hours</option>
-                  <option value="team">Team</option>
-                  <option value="custom">Custom Text</option>
+                  <option value="text-block">Text Block (on current page)</option>
+                  <option value="photo-gallery">Photo Gallery (new page)</option>
+                  <option value="services">Services / Pricing (new page)</option>
+                  <option value="faq">FAQ (new page)</option>
+                  <option value="testimonials">Testimonials (new page)</option>
+                  <option value="hours">Hours (new page)</option>
+                  <option value="team">Team (new page)</option>
+                  <option value="custom">Custom Text (new page)</option>
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -780,23 +781,28 @@ export default function VisualEditor() {
                   type="text"
                   value={addSectionTitle}
                   onChange={(e) => setAddSectionTitle(e.target.value)}
-                  placeholder="e.g. Our Services"
+                  placeholder={addSectionType === "text-block" ? "e.g. About Me" : "e.g. Our Services"}
                   className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
                 />
               </div>
               {addSectionType !== "photo-gallery" && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                    Content
+                    {addSectionType === "text-block" ? "Text" : "Content"}
                   </label>
                   <textarea
                     value={addSectionContent}
                     onChange={(e) => setAddSectionContent(e.target.value)}
-                    placeholder="Describe the section content..."
+                    placeholder={addSectionType === "text-block" ? "Write your text here. Leave a blank line between paragraphs." : "Describe the section content..."}
                     rows={5}
                     className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[100px]"
                   />
                 </div>
+              )}
+              {addSectionType === "text-block" && (
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Adds a text section to <span className="font-semibold text-gold">{getPageLabel(currentPage)}</span> — no new page created.
+                </p>
               )}
             </div>
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
@@ -805,7 +811,7 @@ export default function VisualEditor() {
                 size="sm"
                 onClick={() => {
                   setShowAddSection(false);
-                  setAddSectionType("services");
+                  setAddSectionType("text-block");
                   setAddSectionTitle("");
                   setAddSectionContent("");
                 }}
