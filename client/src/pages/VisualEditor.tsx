@@ -139,6 +139,7 @@ export default function VisualEditor() {
     deleteArtist,
     addSiteSection,
     deletePage,
+    restorePage,
     deleteGalleryImage,
     saveGalleryOrder,
     refreshHtml,
@@ -487,19 +488,33 @@ export default function VisualEditor() {
     async (page: string) => {
       const label = getPageLabel(page);
       const confirmed = window.confirm(
-        `Delete the "${label}" page?\n\nThis will:\n• Remove the page from your site\n• Remove all links to it from other pages\n\nThis cannot be undone.`
+        `Delete the "${label}" page?\n\nThis will remove the page and all links to it from other pages.\n\nYou'll have 30 seconds to undo.`
       );
       if (!confirmed) return;
       setDeletingPage(page);
       try {
         const result = await deletePage(page);
         if (result.ok) {
-          toast.success(`"${label}" deleted. Allow 3\u20135 min for live site.`);
           // If the deleted page was the current one, switch to index.html
           if (page === currentPage) {
             await switchPage("index.html");
           }
           await refreshHtml();
+          toast.success(`"${label}" deleted.`, {
+            duration: 30000,
+            action: {
+              label: "Undo",
+              onClick: async () => {
+                const restoreResult = await restorePage(page);
+                if (restoreResult.ok) {
+                  toast.success(`"${label}" restored. Allow 3\u20135 min for live site.`);
+                  await refreshHtml();
+                } else {
+                  toast.error(restoreResult.error || "Failed to restore page.");
+                }
+              },
+            },
+          });
         } else {
           toast.error(result.error || "Failed to delete page.");
         }
@@ -509,7 +524,7 @@ export default function VisualEditor() {
         setDeletingPage(null);
       }
     },
-    [deletePage, currentPage, switchPage, refreshHtml]
+    [deletePage, restorePage, currentPage, switchPage, refreshHtml]
   );
 
   // ── Add section handler ──

@@ -99,6 +99,7 @@ interface SiteContextValue {
   deleteArtist: (artistName: string) => Promise<boolean>;
   addSiteSection: (sectionType: string, title: string, content: string) => Promise<boolean>;
   deletePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
+  restorePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
   reorderSections: (sectionOrder: string[]) => Promise<boolean>;
   setupSite: (input: SetupSiteInput) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
@@ -503,6 +504,29 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [convexHttpUrl, authFetch]
   );
 
+  // ── Restore a deleted page from git history ──
+  const restorePage = useCallback(
+    async (page: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!convexHttpUrl) return { ok: false, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/restore-page", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false, error: data?.error || `Restore page failed: ${res.status}` };
+        }
+        return { ok: true };
+      } catch (err: any) {
+        console.error(`[Site] Restore page "${page}" failed:`, err);
+        return { ok: false, error: err?.message || "Restore page failed" };
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
   // ── Reorder sections via /api/dashboard/reorder-sections ──
   const reorderSections = useCallback(
     async (sectionOrder: string[]): Promise<boolean> => {
@@ -867,6 +891,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         deleteArtist,
         addSiteSection,
         deletePage,
+        restorePage,
         reorderSections,
         setupSite,
         connectSite,
