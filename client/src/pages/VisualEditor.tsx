@@ -24,18 +24,24 @@ import {
   X,
   Maximize2,
   Minimize2,
+  Trash2,
 } from "lucide-react";
+
+/** Pages that cannot be deleted (core site pages) */
+const PROTECTED_PAGES = new Set(["index.html", "404.html", "privacy.html", "booking.html"]);
 
 /** Page selector dropdown (reused from SectionEditor) */
 function PageSelector({
   availablePages,
   currentPage,
   onSwitch,
+  onDelete,
   disabled,
 }: {
   availablePages: string[];
   currentPage: string;
   onSwitch: (page: string) => void;
+  onDelete: (page: string) => void;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -76,25 +82,43 @@ function PageSelector({
         <div className="absolute top-full left-0 mt-1 w-56 bg-card border border-border rounded-lg shadow-xl z-50 py-1 max-h-80 overflow-y-auto">
           {availablePages.map((page) => {
             const isActive = page === currentPage;
+            const isDeletable = !PROTECTED_PAGES.has(page.toLowerCase());
             return (
-              <button
+              <div
                 key={page}
-                onClick={() => {
-                  if (!isActive) onSwitch(page);
-                  setOpen(false);
-                }}
                 className={`
-                  w-full text-left flex items-center gap-2 px-3 py-2 text-sm transition-colors
+                  group flex items-center gap-2 px-3 py-2 text-sm transition-colors
                   ${isActive
                     ? "bg-[oklch(0.19_0.005_250)] text-gold"
                     : "text-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-gold"
                   }
                 `}
               >
-                <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-gold" : "text-muted-foreground"}`} />
-                <span className="font-medium">{getPageLabel(page)}</span>
-                {isActive && <Check className="w-3.5 h-3.5 ml-auto text-gold" />}
-              </button>
+                <button
+                  onClick={() => {
+                    if (!isActive) onSwitch(page);
+                    setOpen(false);
+                  }}
+                  className="flex-1 text-left flex items-center gap-2 cursor-pointer"
+                >
+                  <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-gold" : "text-muted-foreground"}`} />
+                  <span className="font-medium">{getPageLabel(page)}</span>
+                  {isActive && <Check className="w-3.5 h-3.5 ml-auto text-gold" />}
+                </button>
+                {isDeletable && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(page);
+                      setOpen(false);
+                    }}
+                    title={`Delete ${getPageLabel(page)}`}
+                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -114,6 +138,7 @@ export default function VisualEditor() {
     deleteSiteSection,
     deleteArtist,
     addSiteSection,
+    deletePage,
     deleteGalleryImage,
     saveGalleryOrder,
     refreshHtml,
@@ -455,6 +480,38 @@ export default function VisualEditor() {
     [switchPage]
   );
 
+  // ── Delete page handler ──
+  const [deletingPage, setDeletingPage] = useState<string | null>(null);
+
+  const handleDeletePage = useCallback(
+    async (page: string) => {
+      const label = getPageLabel(page);
+      const confirmed = window.confirm(
+        `Delete the "${label}" page?\n\nThis will:\n• Remove the page from your site\n• Remove all links to it from other pages\n\nThis cannot be undone.`
+      );
+      if (!confirmed) return;
+      setDeletingPage(page);
+      try {
+        const result = await deletePage(page);
+        if (result.ok) {
+          toast.success(`"${label}" deleted. Allow 3\u20135 min for live site.`);
+          // If the deleted page was the current one, switch to index.html
+          if (page === currentPage) {
+            await switchPage("index.html");
+          }
+          await refreshHtml();
+        } else {
+          toast.error(result.error || "Failed to delete page.");
+        }
+      } catch {
+        toast.error("Failed to delete page.");
+      } finally {
+        setDeletingPage(null);
+      }
+    },
+    [deletePage, currentPage, switchPage, refreshHtml]
+  );
+
   // ── Add section handler ──
   const handleAddSection = useCallback(async () => {
     if (!addSectionTitle.trim()) {
@@ -516,7 +573,8 @@ export default function VisualEditor() {
               availablePages={availablePages}
               currentPage={currentPage}
               onSwitch={handlePageSwitch}
-              disabled={htmlLoading}
+              onDelete={handleDeletePage}
+              disabled={htmlLoading || deletingPage !== null}
             />
           )}
 
@@ -582,16 +640,17 @@ export default function VisualEditor() {
             </span>
           )}
 
-          {/* Add Section */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAddSection(true)}
-            className="border-border text-muted-foreground hover:text-gold hover:border-gold-dim"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Add Section
-          </Button>
+          {/* Add Section — styled prominently so users notice it */}
+          <div className="relative">
+            <Button
+              size="sm"
+              onClick={() => setShowAddSection(true)}
+              className="bg-gold text-black hover:bg-gold/90 font-semibold shadow-md hover:shadow-lg transition-all animate-[pulse_2.5s_ease-in-out_infinite]"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Add Section
+            </Button>
+          </div>
 
           {/* Refresh */}
           <Button

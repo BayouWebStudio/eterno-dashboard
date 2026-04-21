@@ -98,6 +98,7 @@ interface SiteContextValue {
   deleteSiteSection: (sectionKeyword: string) => Promise<boolean>;
   deleteArtist: (artistName: string) => Promise<boolean>;
   addSiteSection: (sectionType: string, title: string, content: string) => Promise<boolean>;
+  deletePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
   reorderSections: (sectionOrder: string[]) => Promise<boolean>;
   setupSite: (input: SetupSiteInput) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
@@ -479,6 +480,29 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [convexHttpUrl, authFetch, setSiteHtml]
   );
 
+  // ── Delete a page via /api/dashboard/delete-page ──
+  const deletePage = useCallback(
+    async (page: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!convexHttpUrl) return { ok: false, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/delete-page", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false, error: data?.error || `Delete page failed: ${res.status}` };
+        }
+        return { ok: true };
+      } catch (err: any) {
+        console.error(`[Site] Delete page "${page}" failed:`, err);
+        return { ok: false, error: err?.message || "Delete page failed" };
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
   // ── Reorder sections via /api/dashboard/reorder-sections ──
   const reorderSections = useCallback(
     async (sectionOrder: string[]): Promise<boolean> => {
@@ -842,6 +866,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         deleteSiteSection,
         deleteArtist,
         addSiteSection,
+        deletePage,
         reorderSections,
         setupSite,
         connectSite,
