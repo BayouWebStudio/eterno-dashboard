@@ -97,7 +97,7 @@ interface SiteContextValue {
   deleteGalleryImage: (filename: string, sectionId?: string) => Promise<boolean>;
   deleteSiteSection: (sectionKeyword: string) => Promise<boolean>;
   deleteArtist: (artistName: string) => Promise<boolean>;
-  addSiteSection: (sectionType: string, title: string, content: string) => Promise<boolean>;
+  addSiteSection: (sectionType: string, title: string, content: string, position?: string) => Promise<boolean>;
   deletePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
   restorePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
   reorderSections: (sectionOrder: string[]) => Promise<boolean>;
@@ -457,13 +457,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   // ── Add a section via /api/dashboard/add-section ──
   const addSiteSection = useCallback(
-    async (sectionType: string, title: string, content: string): Promise<boolean> => {
+    async (sectionType: string, title: string, content: string, position?: string): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       try {
         const res = await authFetch("/api/dashboard/add-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sectionType, title, content, page: currentPageRef.current || "index.html" }),
+          body: JSON.stringify({ sectionType, title, content, page: currentPageRef.current || "index.html", ...(position ? { position } : {}) }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);

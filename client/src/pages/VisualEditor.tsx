@@ -164,7 +164,30 @@ export default function VisualEditor() {
   const [addSectionType, setAddSectionType] = useState("text-block");
   const [addSectionTitle, setAddSectionTitle] = useState("");
   const [addSectionContent, setAddSectionContent] = useState("");
+  const [addSectionPosition, setAddSectionPosition] = useState("bottom");
   const [adding, setAdding] = useState(false);
+
+  // ── Parse sections on the current page for position dropdown ──
+  const pageSections = useMemo(() => {
+    if (!siteHtml) return [] as Array<{ id: string; label: string }>;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(siteHtml, "text/html");
+      const sections = Array.from(doc.querySelectorAll("main section[id]"))
+        .map((s) => {
+          const id = s.id;
+          if (!id) return null;
+          // Prefer visible heading text, fall back to id
+          const heading = s.querySelector("h1, h2, h3");
+          const label = heading?.textContent?.trim() || id.replace(/-/g, " ");
+          return { id, label: label.length > 40 ? label.slice(0, 40) + "…" : label };
+        })
+        .filter((s): s is { id: string; label: string } => s !== null);
+      return sections;
+    } catch {
+      return [];
+    }
+  }, [siteHtml]);
 
   // Build the base URL for resolving relative paths in the editor iframe.
   // siteUrl from the API already includes the slug path (e.g. https://eternowebstudio.com/weschetattoo/)
@@ -541,13 +564,16 @@ export default function VisualEditor() {
     try {
       const contentToSend =
         addSectionType === "photo-gallery" ? "Gallery section" : addSectionContent.trim();
-      const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), contentToSend);
+      // Position only matters for text-block type
+      const positionToSend = addSectionType === "text-block" ? addSectionPosition : undefined;
+      const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), contentToSend, positionToSend);
       if (ok) {
         toast.success("Section added! Allow 3\u20135 min for live site.");
         setShowAddSection(false);
         setAddSectionType("text-block");
         setAddSectionTitle("");
         setAddSectionContent("");
+        setAddSectionPosition("bottom");
         await refreshHtml();
       } else {
         toast.error("Failed to add section.");
@@ -557,7 +583,7 @@ export default function VisualEditor() {
     } finally {
       setAdding(false);
     }
-  }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, refreshHtml]);
+  }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, addSectionPosition, refreshHtml]);
 
   // ── Loading states ──
   if (loading && !siteHtml) {
@@ -747,6 +773,7 @@ export default function VisualEditor() {
                   setAddSectionType("text-block");
                   setAddSectionTitle("");
                   setAddSectionContent("");
+                  setAddSectionPosition("bottom");
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -800,9 +827,29 @@ export default function VisualEditor() {
                 </div>
               )}
               {addSectionType === "text-block" && (
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Adds a text section to <span className="font-semibold text-gold">{getPageLabel(currentPage)}</span> — no new page created.
-                </p>
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                      Where on the page?
+                    </label>
+                    <select
+                      value={addSectionPosition}
+                      onChange={(e) => setAddSectionPosition(e.target.value)}
+                      className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                    >
+                      <option value="top">At the top (before everything)</option>
+                      {pageSections.map((s) => (
+                        <option key={s.id} value={`after:${s.id}`}>
+                          After "{s.label}"
+                        </option>
+                      ))}
+                      <option value="bottom">At the bottom (end of page)</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    Adds a text section to <span className="font-semibold text-gold">{getPageLabel(currentPage)}</span> — no new page created.
+                  </p>
+                </>
               )}
             </div>
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
@@ -814,6 +861,7 @@ export default function VisualEditor() {
                   setAddSectionType("text-block");
                   setAddSectionTitle("");
                   setAddSectionContent("");
+                  setAddSectionPosition("bottom");
                 }}
                 disabled={adding}
                 className="border-border text-muted-foreground hover:text-foreground"
