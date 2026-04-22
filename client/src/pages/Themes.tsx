@@ -19,6 +19,9 @@ import {
   ChevronUp,
   Type,
   Eye,
+  Sparkles,
+  Square,
+  Circle,
 } from "lucide-react";
 
 /* ── Preset Themes ── */
@@ -29,12 +32,31 @@ interface ThemePreset {
 }
 
 const PRESETS: ThemePreset[] = [
-  { id: "midnight",  name: "Midnight",  colors: { bg: "#0a0a0a", accent: "#C9A84C", text: "#e8e0d0", card: "#141414" } },
-  { id: "obsidian",  name: "Obsidian",  colors: { bg: "#121212", accent: "#D4A843", text: "#f0e8d8", card: "#1a1a1a" } },
-  { id: "slate",     name: "Slate",     colors: { bg: "#0f1419", accent: "#8899aa", text: "#c8d0d8", card: "#1a2028" } },
-  { id: "ivory",     name: "Ivory",     colors: { bg: "#f5f0e8", accent: "#B8942F", text: "#1a1a1a", card: "#ffffff" } },
-  { id: "crimson",   name: "Crimson",   colors: { bg: "#0e0a0a", accent: "#c0392b", text: "#e8d8d8", card: "#1a1212" } },
-  { id: "forest",    name: "Forest",    colors: { bg: "#0a0e0a", accent: "#6b8f5e", text: "#d8e0d8", card: "#121a12" } },
+  // — Dark moody —
+  { id: "midnight",   name: "Midnight",   colors: { bg: "#0a0a0a", accent: "#C9A84C", text: "#e8e0d0", card: "#141414" } },
+  { id: "obsidian",   name: "Obsidian",   colors: { bg: "#121212", accent: "#D4A843", text: "#f0e8d8", card: "#1a1a1a" } },
+  { id: "slate",      name: "Slate",      colors: { bg: "#0f1419", accent: "#8899aa", text: "#c8d0d8", card: "#1a2028" } },
+  { id: "crimson",    name: "Crimson",    colors: { bg: "#0e0a0a", accent: "#c0392b", text: "#e8d8d8", card: "#1a1212" } },
+  { id: "forest",     name: "Forest",     colors: { bg: "#0a0e0a", accent: "#6b8f5e", text: "#d8e0d8", card: "#121a12" } },
+  { id: "wine",       name: "Wine",       colors: { bg: "#110a0f", accent: "#a45673", text: "#ead7dd", card: "#1a1017" } },
+  { id: "cyber",      name: "Cyber",      colors: { bg: "#08080f", accent: "#00e5ff", text: "#d8e4ff", card: "#12121f" } },
+  { id: "ember",      name: "Ember",      colors: { bg: "#0f0806", accent: "#ff6b35", text: "#f0dccc", card: "#1a0f0b" } },
+  { id: "emerald",    name: "Emerald",    colors: { bg: "#061211", accent: "#10b981", text: "#d4ebe5", card: "#0d1c1a" } },
+  { id: "royal",      name: "Royal",      colors: { bg: "#0a0a1a", accent: "#7c3aed", text: "#e0d8f0", card: "#14142a" } },
+
+  // — Light & clean —
+  { id: "ivory",      name: "Ivory",      colors: { bg: "#f5f0e8", accent: "#B8942F", text: "#1a1a1a", card: "#ffffff" } },
+  { id: "paper",      name: "Paper",      colors: { bg: "#fafaf5", accent: "#1f2937", text: "#111111", card: "#ffffff" } },
+  { id: "sand",       name: "Sand",       colors: { bg: "#f0e8d8", accent: "#8b6f3f", text: "#2a2418", card: "#fcf8ee" } },
+  { id: "linen",      name: "Linen",      colors: { bg: "#f4eee4", accent: "#b4513a", text: "#2d1f1a", card: "#ffffff" } },
+  { id: "minimal",    name: "Minimal",    colors: { bg: "#ffffff", accent: "#000000", text: "#111111", card: "#f6f6f6" } },
+  { id: "rose",       name: "Rose",       colors: { bg: "#fdf2f0", accent: "#c7526a", text: "#3a1f2a", card: "#ffffff" } },
+
+  // — Warm / boutique —
+  { id: "sunset",     name: "Sunset",     colors: { bg: "#1a0f0a", accent: "#ff8c42", text: "#f0e0d0", card: "#241610" } },
+  { id: "coastal",    name: "Coastal",    colors: { bg: "#eaf3f4", accent: "#3b7a80", text: "#12252a", card: "#ffffff" } },
+  { id: "mocha",      name: "Mocha",      colors: { bg: "#1a130e", accent: "#d2956b", text: "#ece0d0", card: "#241c14" } },
+  { id: "boutique",   name: "Boutique",   colors: { bg: "#f5eee4", accent: "#8b6c42", text: "#2a1f16", card: "#ffffff" } },
 ];
 
 /* ── Font Options ── */
@@ -51,6 +73,24 @@ const HEADING_FONTS = [
   "Outfit",
   "DM Serif Display",
   "Archivo Black",
+  "Abril Fatface",
+  "Anton",
+  "Bodoni Moda",
+  "Crimson Text",
+  "EB Garamond",
+  "Fraunces",
+  "Italiana",
+  "Marcellus",
+  "Old Standard TT",
+  "Prata",
+  "Rozha One",
+  "Tenor Sans",
+  "Unna",
+  "Yeseva One",
+  "Bangers",
+  "Chakra Petch",
+  "Dela Gothic One",
+  "Righteous",
 ];
 
 const BODY_FONTS = [
@@ -66,6 +106,24 @@ const BODY_FONTS = [
   "Open Sans",
   "Raleway",
   "Poppins",
+  "Manrope",
+  "Karla",
+  "Figtree",
+  "Plus Jakarta Sans",
+  "Public Sans",
+  "Rubik",
+  "Red Hat Display",
+  "Hind",
+  "Mulish",
+  "Quicksand",
+  "Barlow",
+  "Cabin",
+  "IBM Plex Sans",
+  "Noto Sans",
+  "Fira Sans",
+  "PT Sans",
+  "Sora",
+  "Urbanist",
 ];
 
 /* ── Helpers ── */
@@ -218,7 +276,7 @@ function FontSelect({
    Main Component
    ══════════════════════════════════════ */
 export default function Themes() {
-  const { currentSite, siteHtml, applyTheme, refreshHtml, refreshInfo } = useSite();
+  const { currentSite, siteHtml, applyTheme, generateTheme, refreshHtml, refreshInfo } = useSite();
 
   // Build base URL for resolving relative paths in srcdoc iframe
   const siteBaseUrl = currentSite?.domain
@@ -239,6 +297,16 @@ export default function Themes() {
   const [headingFont, setHeadingFont] = useState("Cormorant Garamond");
   const [bodyFont, setBodyFont] = useState("Inter");
 
+  // ── Typography scale (0.9 = compact, 1.0 = normal, 1.15 = large) ──
+  const [fontScale, setFontScale] = useState<number>(1.0);
+
+  // ── Button style (border-radius in px; 9999 = pill) ──
+  const [buttonRadius, setButtonRadius] = useState<number>(8);
+
+  // ── AI generator state ──
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+
   // Sync colors when site/theme changes (e.g. user switches sites)
   useEffect(() => {
     const preset = PRESETS.find((p) => p.id === currentTheme);
@@ -257,19 +325,23 @@ export default function Themes() {
   const [debouncedColors, setDebouncedColors] = useState(colors);
   const [debouncedHeading, setDebouncedHeading] = useState(headingFont);
   const [debouncedBody, setDebouncedBody] = useState(bodyFont);
+  const [debouncedScale, setDebouncedScale] = useState(fontScale);
+  const [debouncedRadius, setDebouncedRadius] = useState(buttonRadius);
 
-  // Debounce color/font changes for preview
+  // Debounce color/font/scale/radius changes for preview
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setDebouncedColors({ ...colors });
       setDebouncedHeading(headingFont);
       setDebouncedBody(bodyFont);
+      setDebouncedScale(fontScale);
+      setDebouncedRadius(buttonRadius);
     }, 150);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [colors, headingFont, bodyFont]);
+  }, [colors, headingFont, bodyFont, fontScale, buttonRadius]);
 
   // ── Preset click handler ──
   const selectPreset = useCallback((preset: ThemePreset) => {
@@ -295,6 +367,8 @@ export default function Themes() {
 
     const baseTag = siteBaseUrl ? `<base href="${siteBaseUrl}">` : "";
 
+    const radiusCss = debouncedRadius >= 9999 ? "9999px" : `${debouncedRadius}px`;
+
     const overrideBlock = `${baseTag}
 <link rel="stylesheet" href="${buildGoogleFontsUrl(debouncedHeading, debouncedBody)}">
 <style>
@@ -318,6 +392,16 @@ export default function Themes() {
   .btn-gold, .btn-outline {
     font-family: '${escapeCssString(debouncedBody)}', sans-serif !important;
   }
+  /* Typography scale */
+  html { font-size: ${Math.round(16 * debouncedScale)}px !important; }
+  h1, .hero-title { font-size: calc(2.8em * 1) !important; }
+  h2, .section-title { font-size: calc(2.2em * 1) !important; }
+  h3 { font-size: calc(1.5em * 1) !important; }
+  /* Button radius override */
+  .btn-gold, .btn-outline, .book-btn, .hero-cta, .btn, button.cta, a.cta,
+  .float-book, .lang-toggle, input[type="submit"], input[type="button"] {
+    border-radius: ${radiusCss} !important;
+  }
 </style>`;
 
     // Remove any existing <base> tag to avoid conflicts
@@ -334,16 +418,55 @@ export default function Themes() {
     return overrideBlock + html;
   }, [siteHtml, siteBaseUrl, debouncedColors, debouncedHeading, debouncedBody]);
 
+  // ── AI Generator handler ──
+  const handleGenerate = async () => {
+    if (generating || !aiPrompt.trim()) return;
+    setGenerating(true);
+    try {
+      const result = await generateTheme(aiPrompt.trim());
+      if (!result.ok) {
+        toast.error(result.error || "Couldn't generate theme");
+        return;
+      }
+      const d = result.theme!;
+      if (d.colors) {
+        setColors(d.colors);
+        setActivePreset(null);
+      }
+      if (d.headingFont && HEADING_FONTS.includes(d.headingFont)) {
+        setHeadingFont(d.headingFont);
+      }
+      if (d.bodyFont && BODY_FONTS.includes(d.bodyFont)) {
+        setBodyFont(d.bodyFont);
+      }
+      if (typeof d.fontScale === "number") setFontScale(d.fontScale);
+      if (typeof d.buttonRadius === "number") setButtonRadius(d.buttonRadius);
+      toast.success("Theme generated! Preview the look, then click Apply.");
+    } catch {
+      toast.error("Generator unavailable — try again in a moment.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   // ── Apply handler ──
   const handleApply = async () => {
     if (applying) return;
     setApplying(true);
     try {
-      // applyTheme now handles both colors (all pages) + fonts (index.html)
-      const ok = await applyTheme(activePreset || "custom", colors, {
-        heading: headingFont,
-        body: bodyFont,
-      });
+      // applyTheme handles colors (all pages) + fonts + scale + buttonRadius
+      const ok = await applyTheme(
+        activePreset || "custom",
+        colors,
+        {
+          heading: headingFont,
+          body: bodyFont,
+        },
+        {
+          fontScale,
+          buttonRadius,
+        }
+      );
       if (ok) {
         toast.success("Theme applied! Allow 3–5 min for live site.");
         refreshInfo();
@@ -523,6 +646,110 @@ export default function Themes() {
                 the selected fonts and colors.
               </div>
             </div>
+          </div>
+
+          {/* Typography Scale */}
+          <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Type className="w-4 h-4 text-gold" />
+              <span className="text-sm font-semibold text-foreground">Text Size</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Compact", value: 0.9 },
+                { label: "Normal", value: 1.0 },
+                { label: "Large", value: 1.15 },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => setFontScale(opt.value)}
+                  className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                    Math.abs(fontScale - opt.value) < 0.01
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-border text-muted-foreground hover:border-gold-dim hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Button Style */}
+          <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Square className="w-4 h-4 text-gold" />
+              <span className="text-sm font-semibold text-foreground">Button Shape</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Square", value: 0, Icon: Square },
+                { label: "Rounded", value: 8, Icon: Square },
+                { label: "Pill", value: 9999, Icon: Circle },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => setButtonRadius(opt.value)}
+                  className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all flex flex-col items-center gap-1 ${
+                    buttonRadius === opt.value
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-border text-muted-foreground hover:border-gold-dim hover:text-foreground"
+                  }`}
+                >
+                  <div
+                    className="w-10 h-5 border-2"
+                    style={{
+                      borderRadius: opt.value >= 9999 ? "9999px" : `${opt.value}px`,
+                      borderColor: "currentColor",
+                    }}
+                  />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Theme Generator */}
+          <div className="bg-gradient-to-br from-gold/5 to-transparent border border-gold/30 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4 text-gold" />
+              <span className="text-sm font-semibold text-foreground">AI Theme Generator</span>
+              <span className="text-[10px] bg-gold/10 text-gold px-1.5 py-0.5 rounded-full font-medium ml-auto">
+                New
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Describe a vibe and let AI pick colors, fonts, and styling.
+            </p>
+            <input
+              type="text"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !generating && aiPrompt.trim()) handleGenerate();
+              }}
+              placeholder="e.g. moody & romantic, bright minimalist, coastal warm"
+              disabled={generating}
+              className="w-full bg-[oklch(0.16_0.005_250)] border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-gold transition-colors placeholder:text-muted-foreground"
+            />
+            <Button
+              onClick={handleGenerate}
+              disabled={generating || !aiPrompt.trim()}
+              className="w-full bg-gold/20 border border-gold/40 text-gold hover:bg-gold/30 font-semibold"
+              size="sm"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  Generate Theme
+                </>
+              )}
+            </Button>
           </div>
 
           {/* Apply Button */}

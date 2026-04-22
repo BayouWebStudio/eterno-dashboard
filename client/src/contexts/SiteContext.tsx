@@ -105,7 +105,23 @@ interface SiteContextValue {
   setupSite: (input: SetupSiteInput) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
   restoreFileFromHistory: (file: string, targetSha?: string) => Promise<{ ok: boolean; error?: string }>;
-  applyTheme: (themeId: string, colors: { bg: string; accent: string; text: string; card: string }, fonts?: { heading: string; body: string }) => Promise<boolean>;
+  applyTheme: (
+    themeId: string,
+    colors: { bg: string; accent: string; text: string; card: string },
+    fonts?: { heading: string; body: string },
+    style?: { fontScale?: number; buttonRadius?: number }
+  ) => Promise<boolean>;
+  generateTheme: (prompt: string) => Promise<{
+    ok: boolean;
+    error?: string;
+    theme?: {
+      colors?: { bg: string; accent: string; text: string; card: string };
+      headingFont?: string;
+      bodyFont?: string;
+      fontScale?: number;
+      buttonRadius?: number;
+    };
+  }>;
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -797,7 +813,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     async (
       themeId: string,
       colors: { bg: string; accent: string; text: string; card: string },
-      fonts?: { heading: string; body: string }
+      fonts?: { heading: string; body: string },
+      style?: { fontScale?: number; buttonRadius?: number }
     ): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       try {
@@ -852,6 +869,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
               themeKey: themeId,
               googleFonts: `https://fonts.googleapis.com/css2?family=${fontFamilyParams}&display=swap`,
               fonts: { heading: `'${fonts.heading}', serif`, body: `'${fonts.body}', sans-serif` },
+              ...(style?.fontScale !== undefined ? { fontScale: style.fontScale } : {}),
+              ...(style?.buttonRadius !== undefined ? { buttonRadius: style.buttonRadius } : {}),
             }),
           });
           if (!fontRes.ok) {
@@ -866,6 +885,29 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error("[Site] Apply theme failed:", err);
         return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
+  // ── AI theme generator via /api/dashboard/generate-theme ──
+  const generateTheme = useCallback(
+    async (prompt: string) => {
+      if (!convexHttpUrl) return { ok: false as const, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/generate-theme", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false as const, error: data?.error || `Generator failed: ${res.status}` };
+        }
+        return { ok: true as const, theme: data };
+      } catch (err: any) {
+        console.error("[Site] generateTheme failed:", err);
+        return { ok: false as const, error: err?.message || "Generator failed" };
       }
     },
     [convexHttpUrl, authFetch]
@@ -929,6 +971,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         connectSite,
         restoreFileFromHistory,
         applyTheme,
+        generateTheme,
       }}
     >
       {children}
