@@ -97,12 +97,41 @@ interface SiteContextValue {
   deleteGalleryImage: (filename: string, sectionId?: string) => Promise<boolean>;
   deleteSiteSection: (sectionKeyword: string) => Promise<boolean>;
   deleteArtist: (artistName: string) => Promise<boolean>;
-  addSiteSection: (sectionType: string, title: string, content: string) => Promise<boolean>;
+  addSiteSection: (sectionType: string, title: string, content: string, position?: string) => Promise<boolean>;
+  addParagraph: (sectionId: string, text: string, position?: string) => Promise<{ ok: boolean; error?: string }>;
+  deletePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
+  restorePage: (page: string) => Promise<{ ok: boolean; error?: string }>;
   reorderSections: (sectionOrder: string[]) => Promise<boolean>;
   setupSite: (input: SetupSiteInput) => Promise<boolean>;
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
   restoreFileFromHistory: (file: string, targetSha?: string) => Promise<{ ok: boolean; error?: string }>;
-  applyTheme: (themeId: string, colors: { bg: string; accent: string; text: string; card: string }, fonts?: { heading: string; body: string }) => Promise<boolean>;
+  applyTheme: (
+    themeId: string,
+    colors: { bg: string; accent: string; text: string; card: string },
+    fonts?: { heading: string; body: string },
+    style?: {
+      fontScale?: number;
+      buttonRadius?: number;
+      animations?: {
+        statsCounter?: boolean;
+        heroParallax?: boolean;
+        scrollProgress?: boolean;
+        fadeUp?: boolean;
+        galleryStagger?: boolean;
+      };
+    }
+  ) => Promise<boolean>;
+  generateTheme: (prompt: string) => Promise<{
+    ok: boolean;
+    error?: string;
+    theme?: {
+      colors?: { bg: string; accent: string; text: string; card: string };
+      headingFont?: string;
+      bodyFont?: string;
+      fontScale?: number;
+      buttonRadius?: number;
+    };
+  }>;
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -251,9 +280,18 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     async (key: string, value: string, page?: string): Promise<boolean> => {
       if (!convexHttpUrl || !currentSite?.slug) return false;
       try {
-        // Build payload — include page param for non-index pages on signature sites
+        // Build payload — include page param for non-index pages on signature sites.
+        // Hero/nav/footer keys always target index.html regardless of currentPage,
+        // since those elements only exist on the home page.
+        const indexOnlyKeys = ["hero_title", "hero_subtitle", "hero_sub", "hero_eyebrow",
+          "hero_cta_text", "hero_bg_image", "hero_bg", "hero_typed_phrases",
+          "nav_logo", "footer_name", "footer_tagline", "instagram", "ig_handle",
+          "booking", "booking_cta_text", "contact_email"];
+        const forceIndex = indexOnlyKeys.includes(key);
         const payload: Record<string, string> = { sectionKey: key, newContent: value };
-        if (page) {
+        if (forceIndex) {
+          // Don't send page param — backend defaults to index.html
+        } else if (page) {
           payload.page = page;
         } else if (isSignatureSite && currentPageRef.current && currentPageRef.current !== "index.html") {
           payload.page = currentPageRef.current;
@@ -270,6 +308,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
           console.error(`[Site] Save field "${key}" HTTP ${res.status}:`, errMsg);
           throw new Error(errMsg);
         }
+        console.log(`[Site] Save field "${key}" succeeded (HTTP ${res.status})`);
         return true;
       } catch (err) {
         console.error(`[Site] Save field "${key}" failed:`, err);
@@ -445,13 +484,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
   // ── Add a section via /api/dashboard/add-section ──
   const addSiteSection = useCallback(
-    async (sectionType: string, title: string, content: string): Promise<boolean> => {
+    async (sectionType: string, title: string, content: string, position?: string): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       try {
         const res = await authFetch("/api/dashboard/add-section", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sectionType, title, content, page: currentPageRef.current || "index.html" }),
+          body: JSON.stringify({ sectionType, title, content, page: currentPageRef.current || "index.html", ...(position ? { position } : {}) }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
@@ -467,6 +506,82 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       }
     },
     [convexHttpUrl, authFetch, setSiteHtml]
+  );
+
+  // ── Add a paragraph inside an existing section via /api/dashboard/add-paragraph ──
+  const addParagraph = useCallback(
+    async (sectionId: string, text: string, position?: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!convexHttpUrl) return { ok: false, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/add-paragraph", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sectionId,
+            text,
+            page: currentPageRef.current || "index.html",
+            ...(position ? { position } : {}),
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false, error: data?.error || `Add text failed: ${res.status}` };
+        }
+        // Apply the updated HTML directly to avoid GitHub cache race
+        if (data?.html) setSiteHtml(data.html);
+        return { ok: true };
+      } catch (err: any) {
+        console.error(`[Site] Add paragraph to "${sectionId}" failed:`, err);
+        return { ok: false, error: err?.message || "Add text failed" };
+      }
+    },
+    [convexHttpUrl, authFetch, setSiteHtml]
+  );
+
+  // ── Delete a page via /api/dashboard/delete-page ──
+  const deletePage = useCallback(
+    async (page: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!convexHttpUrl) return { ok: false, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/delete-page", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false, error: data?.error || `Delete page failed: ${res.status}` };
+        }
+        return { ok: true };
+      } catch (err: any) {
+        console.error(`[Site] Delete page "${page}" failed:`, err);
+        return { ok: false, error: err?.message || "Delete page failed" };
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
+  // ── Restore a deleted page from git history ──
+  const restorePage = useCallback(
+    async (page: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!convexHttpUrl) return { ok: false, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/restore-page", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false, error: data?.error || `Restore page failed: ${res.status}` };
+        }
+        return { ok: true };
+      } catch (err: any) {
+        console.error(`[Site] Restore page "${page}" failed:`, err);
+        return { ok: false, error: err?.message || "Restore page failed" };
+      }
+    },
+    [convexHttpUrl, authFetch]
   );
 
   // ── Reorder sections via /api/dashboard/reorder-sections ──
@@ -708,7 +823,18 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     async (
       themeId: string,
       colors: { bg: string; accent: string; text: string; card: string },
-      fonts?: { heading: string; body: string }
+      fonts?: { heading: string; body: string },
+      style?: {
+        fontScale?: number;
+        buttonRadius?: number;
+        animations?: {
+          statsCounter?: boolean;
+          heroParallax?: boolean;
+          scrollProgress?: boolean;
+          fadeUp?: boolean;
+          galleryStagger?: boolean;
+        };
+      }
     ): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       try {
@@ -763,6 +889,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
               themeKey: themeId,
               googleFonts: `https://fonts.googleapis.com/css2?family=${fontFamilyParams}&display=swap`,
               fonts: { heading: `'${fonts.heading}', serif`, body: `'${fonts.body}', sans-serif` },
+              ...(style?.fontScale !== undefined ? { fontScale: style.fontScale } : {}),
+              ...(style?.buttonRadius !== undefined ? { buttonRadius: style.buttonRadius } : {}),
+              ...(style?.animations ? { animations: style.animations } : {}),
             }),
           });
           if (!fontRes.ok) {
@@ -777,6 +906,29 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error("[Site] Apply theme failed:", err);
         return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
+  // ── AI theme generator via /api/dashboard/generate-theme ──
+  const generateTheme = useCallback(
+    async (prompt: string) => {
+      if (!convexHttpUrl) return { ok: false as const, error: "Not connected" };
+      try {
+        const res = await authFetch("/api/dashboard/generate-theme", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { ok: false as const, error: data?.error || `Generator failed: ${res.status}` };
+        }
+        return { ok: true as const, theme: data };
+      } catch (err: any) {
+        console.error("[Site] generateTheme failed:", err);
+        return { ok: false as const, error: err?.message || "Generator failed" };
       }
     },
     [convexHttpUrl, authFetch]
@@ -832,11 +984,15 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         deleteSiteSection,
         deleteArtist,
         addSiteSection,
+        addParagraph,
+        deletePage,
+        restorePage,
         reorderSections,
         setupSite,
         connectSite,
         restoreFileFromHistory,
         applyTheme,
+        generateTheme,
       }}
     >
       {children}
