@@ -109,7 +109,17 @@ interface SiteContextValue {
     themeId: string,
     colors: { bg: string; accent: string; text: string; card: string },
     fonts?: { heading: string; body: string },
-    style?: { fontScale?: number; buttonRadius?: number; animationLevel?: "none" | "subtle" | "bold" }
+    style?: {
+      fontScale?: number;
+      buttonRadius?: number;
+      animations?: {
+        statsCounter?: boolean;
+        heroParallax?: boolean;
+        scrollProgress?: boolean;
+        fadeUp?: boolean;
+        galleryStagger?: boolean;
+      };
+    }
   ) => Promise<boolean>;
   generateTheme: (prompt: string) => Promise<{
     ok: boolean;
@@ -814,7 +824,17 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       themeId: string,
       colors: { bg: string; accent: string; text: string; card: string },
       fonts?: { heading: string; body: string },
-      style?: { fontScale?: number; buttonRadius?: number; animationLevel?: "none" | "subtle" | "bold" }
+      style?: {
+        fontScale?: number;
+        buttonRadius?: number;
+        animations?: {
+          statsCounter?: boolean;
+          heroParallax?: boolean;
+          scrollProgress?: boolean;
+          fadeUp?: boolean;
+          galleryStagger?: boolean;
+        };
+      }
     ): Promise<boolean> => {
       if (!convexHttpUrl) return false;
       try {
@@ -871,7 +891,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
               fonts: { heading: `'${fonts.heading}', serif`, body: `'${fonts.body}', sans-serif` },
               ...(style?.fontScale !== undefined ? { fontScale: style.fontScale } : {}),
               ...(style?.buttonRadius !== undefined ? { buttonRadius: style.buttonRadius } : {}),
-              ...(style?.animationLevel ? { animationLevel: style.animationLevel } : {}),
+              ...(style?.animations ? { animations: style.animations } : {}),
             }),
           });
           if (!fontRes.ok) {

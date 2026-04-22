@@ -304,8 +304,12 @@ export default function Themes() {
   // ── Button style (border-radius in px; 9999 = pill) ──
   const [buttonRadius, setButtonRadius] = useState<number>(8);
 
-  // ── Animation level ──
-  const [animationLevel, setAnimationLevel] = useState<"none" | "subtle" | "bold">("subtle");
+  // ── Animation toggles (individual) ──
+  const [animStatsCounter, setAnimStatsCounter] = useState(true);
+  const [animHeroParallax, setAnimHeroParallax] = useState(false);
+  const [animScrollProgress, setAnimScrollProgress] = useState(false);
+  const [animFadeUp, setAnimFadeUp] = useState(true);
+  const [animGalleryStagger, setAnimGalleryStagger] = useState(false);
 
   // ── AI generator state ──
   const [aiPrompt, setAiPrompt] = useState("");
@@ -458,7 +462,7 @@ export default function Themes() {
     if (applying) return;
     setApplying(true);
     try {
-      // applyTheme handles colors (all pages) + fonts + scale + buttonRadius + animationLevel
+      // applyTheme handles colors (all pages) + fonts + scale + buttonRadius + animations
       const ok = await applyTheme(
         activePreset || "custom",
         colors,
@@ -469,7 +473,13 @@ export default function Themes() {
         {
           fontScale,
           buttonRadius,
-          animationLevel,
+          animations: {
+            statsCounter: animStatsCounter,
+            heroParallax: animHeroParallax,
+            scrollProgress: animScrollProgress,
+            fadeUp: animFadeUp,
+            galleryStagger: animGalleryStagger,
+          },
         }
       );
       if (ok) {
@@ -714,7 +724,7 @@ export default function Themes() {
             </div>
           </div>
 
-          {/* Animation Style */}
+          {/* Animations — individual toggles */}
           <div className="bg-card border border-border rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2 mb-1">
               <Zap className="w-4 h-4 text-gold" />
@@ -722,31 +732,72 @@ export default function Themes() {
             </div>
             <div className="space-y-2">
               {([
-                { id: "none", label: "None", desc: "Pure static, fastest load" },
-                { id: "subtle", label: "Subtle", desc: "Stats counter + smooth reveals (recommended)" },
-                { id: "bold", label: "Bold", desc: "Subtle + hero parallax + scroll progress bar" },
-              ] as const).map((opt) => {
-                const isActive = animationLevel === opt.id;
-                return (
+                {
+                  key: "fadeUp",
+                  label: "Fade-up on scroll",
+                  desc: "Sections gently fade and slide up as you scroll to them",
+                  value: animFadeUp,
+                  set: setAnimFadeUp,
+                },
+                {
+                  key: "galleryStagger",
+                  label: "Gallery cascade",
+                  desc: "Photos in a gallery appear one after another instead of all at once",
+                  value: animGalleryStagger,
+                  set: setAnimGalleryStagger,
+                },
+                {
+                  key: "statsCounter",
+                  label: "Stats counter",
+                  desc: "Numbers like \"297K followers\" count up from 0 when visible",
+                  value: animStatsCounter,
+                  set: setAnimStatsCounter,
+                },
+                {
+                  key: "heroParallax",
+                  label: "Hero parallax",
+                  desc: "Top hero section moves slower than scroll for a depth effect",
+                  value: animHeroParallax,
+                  set: setAnimHeroParallax,
+                },
+                {
+                  key: "scrollProgress",
+                  label: "Scroll progress bar",
+                  desc: "Thin gold line at the top of the page that fills as you scroll",
+                  value: animScrollProgress,
+                  set: setAnimScrollProgress,
+                },
+              ] as const).map((opt) => (
+                <label
+                  key={opt.key}
+                  className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-[oklch(0.16_0.005_250)] cursor-pointer transition-colors"
+                >
+                  {/* Toggle switch */}
                   <button
-                    key={opt.id}
-                    onClick={() => setAnimationLevel(opt.id)}
-                    className={`w-full text-left rounded-lg border p-3 transition-all ${
-                      isActive
-                        ? "border-gold bg-gold/10"
-                        : "border-border hover:border-gold-dim hover:bg-[oklch(0.16_0.005_250)]"
+                    type="button"
+                    role="switch"
+                    aria-checked={opt.value}
+                    onClick={() => opt.set(!opt.value)}
+                    className={`relative flex-shrink-0 mt-0.5 w-9 h-5 rounded-full transition-colors ${
+                      opt.value ? "bg-gold" : "bg-border"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-semibold ${isActive ? "text-gold" : "text-foreground"}`}>
-                        {opt.label}
-                      </span>
-                      {isActive && <Check className="w-3.5 h-3.5 text-gold" />}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</div>
+                    <span
+                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        opt.value ? "translate-x-[18px]" : "translate-x-0.5"
+                      }`}
+                    />
                   </button>
-                );
-              })}
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-xs font-semibold ${opt.value ? "text-foreground" : "text-muted-foreground"}`}>
+                      {opt.label}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                      {opt.desc}
+                    </div>
+                  </div>
+                </label>
+              ))}
             </div>
             <p className="text-[11px] text-muted-foreground -mt-1">
               Animations only show on the live site, not in preview above.
