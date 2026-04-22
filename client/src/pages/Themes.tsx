@@ -22,6 +22,7 @@ import {
   Sparkles,
   Square,
   Circle,
+  Zap,
 } from "lucide-react";
 
 /* ── Preset Themes ── */
@@ -303,6 +304,9 @@ export default function Themes() {
   // ── Button style (border-radius in px; 9999 = pill) ──
   const [buttonRadius, setButtonRadius] = useState<number>(8);
 
+  // ── Animation level ──
+  const [animationLevel, setAnimationLevel] = useState<"none" | "subtle" | "bold">("subtle");
+
   // ── AI generator state ──
   const [aiPrompt, setAiPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -454,7 +458,7 @@ export default function Themes() {
     if (applying) return;
     setApplying(true);
     try {
-      // applyTheme handles colors (all pages) + fonts + scale + buttonRadius
+      // applyTheme handles colors (all pages) + fonts + scale + buttonRadius + animationLevel
       const ok = await applyTheme(
         activePreset || "custom",
         colors,
@@ -465,6 +469,7 @@ export default function Themes() {
         {
           fontScale,
           buttonRadius,
+          animationLevel,
         }
       );
       if (ok) {
@@ -707,6 +712,45 @@ export default function Themes() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Animation Style */}
+          <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="w-4 h-4 text-gold" />
+              <span className="text-sm font-semibold text-foreground">Animations</span>
+            </div>
+            <div className="space-y-2">
+              {([
+                { id: "none", label: "None", desc: "Pure static, fastest load" },
+                { id: "subtle", label: "Subtle", desc: "Stats counter + smooth reveals (recommended)" },
+                { id: "bold", label: "Bold", desc: "Subtle + hero parallax + scroll progress bar" },
+              ] as const).map((opt) => {
+                const isActive = animationLevel === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setAnimationLevel(opt.id)}
+                    className={`w-full text-left rounded-lg border p-3 transition-all ${
+                      isActive
+                        ? "border-gold bg-gold/10"
+                        : "border-border hover:border-gold-dim hover:bg-[oklch(0.16_0.005_250)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold ${isActive ? "text-gold" : "text-foreground"}`}>
+                        {opt.label}
+                      </span>
+                      {isActive && <Check className="w-3.5 h-3.5 text-gold" />}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              Animations only show on the live site, not in preview above.
+            </p>
           </div>
 
           {/* AI Theme Generator */}
