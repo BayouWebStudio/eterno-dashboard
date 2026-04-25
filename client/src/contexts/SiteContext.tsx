@@ -71,6 +71,7 @@ export interface SiteInfo {
   pendingTestimonials?: number;
   autoGallery?: boolean;
   autoGalleryLastRun?: number | null;
+  metaImage?: string;
 }
 
 type OnboardingStatus = "idle" | "none" | "building" | "connecting" | "ready";
@@ -103,6 +104,7 @@ interface SiteContextValue {
   connectSite: (igHandle: string) => Promise<{ success: boolean; error?: string }>;
   restoreFileFromHistory: (file: string, targetSha?: string) => Promise<{ ok: boolean; error?: string }>;
   applyTheme: (themeId: string, colors: { bg: string; accent: string; text: string; card: string }, fonts?: { heading: string; body: string }) => Promise<boolean>;
+  saveSiteMetaImage: (imageUrl: string | null) => Promise<boolean>;
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -185,6 +187,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         pendingTestimonials: data.pendingTestimonials ?? 0,
         autoGallery: data.autoGallery ?? false,
         autoGalleryLastRun: data.autoGalleryLastRun ?? null,
+        metaImage: data.metaImage,
       });
       // Tag all subsequent Sentry errors with this client's slug + email
       setSentryUser(data.siteSlug, data.email || null);
@@ -783,6 +786,33 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     [convexHttpUrl, authFetch]
   );
 
+  // ── Save the site's social-share preview image (og:image / twitter:image) ──
+  // Backend contract: POST /api/dashboard/save-meta-image
+  //   body: { imageUrl: string | null }   // null clears the image
+  //   response: { ok: true } on success
+  const saveSiteMetaImage = useCallback(
+    async (imageUrl: string | null): Promise<boolean> => {
+      if (!convexHttpUrl) return false;
+      try {
+        const res = await authFetch("/api/dashboard/save-meta-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || `Save failed: ${res.status}`);
+        }
+        setCurrentSite((prev) => (prev ? { ...prev, metaImage: imageUrl ?? undefined } : prev));
+        return true;
+      } catch (err) {
+        console.error("[Site] saveSiteMetaImage failed:", err);
+        return false;
+      }
+    },
+    [convexHttpUrl, authFetch]
+  );
+
   // ── Restore a file from the previous git commit ──
   const restoreFileFromHistory = useCallback(
     async (file: string, targetSha?: string): Promise<{ ok: boolean; error?: string }> => {
@@ -838,6 +868,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         connectSite,
         restoreFileFromHistory,
         applyTheme,
+        saveSiteMetaImage,
       }}
     >
       {children}

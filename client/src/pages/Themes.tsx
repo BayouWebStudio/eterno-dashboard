@@ -19,6 +19,9 @@ import {
   ChevronUp,
   Type,
   Eye,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
 } from "lucide-react";
 
 /* ── Preset Themes ── */
@@ -205,6 +208,122 @@ function FontSelect({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+/* ── Social Preview Image Card ── */
+function PreviewImageCard() {
+  const { currentSite, uploadSiteImage, saveSiteMetaImage } = useSite();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const currentImage = currentSite?.metaImage;
+
+  const handleFile = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const url = await uploadSiteImage(file, "meta");
+      if (!url) {
+        toast.error("Upload failed");
+        return;
+      }
+      const ok = await saveSiteMetaImage(url);
+      if (ok) {
+        toast.success("Preview image updated. Allow 3–5 min for live site.");
+      } else {
+        toast.error("Couldn't save preview image. Please try again.");
+      }
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemove = async () => {
+    setBusy(true);
+    try {
+      const ok = await saveSiteMetaImage(null);
+      if (ok) toast.success("Preview image removed.");
+      else toast.error("Couldn't remove preview image.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <ImageIcon className="w-4 h-4 text-gold" />
+        <span className="text-sm font-semibold text-foreground">
+          Social Preview Image
+        </span>
+      </div>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Shown when your site link is shared on social media or messaging apps.
+        Recommended size: 1200×630 px.
+      </p>
+
+      <div
+        className="relative w-full rounded-lg border border-border overflow-hidden bg-[oklch(0.13_0.005_250)]"
+        style={{ aspectRatio: "1200 / 630" }}
+      >
+        {currentImage ? (
+          <img
+            src={currentImage}
+            alt="Social preview"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImageIcon className="w-6 h-6 opacity-60" />
+            <span className="text-[11px]">No preview image set</span>
+          </div>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files)}
+      />
+
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy}
+          onClick={() => fileInputRef.current?.click()}
+          className="flex-1"
+        >
+          {busy ? (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          ) : (
+            <Upload className="w-3.5 h-3.5 mr-1.5" />
+          )}
+          {currentImage ? "Replace" : "Upload"}
+        </Button>
+        {currentImage && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={handleRemove}
+            className="text-red-400 hover:text-red-300"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -519,6 +638,9 @@ export default function Themes() {
               </div>
             </div>
           </div>
+
+          {/* Social Preview Image (saves independently) */}
+          <PreviewImageCard />
 
           {/* Apply Button */}
           <Button
