@@ -23,6 +23,7 @@ import {
   X,
   Maximize2,
   Minimize2,
+  Upload,
 } from "lucide-react";
 
 /** Page selector dropdown (reused from SectionEditor) */
@@ -125,6 +126,7 @@ export default function VisualEditor() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const sectionImageRef = useRef<HTMLInputElement>(null);
 
   const [editMode, setEditMode] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
@@ -137,7 +139,26 @@ export default function VisualEditor() {
   const [addSectionType, setAddSectionType] = useState("services");
   const [addSectionTitle, setAddSectionTitle] = useState("");
   const [addSectionContent, setAddSectionContent] = useState("");
+  const [addSectionImageFile, setAddSectionImageFile] = useState<File | null>(null);
   const [adding, setAdding] = useState(false);
+
+  const addSectionImagePreview = useMemo(
+    () => (addSectionImageFile ? URL.createObjectURL(addSectionImageFile) : null),
+    [addSectionImageFile]
+  );
+  useEffect(() => {
+    return () => {
+      if (addSectionImagePreview) URL.revokeObjectURL(addSectionImagePreview);
+    };
+  }, [addSectionImagePreview]);
+
+  const resetAddSection = useCallback(() => {
+    setShowAddSection(false);
+    setAddSectionType("services");
+    setAddSectionTitle("");
+    setAddSectionContent("");
+    setAddSectionImageFile(null);
+  }, []);
 
   // Build the base URL for resolving relative paths in the editor iframe.
   // siteUrl from the API already includes the slug path (e.g. https://eternowebstudio.com/weschetattoo/)
@@ -409,25 +430,40 @@ export default function VisualEditor() {
 
   // ── Add section handler ──
   const handleAddSection = useCallback(async () => {
-    if (!addSectionTitle.trim()) {
-      toast.error("Title is required");
-      return;
-    }
-    if (addSectionType !== "photo-gallery" && !addSectionContent.trim()) {
-      toast.error("Content is required");
-      return;
+    if (addSectionType === "image") {
+      if (!addSectionImageFile) {
+        toast.error("Please select an image");
+        return;
+      }
+    } else {
+      if (!addSectionTitle.trim()) {
+        toast.error("Title is required");
+        return;
+      }
+      if (addSectionType !== "photo-gallery" && !addSectionContent.trim()) {
+        toast.error("Content is required");
+        return;
+      }
     }
     setAdding(true);
     try {
-      const contentToSend =
-        addSectionType === "photo-gallery" ? "Gallery section" : addSectionContent.trim();
+      let contentToSend: string;
+      if (addSectionType === "image") {
+        const imageUrl = await uploadSiteImage(addSectionImageFile!, "sections");
+        if (!imageUrl) {
+          toast.error("Image upload failed");
+          return;
+        }
+        contentToSend = imageUrl;
+      } else if (addSectionType === "photo-gallery") {
+        contentToSend = "Gallery section";
+      } else {
+        contentToSend = addSectionContent.trim();
+      }
       const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), contentToSend);
       if (ok) {
         toast.success("Section added! Allow 3\u20135 min for live site.");
-        setShowAddSection(false);
-        setAddSectionType("services");
-        setAddSectionTitle("");
-        setAddSectionContent("");
+        resetAddSection();
         await refreshHtml();
       } else {
         toast.error("Failed to add section.");
@@ -437,7 +473,7 @@ export default function VisualEditor() {
     } finally {
       setAdding(false);
     }
-  }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, refreshHtml]);
+  }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, addSectionImageFile, uploadSiteImage, refreshHtml, resetAddSection]);
 
   // ── Loading states ──
   if (loading && !siteHtml) {
@@ -601,12 +637,7 @@ export default function VisualEditor() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="font-heading text-lg font-bold text-foreground">Add New Section</h2>
               <button
-                onClick={() => {
-                  setShowAddSection(false);
-                  setAddSectionType("services");
-                  setAddSectionTitle("");
-                  setAddSectionContent("");
-                }}
+                onClick={resetAddSection}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -623,6 +654,7 @@ export default function VisualEditor() {
                   className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
                 >
                   <option value="photo-gallery">Photo Gallery</option>
+                  <option value="image">Image</option>
                   <option value="services">Services / Pricing</option>
                   <option value="faq">FAQ</option>
                   <option value="testimonials">Testimonials</option>
@@ -633,17 +665,69 @@ export default function VisualEditor() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                  Title
+                  {addSectionType === "image" ? "Caption (optional)" : "Title"}
                 </label>
                 <input
                   type="text"
                   value={addSectionTitle}
                   onChange={(e) => setAddSectionTitle(e.target.value)}
-                  placeholder="e.g. Our Services"
+                  placeholder={addSectionType === "image" ? "Describe the image (used as alt text)" : "e.g. Our Services"}
                   className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
                 />
               </div>
-              {addSectionType !== "photo-gallery" && (
+              {addSectionType === "image" && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                    Image
+                  </label>
+                  <input
+                    ref={sectionImageRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f && !f.type.startsWith("image/")) {
+                        toast.error("Please select an image file");
+                        return;
+                      }
+                      setAddSectionImageFile(f || null);
+                      if (sectionImageRef.current) sectionImageRef.current.value = "";
+                    }}
+                  />
+                  {addSectionImagePreview ? (
+                    <div className="relative rounded-md overflow-hidden border border-border bg-[oklch(0.13_0.005_250)]">
+                      <img
+                        src={addSectionImagePreview}
+                        alt="Selected"
+                        className="w-full max-h-64 object-contain"
+                      />
+                      <div className="flex items-center justify-between px-3 py-2 border-t border-border">
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {addSectionImageFile?.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAddSectionImageFile(null)}
+                          className="text-[11px] text-red-400 hover:text-red-300"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => sectionImageRef.current?.click()}
+                      className="w-full flex flex-col items-center justify-center gap-2 px-3 py-8 bg-input border border-dashed border-border rounded-md text-muted-foreground hover:text-foreground hover:border-gold-dim transition-colors"
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span className="text-xs">Click to upload an image</span>
+                    </button>
+                  )}
+                </div>
+              )}
+              {addSectionType !== "photo-gallery" && addSectionType !== "image" && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                     Content
@@ -662,12 +746,7 @@ export default function VisualEditor() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setShowAddSection(false);
-                  setAddSectionType("services");
-                  setAddSectionTitle("");
-                  setAddSectionContent("");
-                }}
+                onClick={resetAddSection}
                 disabled={adding}
                 className="border-border text-muted-foreground hover:text-foreground"
               >
