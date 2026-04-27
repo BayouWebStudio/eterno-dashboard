@@ -114,6 +114,7 @@ export default function VisualEditor() {
     deleteSiteSection,
     deleteArtist,
     addSiteSection,
+    reorderSections,
     deleteGalleryImage,
     saveGalleryOrder,
     refreshHtml,
@@ -227,6 +228,10 @@ export default function VisualEditor() {
 
         case "section-delete":
           handleSectionDelete(data);
+          break;
+
+        case "sections-reorder":
+          handleSectionsReorder(data);
           break;
 
         case "artist-delete":
@@ -382,6 +387,25 @@ export default function VisualEditor() {
       }
     },
     [deleteGalleryImage, saveGalleryOrder, refreshHtml]
+  );
+
+  // ── Sections reorder handler ──
+  const handleSectionsReorder = useCallback(
+    async (data: { sectionOrder: string[] }) => {
+      if (!Array.isArray(data.sectionOrder) || data.sectionOrder.length === 0) return;
+      try {
+        const ok = await reorderSections(data.sectionOrder);
+        if (ok) {
+          toast.success("Section moved. Allow 3–5 min for live site.");
+          refreshHtml();
+        } else {
+          toast.error("Failed to move section.");
+        }
+      } catch {
+        toast.error("Failed to move section.");
+      }
+    },
+    [reorderSections, refreshHtml]
   );
 
   // ── Section delete handler ──

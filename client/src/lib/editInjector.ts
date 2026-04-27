@@ -821,10 +821,13 @@ const EDIT_JS = `
     }
   }
 
-  // ── Section controls (delete) ──
+  // ── Section controls (delete + reorder) ──
   function setupSections() {
     var sections = document.querySelectorAll('section[id], [data-section], section[class]');
     var processed = new Set();
+    // Collect movable section IDs (in document order, excluding hero/footer) so
+    // ↑/↓ buttons can compute the new order without parent-side DOM access.
+    var movableIds = [];
 
     sections.forEach(function(sec) {
       var id = sec.id || (sec.dataset && sec.dataset.section) || '';
@@ -852,8 +855,61 @@ const EDIT_JS = `
 
       if (id === 'page-hero' || id === 'hero' || id === 'footer') return;
 
+      movableIds.push(id);
+    });
+
+    function moveSection(currentId, direction) {
+      var idx = movableIds.indexOf(currentId);
+      if (idx < 0) return;
+      var swapWith = direction === 'up' ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= movableIds.length) return;
+      var newOrder = movableIds.slice();
+      var tmp = newOrder[idx];
+      newOrder[idx] = newOrder[swapWith];
+      newOrder[swapWith] = tmp;
+      post({ type: 'sections-reorder', sectionOrder: newOrder });
+    }
+
+    movableIds.forEach(function(id, idx) {
+      // Re-resolve the section element by id (we already filtered above)
+      var sec = document.getElementById(id);
+      if (!sec) {
+        // Fallback: locate by data-section or numeric "section-N" index
+        sec = document.querySelector('[data-section="' + id + '"]');
+        if (!sec && /^section-\d+$/.test(id)) {
+          var n = parseInt(id.split('-')[1], 10);
+          var allSec = document.querySelectorAll('section');
+          if (allSec[n]) sec = allSec[n];
+        }
+      }
+      if (!sec) return;
+
       var controls = document.createElement('div');
       controls.className = 've-section-controls';
+
+      if (idx > 0) {
+        var upBtn = document.createElement('button');
+        upBtn.className = 've-section-btn';
+        upBtn.textContent = '↑ Move Up';
+        upBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          moveSection(id, 'up');
+        });
+        controls.appendChild(upBtn);
+      }
+
+      if (idx < movableIds.length - 1) {
+        var downBtn = document.createElement('button');
+        downBtn.className = 've-section-btn';
+        downBtn.textContent = '↓ Move Down';
+        downBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          moveSection(id, 'down');
+        });
+        controls.appendChild(downBtn);
+      }
 
       var delBtn = document.createElement('button');
       delBtn.className = 've-section-btn danger';
