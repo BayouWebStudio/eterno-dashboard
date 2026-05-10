@@ -193,22 +193,25 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       const res = await authFetch(`/api/dashboard/info?_t=${Date.now()}`);
       const data = await res.json();
 
-      if (!data.found || !data.siteSlug || !data.siteBuilt || data.siteSlug.endsWith("_pending")) {
+      const siteSlug = data.siteSlug || data.slug;
+      const siteBuilt = data.siteBuilt ?? data.built ?? (data.status ? data.status === "built" : Boolean(siteSlug));
+
+      if (!data.found || !siteSlug || !siteBuilt || siteSlug.endsWith("_pending")) {
         setOnboardingStatus("none");
         setCurrentSite(null);
         return;
       }
 
       setCurrentSite({
-        slug: data.siteSlug,
-        name: data.siteSlug,
-        domain: data.domain || `eternowebstudio.com/${data.siteSlug}`,
+        slug: siteSlug,
+        name: data.name || siteSlug,
+        domain: data.domain || `eternowebstudio.com/${siteSlug}`,
         plan: data.plan || "free",
         theme: data.theme,
         lang: data.lang,
         igHandle: data.igHandle,
         siteUrl: data.siteUrl,
-        siteBuilt: data.siteBuilt,
+        siteBuilt,
         hasAgent: data.hasAgent,
         newBookings: data.newBookings ?? 0,
         pendingTestimonials: data.pendingTestimonials ?? 0,
@@ -216,7 +219,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         autoGalleryLastRun: data.autoGalleryLastRun ?? null,
       });
       // Tag all subsequent Sentry errors with this client's slug + email
-      setSentryUser(data.siteSlug, data.email || null);
+      setSentryUser(siteSlug, data.email || null);
       setOnboardingStatus("ready");
     } catch (err) {
       console.error("[SiteContext] refreshInfo failed:", err);
