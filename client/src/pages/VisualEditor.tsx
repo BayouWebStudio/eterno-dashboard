@@ -641,17 +641,9 @@ export default function VisualEditor() {
 
   if (!siteHtml && !htmlLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 px-6 text-center">
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
         <AlertCircle className="w-8 h-8 text-muted-foreground" />
-        <p className="text-muted-foreground">The editor could not load your site HTML.</p>
-        {error && <p className="text-xs text-destructive max-w-md">{error}</p>}
-        <button
-          type="button"
-          onClick={() => refreshHtml("index.html")}
-          className="px-3 py-1.5 rounded-md bg-gold text-black text-xs font-medium hover:opacity-90 transition-opacity"
-        >
-          Retry loading editor
-        </button>
+        <p className="text-muted-foreground">No site HTML loaded. Select a site first.</p>
       </div>
     );
   }
