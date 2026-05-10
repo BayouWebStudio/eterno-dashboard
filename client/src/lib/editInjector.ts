@@ -26,6 +26,11 @@ body.edit-mode [data-editable].editing {
   background: oklch(0.75 0.12 85 / 8%);
   border-radius: 3px;
 }
+body.edit-mode [data-ve-pending] {
+  outline: 2px dashed oklch(0.75 0.12 85 / 60%);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 .ve-img-overlay {
   position: absolute;
   inset: 0;
@@ -80,21 +85,22 @@ body.edit-mode [data-section]:hover > .ve-section-controls { display: flex; }
 .ve-gallery-add-btn {
   display: none;
   position: absolute;
-  bottom: 12px;
+  top: 48px;
   right: 12px;
   background: oklch(0.75 0.12 85);
   color: #000;
   border: none;
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   font-family: system-ui, sans-serif;
   z-index: 1001;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
-body.edit-mode .ve-gallery-section:hover .ve-gallery-add-btn { display: block; }
+.ve-gallery-add-btn:hover { background: oklch(0.80 0.14 85); transform: scale(1.04); }
+body.edit-mode .ve-gallery-add-btn { display: block; }
 .ve-gallery-del {
   position: absolute;
   top: 4px;
@@ -228,7 +234,6 @@ const EDIT_JS = `
   'use strict';
 
   var activeEl = null;
-  var originalText = '';
   var galleryOrderChanged = false;
   var originalGalleryOrder = [];
   var saveOrderBar = null;
@@ -259,13 +264,14 @@ const EDIT_JS = `
     if (cls.indexOf('masonry-grid') >= 0) return 'tattoo-gallery';
     if (cls.indexOf('gallery-section') >= 0) return 'gallery';
     if (cls.indexOf('gallery-grid') >= 0) return 'gallery';
-    if (cls.indexOf('page-hero') >= 0) return 'hero';
+    if (cls.indexOf('page-hero') >= 0) return 'page-hero';
+    if (cls.indexOf('booking-cta') >= 0) return 'booking-cta';
 
     var secMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-section(?:\\s|$)/i);
     if (secMatch) return secMatch[1];
 
     // Match container patterns but handle BEM double-dash (e.g. gallery-grid--preview → gallery-grid)
-    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container|preview|grid)(?:--[a-z]+)?(?:\\s|$)/i);
+    var containerMatch = cls.match(/(?:^|\\s)([a-z][a-z0-9-]*)-(?:content|area|wrapper|block|container|preview|grid|body)(?:--[a-z]+)?(?:\\s|$)/i);
     if (containerMatch) {
       var name = containerMatch[1].replace(/-+$/, '');
       if (['main', 'page', 'site', 'app', 'inner', 'outer', 'flex', 'grid'].indexOf(name) < 0) {
@@ -340,15 +346,16 @@ const EDIT_JS = `
     var cls = el.className || '';
 
     if (sectionId === 'hero' || sectionId === 'page-hero') {
+      if (cls.indexOf('section-label') >= 0) return 'section_label__' + sectionId;
       if (cls.indexOf('hero-eyebrow') >= 0) return 'hero_eyebrow';
       if (cls.indexOf('hero-title') >= 0 || cls.indexOf('hero-name') >= 0) return 'hero_title';
       if (cls.indexOf('hero-subtitle') >= 0 || cls.indexOf('hero-tagline') >= 0 || cls.indexOf('hero-sub') >= 0) return 'hero_subtitle';
       if (cls.indexOf('hero-cta') >= 0) return 'hero_cta_text';
-      if (tag === 'h1') return 'hero_title';
+      if (tag === 'h1') return sectionId === 'page-hero' ? 'section_title__' + sectionId : 'hero_title';
       if (tag === 'h2' || tag === 'h3') return 'hero_subtitle';
-      if (tag === 'p') return 'hero_subtitle';
+      if (tag === 'p') return sectionId === 'page-hero' ? 'section_label__' + sectionId : 'hero_subtitle';
       if (tag === 'a') return 'hero_cta_text';
-      return 'hero_title';
+      return sectionId === 'page-hero' ? 'section_title__' + sectionId : 'hero_title';
     }
 
     if (sectionId === 'about' || sectionId === 'nosotros') {
@@ -434,6 +441,8 @@ const EDIT_JS = `
     if (sectionId === 'instagram') return 'ig_handle';
 
     if (sectionId && sectionId !== 'unknown') {
+      // Check section-label class before tag-based fallback
+      if (cls.indexOf('section-label') >= 0) return 'section_label__' + sectionId;
       if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'section_title__' + sectionId;
       if (tag === 'p' || tag === 'blockquote' || tag === 'li') return sectionId + '__content';
       if (tag === 'a') return sectionId + '__link';
@@ -494,62 +503,114 @@ const EDIT_JS = `
         e.preventDefault();
         e.stopPropagation();
 
-        if (activeEl && activeEl !== el) {
-          finishEdit(activeEl);
-        }
-
         activeEl = el;
-        originalText = el.textContent;
+        // Store original text on first edit — don't overwrite if re-editing
+        if (!el.dataset.veOriginal) {
+          el.dataset.veOriginal = el.textContent;
+        }
         el.contentEditable = 'true';
         el.classList.add('editing');
         el.focus();
       });
 
       el.addEventListener('blur', function() {
-        if (activeEl === el) {
-          finishEdit(el);
+        el.contentEditable = 'false';
+        el.classList.remove('editing');
+        // Mark as pending if text changed from original
+        var orig = el.dataset.veOriginal;
+        if (orig !== undefined && el.textContent.trim() !== orig.trim()) {
+          el.dataset.vePending = 'true';
+        } else if (orig !== undefined) {
+          // Text was reverted to original — remove pending marker
+          delete el.dataset.vePending;
         }
+        if (activeEl === el) activeEl = null;
       });
 
       el.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          el.blur();
         }
         if (e.key === 'Escape') {
-          el.textContent = originalText;
-          el.blur();
+          // Revert this element only
+          if (el.dataset.veOriginal) {
+            el.textContent = el.dataset.veOriginal;
+            delete el.dataset.veOriginal;
+            delete el.dataset.vePending;
+          }
+          el.contentEditable = 'false';
+          el.classList.remove('editing');
+          if (activeEl === el) activeEl = null;
         }
       });
     });
   }
 
-  function finishEdit(el) {
-    el.contentEditable = 'false';
-    el.classList.remove('editing');
-    var newText = el.textContent.trim();
-    if (newText !== originalText.trim()) {
+  /** Save all pending edits and the active edit (called by Save button). */
+  function saveAllPending() {
+    // Close the active edit first so it gets marked as pending
+    if (activeEl) {
+      activeEl.contentEditable = 'false';
+      activeEl.classList.remove('editing');
+      var orig = activeEl.dataset.veOriginal;
+      if (orig !== undefined && activeEl.textContent.trim() !== orig.trim()) {
+        activeEl.dataset.vePending = 'true';
+      }
+      activeEl = null;
+    }
+
+    var pending = document.querySelectorAll('[data-ve-pending]');
+    if (pending.length === 0) {
+      showToast('No changes to save');
+      return;
+    }
+
+    // Collect all edits into a single batch message so the parent
+    // can save them sequentially (avoids GitHub SHA conflicts).
+    var edits = [];
+    for (var i = 0; i < pending.length; i++) {
+      var el = pending[i];
+      var origText = el.dataset.veOriginal || '';
+      var newText = el.textContent.trim();
+      if (newText === origText.trim()) continue;
+
       var key = findFieldKey(el);
       var sectionId = findSectionId(el);
-
-      // Allow nav_logo and footer_name even without a section — they're global elements
       var globalKeys = ['nav_logo', 'footer_name'];
-      if (sectionId === 'unknown' && globalKeys.indexOf(key) < 0) {
-        showToast('Could not identify section \\u2014 edit not saved');
-        return;
-      }
+      if (sectionId === 'unknown' && globalKeys.indexOf(key) < 0) continue;
 
-      post({
-        type: 'text-edit',
+      edits.push({
         sectionId: sectionId,
         key: key,
         value: newText,
-        originalValue: originalText.trim()
+        originalValue: origText.trim()
       });
-      showToast('Change saved');
+      // Clean up — this is now the new baseline
+      delete el.dataset.veOriginal;
+      delete el.dataset.vePending;
+    }
+
+    if (edits.length === 0) {
+      showToast('No changes to save');
+      return;
+    }
+
+    post({ type: 'batch-text-edit', edits: edits });
+    showToast(edits.length + ' change' + (edits.length !== 1 ? 's' : '') + ' saving...');
+  }
+
+  /** Revert all pending edits (called when switching to Preview). */
+  function revertAllPending() {
+    var pending = document.querySelectorAll('[data-ve-original]');
+    for (var i = 0; i < pending.length; i++) {
+      var el = pending[i];
+      el.textContent = el.dataset.veOriginal;
+      delete el.dataset.veOriginal;
+      delete el.dataset.vePending;
+      el.contentEditable = 'false';
+      el.classList.remove('editing');
     }
     activeEl = null;
-    originalText = '';
   }
 
   // ── Wrap images with swap overlay ──
@@ -574,27 +635,30 @@ const EDIT_JS = `
       img.parentNode.insertBefore(wrapper, img);
       wrapper.appendChild(img);
 
-      var overlay = document.createElement('div');
-      overlay.className = 've-img-overlay';
+      // Gallery images use delete + upload, not individual swap
+      if (!inGallery) {
+        var overlay = document.createElement('div');
+        overlay.className = 've-img-overlay';
 
-      var btn = document.createElement('button');
-      btn.className = 've-img-btn';
-      btn.textContent = 'Change Image';
-      btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var sectionId = findSectionId(img);
-        var imgKey = img.dataset.field || buildImageKey(img, sectionId);
-        post({
-          type: 'image-swap',
-          sectionId: sectionId,
-          currentSrc: img.src,
-          key: imgKey
+        var btn = document.createElement('button');
+        btn.className = 've-img-btn';
+        btn.textContent = 'Change Image';
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var sectionId = findSectionId(img);
+          var imgKey = img.dataset.field || buildImageKey(img, sectionId);
+          post({
+            type: 'image-swap',
+            sectionId: sectionId,
+            currentSrc: img.src,
+            key: imgKey
+          });
         });
-      });
 
-      overlay.appendChild(btn);
-      wrapper.appendChild(overlay);
+        overlay.appendChild(btn);
+        wrapper.appendChild(overlay);
+      }
 
       // Gallery delete button — add to ALL gallery images
       if (inGallery) {
@@ -633,6 +697,8 @@ const EDIT_JS = `
       '.gallery-grid, .masonry-grid, .gallery-body, [class*="gallery-section"]'
     );
     galleryEls.forEach(function(el) {
+      // Skip if this element or an ancestor already has the gallery button
+      if (el.querySelector('.ve-gallery-add-btn') || el.closest('.ve-gallery-section')) return;
       el.classList.add('ve-gallery-section');
       var addBtn = document.createElement('button');
       addBtn.className = 've-gallery-add-btn';
@@ -894,12 +960,11 @@ const EDIT_JS = `
         document.body.classList.add('edit-mode');
       } else {
         document.body.classList.remove('edit-mode');
-        if (activeEl) {
-          activeEl.contentEditable = 'false';
-          activeEl.classList.remove('editing');
-          activeEl = null;
-        }
+        revertAllPending();
       }
+    }
+    if (e.data && e.data.type === 'trigger-save') {
+      saveAllPending();
     }
     if (e.data && e.data.type === 'refresh-gallery') {
       post({ type: 'request-refresh' });

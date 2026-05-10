@@ -20,21 +20,28 @@ import {
   Check,
   Plus,
   RefreshCw,
+  Save,
   X,
   Maximize2,
   Minimize2,
+  Trash2,
 } from "lucide-react";
+
+/** Pages that cannot be deleted (core site pages) */
+const PROTECTED_PAGES = new Set(["index.html", "404.html", "privacy.html", "booking.html"]);
 
 /** Page selector dropdown (reused from SectionEditor) */
 function PageSelector({
   availablePages,
   currentPage,
   onSwitch,
+  onDelete,
   disabled,
 }: {
   availablePages: string[];
   currentPage: string;
   onSwitch: (page: string) => void;
+  onDelete: (page: string) => void;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -75,25 +82,43 @@ function PageSelector({
         <div className="absolute top-full left-0 mt-1 w-56 bg-card border border-border rounded-lg shadow-xl z-50 py-1 max-h-80 overflow-y-auto">
           {availablePages.map((page) => {
             const isActive = page === currentPage;
+            const isDeletable = !PROTECTED_PAGES.has(page.toLowerCase());
             return (
-              <button
+              <div
                 key={page}
-                onClick={() => {
-                  if (!isActive) onSwitch(page);
-                  setOpen(false);
-                }}
                 className={`
-                  w-full text-left flex items-center gap-2 px-3 py-2 text-sm transition-colors
+                  group flex items-center gap-2 px-3 py-2 text-sm transition-colors
                   ${isActive
                     ? "bg-[oklch(0.19_0.005_250)] text-gold"
                     : "text-foreground hover:bg-[oklch(0.16_0.005_250)] hover:text-gold"
                   }
                 `}
               >
-                <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-gold" : "text-muted-foreground"}`} />
-                <span className="font-medium">{getPageLabel(page)}</span>
-                {isActive && <Check className="w-3.5 h-3.5 ml-auto text-gold" />}
-              </button>
+                <button
+                  onClick={() => {
+                    if (!isActive) onSwitch(page);
+                    setOpen(false);
+                  }}
+                  className="flex-1 text-left flex items-center gap-2 cursor-pointer"
+                >
+                  <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-gold" : "text-muted-foreground"}`} />
+                  <span className="font-medium">{getPageLabel(page)}</span>
+                  {isActive && <Check className="w-3.5 h-3.5 ml-auto text-gold" />}
+                </button>
+                {isDeletable && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(page);
+                      setOpen(false);
+                    }}
+                    title={`Delete ${getPageLabel(page)}`}
+                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -113,6 +138,9 @@ export default function VisualEditor() {
     deleteSiteSection,
     deleteArtist,
     addSiteSection,
+    addParagraph,
+    deletePage,
+    restorePage,
     deleteGalleryImage,
     saveGalleryOrder,
     refreshHtml,
@@ -128,16 +156,46 @@ export default function VisualEditor() {
 
   const [editMode, setEditMode] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
-  const [pendingImageSwap, setPendingImageSwap] = useState<{ sectionId: string; key: string } | null>(null);
+  const [pendingImageSwap, setPendingImageSwap] = useState<{ sectionId: string; key: string; currentSrc?: string } | null>(null);
   const [pendingGalleryUpload, setPendingGalleryUpload] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // ── Add Section state ──
   const [showAddSection, setShowAddSection] = useState(false);
-  const [addSectionType, setAddSectionType] = useState("services");
+  const [addSectionType, setAddSectionType] = useState("text-block");
   const [addSectionTitle, setAddSectionTitle] = useState("");
   const [addSectionContent, setAddSectionContent] = useState("");
+  const [addSectionPosition, setAddSectionPosition] = useState("bottom");
   const [adding, setAdding] = useState(false);
+
+  // ── Add Text (paragraph inside existing section) state ──
+  const [showAddText, setShowAddText] = useState(false);
+  const [addTextSectionId, setAddTextSectionId] = useState("");
+  const [addTextContent, setAddTextContent] = useState("");
+  const [addTextPosition, setAddTextPosition] = useState("bottom");
+  const [addingText, setAddingText] = useState(false);
+
+  // ── Parse sections on the current page for position dropdown ──
+  const pageSections = useMemo(() => {
+    if (!siteHtml) return [] as Array<{ id: string; label: string }>;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(siteHtml, "text/html");
+      const sections = Array.from(doc.querySelectorAll("main section[id]"))
+        .map((s) => {
+          const id = s.id;
+          if (!id) return null;
+          // Prefer visible heading text, fall back to id
+          const heading = s.querySelector("h1, h2, h3");
+          const label = heading?.textContent?.trim() || id.replace(/-/g, " ");
+          return { id, label: label.length > 40 ? label.slice(0, 40) + "…" : label };
+        })
+        .filter((s): s is { id: string; label: string } => s !== null);
+      return sections;
+    } catch {
+      return [];
+    }
+  }, [siteHtml]);
 
   // Build the base URL for resolving relative paths in the editor iframe.
   // siteUrl from the API already includes the slug path (e.g. https://eternowebstudio.com/weschetattoo/)
@@ -169,7 +227,16 @@ export default function VisualEditor() {
     }
   }, [editMode]);
 
+  // Trigger save on active edit in iframe
+  const triggerSave = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage({ type: "trigger-save" }, "*");
+  }, []);
+
   // ── Handle messages from iframe ──
+  // Use a ref to always call the latest handler versions, avoiding stale closures
+  // from the initial render (when currentSite is still null/loading).
+  const handlersRef = useRef<Record<string, Function>>({});
+
   useEffect(() => {
     function handleMessage(e: MessageEvent) {
       // Accept messages from same origin OR srcdoc iframes (origin "null")
@@ -183,11 +250,15 @@ export default function VisualEditor() {
           break;
 
         case "text-edit":
-          handleTextEdit(data);
+          handlersRef.current.handleTextEdit?.(data);
+          break;
+
+        case "batch-text-edit":
+          handlersRef.current.handleBatchTextEdit?.(data.edits);
           break;
 
         case "image-swap":
-          setPendingImageSwap({ sectionId: data.sectionId, key: data.key });
+          setPendingImageSwap({ sectionId: data.sectionId, key: data.key, currentSrc: data.currentSrc });
           fileInputRef.current?.click();
           break;
 
@@ -197,23 +268,23 @@ export default function VisualEditor() {
           break;
 
         case "gallery-delete":
-          handleGalleryDelete(data);
+          handlersRef.current.handleGalleryDelete?.(data);
           break;
 
         case "gallery-reorder":
-          handleGalleryReorder(data);
+          handlersRef.current.handleGalleryReorder?.(data);
           break;
 
         case "section-delete":
-          handleSectionDelete(data);
+          handlersRef.current.handleSectionDelete?.(data);
           break;
 
         case "artist-delete":
-          handleArtistDelete(data);
+          handlersRef.current.handleArtistDelete?.(data);
           break;
 
         case "request-refresh":
-          refreshHtml();
+          handlersRef.current.refreshHtml?.();
           break;
       }
     }
@@ -232,6 +303,7 @@ export default function VisualEditor() {
         const ok = await saveSiteField(data.key, payload);
         if (ok) {
           toast.success("Text updated. Allow 3\u20135 min for live site.");
+          refreshHtml();
         } else {
           toast.error(`Save failed for key "${data.key}" in section "${data.sectionId}". Try refreshing the page.`);
         }
@@ -240,7 +312,35 @@ export default function VisualEditor() {
         toast.error(`Save error: ${msg}`);
       }
     },
-    [saveSiteField]
+    [saveSiteField, refreshHtml]
+  );
+
+  // ── Batch text edit handler — saves edits sequentially to avoid SHA conflicts ──
+  const handleBatchTextEdit = useCallback(
+    async (edits: Array<{ sectionId: string; key: string; value: string; originalValue?: string }>) => {
+      let succeeded = 0;
+      let failed = 0;
+      for (const edit of edits) {
+        try {
+          const payload = edit.originalValue ? `${edit.value}|||${edit.originalValue}` : edit.value;
+          const ok = await saveSiteField(edit.key, payload);
+          if (ok) {
+            succeeded++;
+          } else {
+            failed++;
+          }
+        } catch {
+          failed++;
+        }
+      }
+      if (failed === 0) {
+        toast.success(`${succeeded} change${succeeded !== 1 ? "s" : ""} saved. Allow 3\u20135 min for live site.`);
+      } else {
+        toast.error(`${succeeded} saved, ${failed} failed. Try refreshing and saving again.`);
+      }
+      refreshHtml();
+    },
+    [saveSiteField, refreshHtml]
   );
 
   // ── Image swap handler ──
@@ -255,7 +355,9 @@ export default function VisualEditor() {
         const folder = pendingImageSwap.key.includes("hero") ? "hero" : "img";
         const url = await uploadSiteImage(result.file, folder);
         if (url) {
-          await saveSiteField(pendingImageSwap.key, url);
+          // Pass oldSrc so backend can find the exact image to replace
+          const payload = pendingImageSwap.currentSrc ? `${url}|||${pendingImageSwap.currentSrc}` : url;
+          await saveSiteField(pendingImageSwap.key, payload);
           toast.success("Image updated. Allow 3\u20135 min for live site.");
           refreshHtml();
         } else {
@@ -399,12 +501,61 @@ export default function VisualEditor() {
     [deleteArtist, refreshHtml]
   );
 
+  // Keep handlersRef in sync so the message listener always calls the latest versions
+  handlersRef.current = { handleTextEdit, handleBatchTextEdit, handleGalleryDelete, handleGalleryReorder, handleSectionDelete, handleArtistDelete, refreshHtml };
+
   // ── Page switch handler ──
   const handlePageSwitch = useCallback(
     async (page: string) => {
       await switchPage(page);
     },
     [switchPage]
+  );
+
+  // ── Delete page handler ──
+  const [deletingPage, setDeletingPage] = useState<string | null>(null);
+
+  const handleDeletePage = useCallback(
+    async (page: string) => {
+      const label = getPageLabel(page);
+      const confirmed = window.confirm(
+        `Delete the "${label}" page?\n\nThis will remove the page and all links to it from other pages.\n\nYou'll have 30 seconds to undo.`
+      );
+      if (!confirmed) return;
+      setDeletingPage(page);
+      try {
+        const result = await deletePage(page);
+        if (result.ok) {
+          // If the deleted page was the current one, switch to index.html
+          if (page === currentPage) {
+            await switchPage("index.html");
+          }
+          await refreshHtml();
+          toast.success(`"${label}" deleted.`, {
+            duration: 30000,
+            action: {
+              label: "Undo",
+              onClick: async () => {
+                const restoreResult = await restorePage(page);
+                if (restoreResult.ok) {
+                  toast.success(`"${label}" restored. Allow 3\u20135 min for live site.`);
+                  await refreshHtml();
+                } else {
+                  toast.error(restoreResult.error || "Failed to restore page.");
+                }
+              },
+            },
+          });
+        } else {
+          toast.error(result.error || "Failed to delete page.");
+        }
+      } catch {
+        toast.error("Failed to delete page.");
+      } finally {
+        setDeletingPage(null);
+      }
+    },
+    [deletePage, restorePage, currentPage, switchPage, refreshHtml]
   );
 
   // ── Add section handler ──
@@ -421,13 +572,16 @@ export default function VisualEditor() {
     try {
       const contentToSend =
         addSectionType === "photo-gallery" ? "Gallery section" : addSectionContent.trim();
-      const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), contentToSend);
+      // Position only matters for text-block type
+      const positionToSend = addSectionType === "text-block" ? addSectionPosition : undefined;
+      const ok = await addSiteSection(addSectionType, addSectionTitle.trim(), contentToSend, positionToSend);
       if (ok) {
         toast.success("Section added! Allow 3\u20135 min for live site.");
         setShowAddSection(false);
-        setAddSectionType("services");
+        setAddSectionType("text-block");
         setAddSectionTitle("");
         setAddSectionContent("");
+        setAddSectionPosition("bottom");
         await refreshHtml();
       } else {
         toast.error("Failed to add section.");
@@ -437,7 +591,44 @@ export default function VisualEditor() {
     } finally {
       setAdding(false);
     }
-  }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, refreshHtml]);
+  }, [addSiteSection, addSectionType, addSectionTitle, addSectionContent, addSectionPosition, refreshHtml]);
+
+  // ── Add Text (paragraph to existing section) handler ──
+  const handleAddText = useCallback(async () => {
+    if (!addTextSectionId) {
+      toast.error("Pick which section to add text to");
+      return;
+    }
+    if (!addTextContent.trim()) {
+      toast.error("Text is required");
+      return;
+    }
+    setAddingText(true);
+    try {
+      const result = await addParagraph(addTextSectionId, addTextContent.trim(), addTextPosition);
+      if (result.ok) {
+        toast.success("Text added! Allow 3\u20135 min for live site.");
+        setShowAddText(false);
+        setAddTextSectionId("");
+        setAddTextContent("");
+        setAddTextPosition("bottom");
+        await refreshHtml();
+      } else {
+        toast.error(result.error || "Failed to add text.");
+      }
+    } catch {
+      toast.error("Failed to add text.");
+    } finally {
+      setAddingText(false);
+    }
+  }, [addParagraph, addTextSectionId, addTextContent, addTextPosition, refreshHtml]);
+
+  // Pre-select the first section when opening the Add Text modal
+  useEffect(() => {
+    if (showAddText && !addTextSectionId && pageSections.length > 0) {
+      setAddTextSectionId(pageSections[0].id);
+    }
+  }, [showAddText, addTextSectionId, pageSections]);
 
   // ── Loading states ──
   if (loading && !siteHtml) {
@@ -468,7 +659,8 @@ export default function VisualEditor() {
               availablePages={availablePages}
               currentPage={currentPage}
               onSwitch={handlePageSwitch}
-              disabled={htmlLoading}
+              onDelete={handleDeletePage}
+              disabled={htmlLoading || deletingPage !== null}
             />
           )}
 
@@ -497,6 +689,25 @@ export default function VisualEditor() {
               Preview
             </button>
           </div>
+
+          {/* Save button — visible in edit mode, with attention bubble */}
+          {editMode && (
+            <div className="relative">
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gold text-black text-xs font-semibold px-2.5 py-1 rounded-md shadow-lg animate-[fadeOut_4s_ease-in-out_forwards] pointer-events-none">
+                Click here to save!
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gold" />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={triggerSave}
+                className="border-gold/40 text-gold hover:bg-gold hover:text-black transition-all"
+              >
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+                Save
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -515,16 +726,30 @@ export default function VisualEditor() {
             </span>
           )}
 
-          {/* Add Section */}
+          {/* Add Text — adds a paragraph inside an existing section */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowAddSection(true)}
-            className="border-border text-muted-foreground hover:text-gold hover:border-gold-dim"
+            onClick={() => setShowAddText(true)}
+            disabled={pageSections.length === 0}
+            className="border-gold/50 text-gold hover:bg-gold hover:text-black transition-all"
+            title={pageSections.length === 0 ? "No sections on this page" : "Add text to an existing section"}
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Add Section
+            Add Text
           </Button>
+
+          {/* Add Section — styled prominently so users notice it */}
+          <div className="relative">
+            <Button
+              size="sm"
+              onClick={() => setShowAddSection(true)}
+              className="bg-gold text-black hover:bg-gold/90 font-semibold shadow-md hover:shadow-lg transition-all animate-[pulse_2.5s_ease-in-out_infinite]"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Add Section
+            </Button>
+          </div>
 
           {/* Refresh */}
           <Button
@@ -553,7 +778,7 @@ export default function VisualEditor() {
       {editMode && (
         <div className="px-4 py-1.5 bg-[oklch(0.75_0.12_85/8%)] border-b border-gold-dim/25 flex-shrink-0">
           <p className="text-xs text-gold-dim">
-            <strong className="text-gold">Edit Mode</strong> — Click any text to edit it. Hover images to swap them. Hover sections for controls.
+            <strong className="text-gold">Edit Mode</strong> — Click any text to edit. Make all your changes, then click <strong className="text-gold">Save</strong> when you're done.
           </p>
         </div>
       )}
@@ -603,9 +828,10 @@ export default function VisualEditor() {
               <button
                 onClick={() => {
                   setShowAddSection(false);
-                  setAddSectionType("services");
+                  setAddSectionType("text-block");
                   setAddSectionTitle("");
                   setAddSectionContent("");
+                  setAddSectionPosition("bottom");
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -622,13 +848,14 @@ export default function VisualEditor() {
                   onChange={(e) => setAddSectionType(e.target.value)}
                   className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
                 >
-                  <option value="photo-gallery">Photo Gallery</option>
-                  <option value="services">Services / Pricing</option>
-                  <option value="faq">FAQ</option>
-                  <option value="testimonials">Testimonials</option>
-                  <option value="hours">Hours</option>
-                  <option value="team">Team</option>
-                  <option value="custom">Custom Text</option>
+                  <option value="text-block">Text Block (on current page)</option>
+                  <option value="photo-gallery">Photo Gallery (new page)</option>
+                  <option value="services">Services / Pricing (new page)</option>
+                  <option value="faq">FAQ (new page)</option>
+                  <option value="testimonials">Testimonials (new page)</option>
+                  <option value="hours">Hours (new page)</option>
+                  <option value="team">Team (new page)</option>
+                  <option value="custom">Custom Text (new page)</option>
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -639,23 +866,48 @@ export default function VisualEditor() {
                   type="text"
                   value={addSectionTitle}
                   onChange={(e) => setAddSectionTitle(e.target.value)}
-                  placeholder="e.g. Our Services"
+                  placeholder={addSectionType === "text-block" ? "e.g. About Me" : "e.g. Our Services"}
                   className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
                 />
               </div>
               {addSectionType !== "photo-gallery" && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                    Content
+                    {addSectionType === "text-block" ? "Text" : "Content"}
                   </label>
                   <textarea
                     value={addSectionContent}
                     onChange={(e) => setAddSectionContent(e.target.value)}
-                    placeholder="Describe the section content..."
+                    placeholder={addSectionType === "text-block" ? "Write your text here. Leave a blank line between paragraphs." : "Describe the section content..."}
                     rows={5}
                     className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[100px]"
                   />
                 </div>
+              )}
+              {addSectionType === "text-block" && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                      Where on the page?
+                    </label>
+                    <select
+                      value={addSectionPosition}
+                      onChange={(e) => setAddSectionPosition(e.target.value)}
+                      className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                    >
+                      <option value="top">At the top (before everything)</option>
+                      {pageSections.map((s) => (
+                        <option key={s.id} value={`after:${s.id}`}>
+                          After "{s.label}"
+                        </option>
+                      ))}
+                      <option value="bottom">At the bottom (end of page)</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    Adds a text section to <span className="font-semibold text-gold">{getPageLabel(currentPage)}</span> — no new page created.
+                  </p>
+                </>
               )}
             </div>
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
@@ -664,9 +916,10 @@ export default function VisualEditor() {
                 size="sm"
                 onClick={() => {
                   setShowAddSection(false);
-                  setAddSectionType("services");
+                  setAddSectionType("text-block");
                   setAddSectionTitle("");
                   setAddSectionContent("");
+                  setAddSectionPosition("bottom");
                 }}
                 disabled={adding}
                 className="border-border text-muted-foreground hover:text-foreground"
@@ -685,6 +938,102 @@ export default function VisualEditor() {
                   <Plus className="w-3.5 h-3.5 mr-1.5" />
                 )}
                 {adding ? "Adding..." : "Add Section"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Text modal — add paragraph inside an existing section */}
+      {showAddText && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="text-base font-semibold text-foreground">Add Text to a Section</h3>
+              <button
+                onClick={() => {
+                  setShowAddText(false);
+                  setAddTextSectionId("");
+                  setAddTextContent("");
+                  setAddTextPosition("bottom");
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Which section?
+                </label>
+                <select
+                  value={addTextSectionId}
+                  onChange={(e) => setAddTextSectionId(e.target.value)}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                >
+                  {pageSections.length === 0 && <option value="">No sections on this page</option>}
+                  {pageSections.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Text
+                </label>
+                <textarea
+                  value={addTextContent}
+                  onChange={(e) => setAddTextContent(e.target.value)}
+                  placeholder="Type your text. Leave a blank line between paragraphs."
+                  rows={5}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors resize-y min-h-[100px]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  Where in the section?
+                </label>
+                <select
+                  value={addTextPosition}
+                  onChange={(e) => setAddTextPosition(e.target.value)}
+                  className="w-full bg-input border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors"
+                >
+                  <option value="top">At the top of the section</option>
+                  <option value="bottom">At the bottom of the section</option>
+                </select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Adds a paragraph inside the existing section — not a new section.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowAddText(false);
+                  setAddTextSectionId("");
+                  setAddTextContent("");
+                  setAddTextPosition("bottom");
+                }}
+                disabled={addingText}
+                className="border-border text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddText}
+                disabled={addingText || pageSections.length === 0}
+                className="bg-gold text-[oklch(0.13_0.005_250)] hover:bg-gold/90 font-semibold"
+                size="sm"
+              >
+                {addingText ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {addingText ? "Adding..." : "Add Text"}
               </Button>
             </div>
           </div>
