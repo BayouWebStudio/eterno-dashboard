@@ -958,11 +958,18 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Load HTML when site is available ──
+  // Important: `refreshHtml` depends on `authFetch`, and Clerk can return a new
+  // `getToken` function on auth-state refreshes. If this effect depends on the
+  // whole `refreshHtml` callback, it can re-run on every auth refresh, abort the
+  // in-flight HTML request, and leave the editor with an empty `siteHtml` string
+  // ("No site HTML loaded"). Only reload automatically when the selected site
+  // slug changes; manual page switches/refreshes call `refreshHtml` directly.
   useEffect(() => {
     if (currentSite?.slug) {
       refreshHtml("index.html");
     }
-  }, [currentSite?.slug, refreshHtml]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSite?.slug]);
 
   return (
     <SiteContext.Provider
