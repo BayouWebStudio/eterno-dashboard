@@ -265,8 +265,13 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Failed to load site HTML");
+      // Make failures visible/retryable without clearing a previously loaded editor.
+      // If this is the first load, keep the spinner instead of flashing back to the
+      // misleading empty state; the Refresh button/next navigation can retry.
     } finally {
-      setHtmlLoading(false);
+      if (htmlAbortRef.current === controller && !controller.signal.aborted) {
+        setHtmlLoading(false);
+      }
     }
   }, [convexHttpUrl, currentSite?.slug, authFetch]);
 
