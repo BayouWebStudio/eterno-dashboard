@@ -55,7 +55,12 @@ const PRESETS: ThemePreset[] = [
 
   // — Warm / boutique —
   { id: "sunset",     name: "Sunset",     colors: { bg: "#1a0f0a", accent: "#ff8c42", text: "#f0e0d0", card: "#241610" } },
-  { id: "coastal",    name: "Coastal",    colors: { bg: "#eaf3f4", accent: "#3b7a80", text: "#12252a", card: "#ffffff" } },
+  // Coastal: dark-ocean palette (was a light bg previously, but our site templates
+  // hardcode a dark hero gradient + brightness(0.42) filter, which makes dark text
+  // unreadable on the hero. Until templates use CSS-var-driven overlays, light
+  // themes break the hero. Keep "Coastal" as a dark navy + soft-teal palette so
+  // it Just Works on every existing client site.
+  { id: "coastal",    name: "Coastal",    colors: { bg: "#0a1820", accent: "#5fb3a8", text: "#d8e8e6", card: "#0f2530" } },
   { id: "mocha",      name: "Mocha",      colors: { bg: "#1a130e", accent: "#d2956b", text: "#ece0d0", card: "#241c14" } },
   { id: "boutique",   name: "Boutique",   colors: { bg: "#f5eee4", accent: "#8b6c42", text: "#2a1f16", card: "#ffffff" } },
 ];
