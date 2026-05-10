@@ -246,9 +246,18 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       const res = await authFetch(`/api/dashboard/site-html?page=${encodeURIComponent(pageToLoad)}&_t=${Date.now()}`, {
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error(`Failed to load site HTML: ${res.status}`);
-      const data = await res.json();
-      const html = typeof data === "string" ? data : data.html || "";
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message = data?.error || data?.message || `Failed to load site HTML: ${res.status}`;
+        console.error("[SiteContext] site-html failed", { status: res.status, page: pageToLoad, message });
+        throw new Error(message);
+      }
+      const html = typeof data === "string" ? data : data?.html || "";
+      if (!html) {
+        console.error("[SiteContext] site-html returned empty HTML", { page: pageToLoad, keys: data && typeof data === "object" ? Object.keys(data) : typeof data, data });
+        setError("The editor could not load your site HTML. Please use Refresh, or contact support if it keeps happening.");
+        return;
+      }
       setSiteHtml(html);
 
       // Update multi-page state from response
